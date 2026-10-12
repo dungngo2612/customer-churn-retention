@@ -1,0 +1,33 @@
+# Local environment and secrets
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Python and tooling
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.idea/
+
+# Generated data and model artifacts
+/data/**
+!/data/.gitkeep
+/artifacts/**
+!/artifacts/.gitkeep
+*.csv
+*.tsv
+*.parquet
+*.feather
+*.joblib
+*.pkl
+*.pickle
+*.cbm
+*.onnx
