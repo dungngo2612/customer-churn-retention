@@ -1,0 +1,29 @@
+{
+  "_comment": "DEMO DATA - not from real model training",
+  "predictions": [
+    {
+      "customer_id": "CUST001",
+      "dataset_id": "demo_dataset_v1",
+      "scoring_run_id": "run_demo_20260101_120000",
+      "churn_probability": 0.73,
+      "model_version": "catboost_demo_v1",
+      "scored_at": "2026-01-15T10:30:00+00:00"
+    },
+    {
+      "customer_id": "CUST002",
+      "dataset_id": "demo_dataset_v1",
+      "scoring_run_id": "run_demo_20260101_120000",
+      "churn_probability": 0.12,
+      "model_version": "catboost_demo_v1",
+      "scored_at": "2026-01-15T10:30:01+00:00"
+    },
+    {
+      "customer_id": "CUST003",
+      "dataset_id": "demo_dataset_v1",
+      "scoring_run_id": "run_demo_20260101_120000",
+      "churn_probability": 0.45,
+      "model_version": "catboost_demo_v1",
+      "scored_at": "2026-01-15T10:30:02+00:00"
+    }
+  ]
+}
