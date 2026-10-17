@@ -192,6 +192,42 @@ def test_bundle_predictor_empty_batch(
     assert predictor.predict_batch(pd.DataFrame(), []) == []
 
 
+def test_save_bundle_refuses_overwrite_existing(tmp_path: Path) -> None:
+    """R03: saving a bundle twice to the same path must fail; first bundle unchanged."""
+    from unittest.mock import patch
+    from datetime import datetime, timezone
+
+    from churn_retention.ml.training.baseline import train_logistic
+
+    features = pd.DataFrame(
+        {"demo_x": [1.0, 2.0, 3.0, 4.0], "demo_cat": ["a", "b", "a", "b"]}
+    )
+    target = pd.Series([0, 1, 0, 1])
+    cfg = {
+        "numeric_features": ["demo_x"],
+        "categorical_features": ["demo_cat"],
+        "logistic": {"C": 1.0, "max_iter": 100},
+    }
+    pipeline = train_logistic(features, target, cfg, seed=42, class_weight=False)
+    schema = create_feature_schema(features, ["demo_x"], ["demo_cat"])
+    metadata = {"model_version": "logistic-20261017T120000-seed42"}
+
+    bundle_dir = tmp_path / "logistic-20261017T120000-seed42"
+    save_bundle(pipeline, bundle_dir, schema, metadata)
+
+    # Record the original contents
+    original_metadata = (bundle_dir / "metadata.json").read_bytes()
+    original_model = (bundle_dir / "model.pkl").read_bytes()
+
+    # Second save to same path must raise
+    with pytest.raises(FileExistsError, match=str(bundle_dir)):
+        save_bundle(pipeline, bundle_dir, schema, metadata)
+
+    # First bundle is unmodified
+    assert (bundle_dir / "metadata.json").read_bytes() == original_metadata
+    assert (bundle_dir / "model.pkl").read_bytes() == original_model
+
+
 def test_bundle_reload_in_fresh_python_process(
     demo_bundle: tuple[Path, Pipeline, pd.DataFrame, dict[str, Any]], tmp_path: Path
 ) -> None:

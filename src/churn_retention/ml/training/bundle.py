@@ -82,7 +82,12 @@ def save_bundle(
     metadata: dict,
 ) -> None:
     """Save model bundle to directory."""
-    bundle_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        bundle_dir.mkdir(parents=True, exist_ok=False)
+    except FileExistsError:
+        raise FileExistsError(
+            f"Bundle directory already exists: {bundle_dir}"
+        ) from None
 
     # Save pipeline
     with open(bundle_dir / "model.pkl", "wb") as f:
