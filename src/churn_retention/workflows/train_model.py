@@ -1,6 +1,8 @@
 import warnings
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -32,8 +34,10 @@ def validate_dataframe(
     numeric_cols: list[str],
     categorical_cols: list[str],
     target_col: str,
-    positive_label: str,
+    positive_label: Any,
     drop_cols: list[str],
+    *,
+    allowed_labels: Sequence[Any] | None = None,
 ) -> None:
     """
     Validate DataFrame schema and data quality.
@@ -41,6 +45,23 @@ def validate_dataframe(
     Raises:
         ValueError: If critical validation fails.
     """
+    groups = {
+        "numeric_cols": numeric_cols,
+        "categorical_cols": categorical_cols,
+        "drop_cols": drop_cols,
+        "target_col": [target_col],
+    }
+    memberships: dict[str, list[str]] = {}
+    for group, columns in groups.items():
+        for column in set(columns):
+            memberships.setdefault(column, []).append(group)
+    overlaps = [
+        f"{column!r}: {', '.join(names)}"
+        for column, names in sorted(memberships.items()) if len(names) > 1
+    ]
+    if overlaps:
+        raise ValueError(f"Overlapping column groups: {'; '.join(overlaps)}")
+
     # Check required columns exist
     required_cols = set(numeric_cols + categorical_cols + [target_col])
     missing_cols = required_cols - set(df.columns)
@@ -76,13 +97,17 @@ def validate_dataframe(
         raise ValueError(f"Target column '{target_col}' contains NaN values")
 
     target_values = df[target_col].unique()
-    if len(target_values) != 2:
+    if allowed_labels is not None:
+        unknown = df.loc[~df[target_col].isin(allowed_labels), target_col].unique().tolist()
+        if unknown:
+            raise ValueError(f"Unknown target labels in '{target_col}': {unknown}")
+    elif len(target_values) > 2:
         raise ValueError(
-            f"Target column '{target_col}' must have exactly 2 unique values, "
+            f"Target column '{target_col}' must have at most 2 unique values, "
             f"got {len(target_values)}: {target_values}"
         )
 
-    if positive_label not in target_values:
+    if allowed_labels is None and positive_label not in target_values:
         raise ValueError(
             f"positive_label '{positive_label}' not found in target column. "
             f"Values: {target_values}"
@@ -111,7 +136,6 @@ def prepare_features_and_target(
         y: Binary target Series (1 = positive_label, 0 = other)
     """
     # Encode target
-    negative_label = [v for v in df[target_col].unique() if v != positive_label][0]
     y = (df[target_col] == positive_label).astype(int)
 
     # Select and order features
@@ -191,7 +215,8 @@ def train_model(
     print(f"Loading validation data from {val_path}...")
     val_df = pd.read_csv(val_path)
     validate_dataframe(
-        val_df, numeric_cols, categorical_cols, target_col, positive_label, drop_cols
+        val_df, numeric_cols, categorical_cols, target_col, positive_label, drop_cols,
+        allowed_labels=train_df[target_col].unique().tolist(),
     )
     X_val, y_val = prepare_features_and_target(
         val_df, numeric_cols, categorical_cols, target_col, positive_label, drop_cols

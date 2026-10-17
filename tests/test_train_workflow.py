@@ -471,3 +471,47 @@ def test_workflow_keeps_mlflow_storage_in_tmp_path(
 
     assert artifact_path.is_relative_to(tmp_path)
     assert mlflow.get_tracking_uri() == f"sqlite:///{tmp_path}/mlflow.db"
+
+
+@pytest.mark.parametrize(
+    "numeric, categorical, dropped, column, groups",
+    [
+        (["demo_x"], ["demo_x"], [], "demo_x", ("numeric_cols", "categorical_cols")),
+        (["demo_x"], [], ["demo_x"], "demo_x", ("numeric_cols", "drop_cols")),
+        ([], ["demo_x"], ["demo_x"], "demo_x", ("categorical_cols", "drop_cols")),
+        (["demo_target"], [], [], "demo_target", ("numeric_cols", "target_col")),
+        ([], ["demo_target"], [], "demo_target", ("categorical_cols", "target_col")),
+        ([], [], ["demo_target"], "demo_target", ("drop_cols", "target_col")),
+    ],
+)
+def test_validate_rejects_overlapping_groups(
+    numeric: list[str], categorical: list[str], dropped: list[str],
+    column: str, groups: tuple[str, str],
+) -> None:
+    demo = pd.DataFrame({"demo_x": [1.0, 2.0], "demo_target": [0, 1]})
+    with pytest.raises(ValueError) as error:
+        validate_dataframe(demo, numeric, categorical, "demo_target", 1, dropped)
+    assert column in str(error.value)
+    assert all(group in str(error.value) for group in groups)
+
+
+def test_workflow_rejects_unknown_validation_labels(
+    synthetic_train_val_data: tuple[Path, Path], config_file: Path, tmp_path: Path,
+) -> None:
+    train_path, val_path = synthetic_train_val_data
+    validation = pd.read_csv(val_path)
+    validation.loc[validation["churn"] == "No", "churn"] = "demo-unknown"
+    validation.to_csv(val_path, index=False)
+    with pytest.raises(ValueError, match="Unknown target labels.*demo-unknown"):
+        train_model(
+            config_file, "logistic", False, 42, train_path, val_path, tmp_path / "bundles"
+        )
+    assert not (tmp_path / "bundles").exists()
+
+
+def test_validate_accepts_known_single_label() -> None:
+    demo = pd.DataFrame({"demo_x": [1.0], "demo_target": ["demo-stayed"]})
+    validate_dataframe(
+        demo, ["demo_x"], [], "demo_target", "demo-left", [],
+        allowed_labels=["demo-left", "demo-stayed"],
+    )
