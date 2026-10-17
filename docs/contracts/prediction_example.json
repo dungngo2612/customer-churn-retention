@@ -1,5 +1,7 @@
 {
-  "_comment": "DEMO DATA - not from real model training",
+  "_comment": "DEMO ONLY: all IDs and values are fabricated; not real model predictions.",
+  "scoring_run_id": "run_demo_20260101_120000",
+  "model_version": "catboost_demo_v1",
   "predictions": [
     {
       "customer_id": "CUST001",

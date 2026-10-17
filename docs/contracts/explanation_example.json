@@ -1,5 +1,7 @@
 {
-  "_comment": "DEMO DATA - not from real SHAP computation",
+  "_comment": "DEMO ONLY: all IDs and values are fabricated; not computed by SHAP.",
+  "customer_id": "CUST001",
+  "model_version": "catboost_demo_v1",
   "explanations": [
     {
       "customer_id": "CUST001",

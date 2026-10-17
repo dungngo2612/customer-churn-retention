@@ -1,8 +1,10 @@
+import json
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from churn_retention.contracts.http.scoring import (
     Explanation,
@@ -299,3 +301,22 @@ def test_explanation_list_requires_fields(
 
     assert exc_info.value.errors()[0]["loc"] == (field,)
     assert exc_info.value.errors()[0]["type"] == "missing"
+
+
+@pytest.mark.parametrize(
+    "filename, model",
+    [
+        ("prediction_example.json", PredictionBatch),
+        ("explanation_example.json", ExplanationList),
+    ],
+)
+def test_demo_json_examples_parse_with_contracts(
+    filename: str, model: type[BaseModel]
+) -> None:
+    example_path = Path(__file__).resolve().parents[1] / "docs" / "contracts" / filename
+    text = example_path.read_text(encoding="utf-8")
+    comment = json.loads(text)["_comment"].lower()
+
+    assert "demo" in comment
+    assert "fabricated" in comment
+    assert isinstance(model.model_validate_json(text), model)
