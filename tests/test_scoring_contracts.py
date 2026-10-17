@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -85,6 +86,8 @@ def test_prediction_missing_field():
 
 def test_prediction_batch_valid():
     batch = PredictionBatch(
+        scoring_run_id="run1",
+        model_version="v1",
         predictions=[
             Prediction(
                 customer_id="C001",
@@ -105,6 +108,8 @@ def test_prediction_batch_valid():
         ]
     )
     assert len(batch.predictions) == 2
+    assert batch.scoring_run_id == "run1"
+    assert batch.model_version == "v1"
 
 
 def test_explanation_valid_with_float_feature():
@@ -151,6 +156,8 @@ def test_explanation_missing_field():
 
 def test_explanation_list_valid():
     el = ExplanationList(
+        customer_id="C001",
+        model_version="v1",
         explanations=[
             Explanation(
                 customer_id="C001",
@@ -175,3 +182,120 @@ def test_explanation_list_valid():
         ]
     )
     assert len(el.explanations) == 2
+    assert el.customer_id == "C001"
+    assert el.model_version == "v1"
+
+
+@pytest.fixture
+def demo_prediction_payload() -> dict[str, Any]:
+    return {
+        "customer_id": "demo-customer-001",
+        "dataset_id": "demo-dataset",
+        "scoring_run_id": "demo-run",
+        "churn_probability": 0.5,
+        "model_version": "demo-model",
+        "scored_at": "2026-10-17T00:00:00+00:00",
+    }
+
+
+@pytest.fixture
+def demo_explanation_payload() -> dict[str, Any]:
+    return {
+        "customer_id": "demo-customer-001",
+        "model_version": "demo-model",
+        "feature_name": "demo-usage",
+        "feature_value": 10.0,
+        "contribution": 0.2,
+        "base_value": -0.5,
+        "explained_output": "log_odds",
+        "calibration_applied": "original",
+    }
+
+
+@pytest.mark.parametrize(
+    "scored_at", [datetime(2026, 10, 17), "2026-10-17T00:00:00"]
+)
+def test_prediction_rejects_missing_timezone(
+    scored_at: datetime | str, demo_prediction_payload: dict[str, Any]
+) -> None:
+    demo_prediction_payload["scored_at"] = scored_at
+
+    with pytest.raises(ValidationError) as exc_info:
+        Prediction.model_validate(demo_prediction_payload)
+
+    assert exc_info.value.errors()[0]["loc"] == ("scored_at",)
+    assert exc_info.value.errors()[0]["type"] == "timezone_aware"
+
+
+@pytest.mark.parametrize(
+    "missing_fields",
+    [
+        ("explained_output",),
+        ("calibration_applied",),
+        ("explained_output", "calibration_applied"),
+    ],
+)
+def test_explanation_requires_explicit_literals(
+    missing_fields: tuple[str, ...], demo_explanation_payload: dict[str, Any]
+) -> None:
+    for field in missing_fields:
+        del demo_explanation_payload[field]
+
+    with pytest.raises(ValidationError) as exc_info:
+        Explanation.model_validate(demo_explanation_payload)
+
+    assert {error["loc"] for error in exc_info.value.errors()} == {
+        (field,) for field in missing_fields
+    }
+    assert all(error["type"] == "missing" for error in exc_info.value.errors())
+
+
+@pytest.mark.parametrize(
+    "field, value", [("explained_output", "raw"), ("calibration_applied", "unknown")]
+)
+def test_explanation_rejects_invalid_literals(
+    field: str, value: str, demo_explanation_payload: dict[str, Any]
+) -> None:
+    demo_explanation_payload[field] = value
+
+    with pytest.raises(ValidationError) as exc_info:
+        Explanation.model_validate(demo_explanation_payload)
+
+    assert exc_info.value.errors()[0]["loc"] == (field,)
+    assert exc_info.value.errors()[0]["type"] == "literal_error"
+
+
+@pytest.mark.parametrize("field", ["scoring_run_id", "model_version", "predictions"])
+def test_prediction_batch_requires_fields(
+    field: str, demo_prediction_payload: dict[str, Any]
+) -> None:
+    payload = {
+        "scoring_run_id": "demo-run",
+        "model_version": "demo-model",
+        "predictions": [demo_prediction_payload],
+    }
+    del payload[field]
+
+    with pytest.raises(ValidationError) as exc_info:
+        PredictionBatch.model_validate(payload)
+
+    assert exc_info.value.errors()[0]["loc"] == (field,)
+    assert exc_info.value.errors()[0]["type"] == "missing"
+
+
+@pytest.mark.parametrize("field", ["customer_id", "model_version", "explanations"])
+def test_explanation_list_requires_fields(
+    field: str, demo_explanation_payload: dict[str, Any]
+) -> None:
+    payload = {
+        "customer_id": "demo-customer-001",
+        "model_version": "demo-model",
+        "explanations": [demo_explanation_payload],
+    }
+    del payload[field]
+
+    with pytest.raises(ValidationError) as exc_info:
+        ExplanationList.model_validate(payload)
+
+    assert exc_info.value.errors()[0]["loc"] == (field,)
+    assert exc_info.value.errors()[0]["type"] == "missing"

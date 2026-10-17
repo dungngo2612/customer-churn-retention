@@ -1,7 +1,6 @@
-from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, field_validator
 
 
 class Prediction(BaseModel):
@@ -10,7 +9,7 @@ class Prediction(BaseModel):
     scoring_run_id: str
     churn_probability: float
     model_version: str
-    scored_at: datetime
+    scored_at: AwareDatetime
 
     @field_validator("churn_probability")
     @classmethod
@@ -21,6 +20,8 @@ class Prediction(BaseModel):
 
 
 class PredictionBatch(BaseModel):
+    scoring_run_id: str
+    model_version: str
     predictions: list[Prediction]
 
 
@@ -36,4 +37,6 @@ class Explanation(BaseModel):
 
 
 class ExplanationList(BaseModel):
+    customer_id: str
+    model_version: str
     explanations: list[Explanation]
