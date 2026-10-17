@@ -320,3 +320,131 @@ def test_demo_json_examples_parse_with_contracts(
     assert "demo" in comment
     assert "fabricated" in comment
     assert isinstance(model.model_validate_json(text), model)
+
+
+def test_prediction_batch_validates_scoring_run_id_consistency():
+    """R04: PredictionBatch must validate that wrapper scoring_run_id matches all items."""
+    with pytest.raises(ValidationError) as exc_info:
+        PredictionBatch(
+            scoring_run_id="run1",
+            model_version="v1",
+            predictions=[
+                Prediction(
+                    customer_id="C001",
+                    dataset_id="ds1",
+                    scoring_run_id="run1",  # matches wrapper
+                    churn_probability=0.3,
+                    model_version="v1",
+                    scored_at=datetime.now(timezone.utc),
+                ),
+                Prediction(
+                    customer_id="C002",
+                    dataset_id="ds1",
+                    scoring_run_id="run2",  # MISMATCH
+                    churn_probability=0.7,
+                    model_version="v1",
+                    scored_at=datetime.now(timezone.utc),
+                ),
+            ]
+        )
+
+    assert "scoring_run_id" in str(exc_info.value)
+    assert "run2" in str(exc_info.value)
+
+
+def test_prediction_batch_validates_model_version_consistency():
+    """R04: PredictionBatch must validate that wrapper model_version matches all items."""
+    with pytest.raises(ValidationError) as exc_info:
+        PredictionBatch(
+            scoring_run_id="run1",
+            model_version="v1",
+            predictions=[
+                Prediction(
+                    customer_id="C001",
+                    dataset_id="ds1",
+                    scoring_run_id="run1",
+                    churn_probability=0.3,
+                    model_version="v1",  # matches wrapper
+                    scored_at=datetime.now(timezone.utc),
+                ),
+                Prediction(
+                    customer_id="C002",
+                    dataset_id="ds1",
+                    scoring_run_id="run1",
+                    churn_probability=0.7,
+                    model_version="v2",  # MISMATCH
+                    scored_at=datetime.now(timezone.utc),
+                ),
+            ]
+        )
+
+    assert "model_version" in str(exc_info.value)
+    assert "v2" in str(exc_info.value)
+
+
+def test_explanation_list_validates_customer_id_consistency():
+    """R04: ExplanationList must validate that wrapper customer_id matches all items."""
+    with pytest.raises(ValidationError) as exc_info:
+        ExplanationList(
+            customer_id="C001",
+            model_version="v1",
+            explanations=[
+                Explanation(
+                    customer_id="C001",  # matches wrapper
+                    model_version="v1",
+                    feature_name="f1",
+                    feature_value=10,
+                    contribution=0.1,
+                    base_value=0.0,
+                    explained_output="log_odds",
+                    calibration_applied="original",
+                ),
+                Explanation(
+                    customer_id="C002",  # MISMATCH
+                    model_version="v1",
+                    feature_name="f2",
+                    feature_value="cat",
+                    contribution=-0.2,
+                    base_value=0.0,
+                    explained_output="log_odds",
+                    calibration_applied="original",
+                ),
+            ]
+        )
+
+    assert "customer_id" in str(exc_info.value)
+    assert "C002" in str(exc_info.value)
+
+
+def test_explanation_list_validates_model_version_consistency():
+    """R04: ExplanationList must validate that wrapper model_version matches all items."""
+    with pytest.raises(ValidationError) as exc_info:
+        ExplanationList(
+            customer_id="C001",
+            model_version="v1",
+            explanations=[
+                Explanation(
+                    customer_id="C001",
+                    model_version="v1",  # matches wrapper
+                    feature_name="f1",
+                    feature_value=10,
+                    contribution=0.1,
+                    base_value=0.0,
+                    explained_output="log_odds",
+                    calibration_applied="original",
+                ),
+                Explanation(
+                    customer_id="C001",
+                    model_version="v2",  # MISMATCH
+                    feature_name="f2",
+                    feature_value="cat",
+                    contribution=-0.2,
+                    base_value=0.0,
+                    explained_output="log_odds",
+                    calibration_applied="original",
+                ),
+            ]
+        )
+
+    assert "model_version" in str(exc_info.value)
+    assert "v2" in str(exc_info.value)
