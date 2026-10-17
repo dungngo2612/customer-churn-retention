@@ -11,6 +11,10 @@ class DatasetNotFoundError(LookupError):
     """The injected loader could not find the requested dataset."""
 
 
+class InvalidDatasetError(ValueError):
+    """R09: The dataset has invalid structure (null/duplicate customer_id, etc.)."""
+
+
 def score_dataset(
     dataset_id: str,
     loader: Callable[[str], pd.DataFrame],
@@ -23,13 +27,14 @@ def score_dataset(
     except FileNotFoundError as error:
         raise DatasetNotFoundError(f"Dataset '{dataset_id}' not found") from error
 
+    # R09: Raise InvalidDatasetError for dataset validation failures
     if "customer_id" not in dataset.columns:
-        raise ValueError("Dataset must contain customer_id column")
+        raise InvalidDatasetError("Dataset must contain customer_id column")
     customers = dataset["customer_id"]
     if not all(isinstance(customer_id, str) for customer_id in customers):
-        raise ValueError("customer_id values must be non-null strings")
+        raise InvalidDatasetError("customer_id values must be non-null strings")
     if customers.duplicated().any():
-        raise ValueError("customer_id values must be unique")
+        raise InvalidDatasetError("customer_id values must be unique")
 
     customer_ids = customers.tolist()
     features = dataset.set_index("customer_id")

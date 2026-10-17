@@ -8,7 +8,11 @@ from pydantic import BaseModel
 from churn_retention.contracts.http.scoring import PredictionBatch
 from churn_retention.modules.scoring.ports import Predictor
 from churn_retention.modules.scoring.repository import ScoringRunRepository
-from churn_retention.modules.scoring.use_cases import DatasetNotFoundError, score_dataset
+from churn_retention.modules.scoring.use_cases import (
+    DatasetNotFoundError,
+    InvalidDatasetError,
+    score_dataset,
+)
 
 
 class CreateScoringRunRequest(BaseModel):
@@ -32,6 +36,9 @@ def create_scoring_router(
             )
         except DatasetNotFoundError as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
+        except InvalidDatasetError as error:
+            # R09: Map invalid dataset (null/duplicate customer_id) to 422
+            raise HTTPException(status_code=422, detail=str(error)) from error
         repository.save(batch)
         return batch
 

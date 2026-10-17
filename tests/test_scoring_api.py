@@ -99,6 +99,89 @@ def test_missing_scoring_run_returns_404(scoring_client: TestClient) -> None:
     assert response.json() == {"detail": "Scoring run 'demo-missing' not found"}
 
 
+def test_invalid_dataset_null_customer_id_returns_422() -> None:
+    """R09: Dataset with null customer_id must return 422, not 500."""
+    dataset = pd.DataFrame({"customer_id": [None, "C002"], "x": [1.0, 2.0]})
+
+    def loader(dataset_id: str) -> pd.DataFrame:
+        if dataset_id == "invalid-null":
+            return dataset
+        raise FileNotFoundError(dataset_id)
+
+    predictor = FakePredictor(seed=17)
+    predictor.load("demo-artifact")
+    app = FastAPI()
+    app.include_router(
+        create_scoring_router(
+            loader=loader,
+            predictor=predictor,
+            repository=InMemoryScoringRunRepository(),
+            run_id_factory=lambda: "run-1",
+            clock=lambda: datetime(2026, 10, 17, tzinfo=timezone.utc),
+        )
+    )
+    with TestClient(app) as client:
+        response = client.post("/scoring/runs", json={"dataset_id": "invalid-null"})
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert "customer_id" in detail.lower()
+
+
+def test_invalid_dataset_duplicate_customer_id_returns_422() -> None:
+    """R09: Dataset with duplicate customer_id must return 422, not 500."""
+    dataset = pd.DataFrame({"customer_id": ["C001", "C001"], "x": [1.0, 2.0]})
+
+    def loader(dataset_id: str) -> pd.DataFrame:
+        if dataset_id == "invalid-dup":
+            return dataset
+        raise FileNotFoundError(dataset_id)
+
+    predictor = FakePredictor(seed=17)
+    predictor.load("demo-artifact")
+    app = FastAPI()
+    app.include_router(
+        create_scoring_router(
+            loader=loader,
+            predictor=predictor,
+            repository=InMemoryScoringRunRepository(),
+            run_id_factory=lambda: "run-1",
+            clock=lambda: datetime(2026, 10, 17, tzinfo=timezone.utc),
+        )
+    )
+    with TestClient(app) as client:
+        response = client.post("/scoring/runs", json={"dataset_id": "invalid-dup"})
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert "customer_id" in detail.lower() or "duplicate" in detail.lower()
+
+
+def test_file_not_found_still_returns_404() -> None:
+    """R09: FileNotFoundError must still return 404, not 422."""
+    def loader(dataset_id: str) -> pd.DataFrame:
+        raise FileNotFoundError(f"No such file: {dataset_id}")
+
+    predictor = FakePredictor(seed=17)
+    predictor.load("demo-artifact")
+    app = FastAPI()
+    app.include_router(
+        create_scoring_router(
+            loader=loader,
+            predictor=predictor,
+            repository=InMemoryScoringRunRepository(),
+            run_id_factory=lambda: "run-1",
+            clock=lambda: datetime(2026, 10, 17, tzinfo=timezone.utc),
+        )
+    )
+    with TestClient(app) as client:
+        response = client.post("/scoring/runs", json={"dataset_id": "missing"})
+
+    assert response.status_code == 404
+    detail = response.json()["detail"]
+    assert "not found" in detail.lower()
+
+
 def test_create_scoring_run_requires_dataset_id(scoring_client: TestClient) -> None:
     response = scoring_client.post("/scoring/runs", json={})
 
