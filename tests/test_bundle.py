@@ -268,3 +268,133 @@ print(json.dumps({
     assert reloaded["model_version"] == metadata["model_version"]
     assert len(reloaded["probabilities"]) == len(ordered_features)
     assert np.allclose(reloaded["probabilities"], expected)
+
+
+def test_load_bundle_validates_metadata_and_schema(tmp_path: Path) -> None:
+    """R05: load_bundle must validate metadata has required keys and correct types,
+    and feature_schema has correct structure (name/kind/dtype, kind in numeric|categorical).
+    """
+    from churn_retention.ml.training.baseline import train_logistic
+
+    features = pd.DataFrame({"x": [1.0, 2.0], "cat": ["a", "b"]})
+    target = pd.Series([0, 1])
+    cfg = {
+        "numeric_features": ["x"],
+        "categorical_features": ["cat"],
+        "logistic": {"C": 1.0, "max_iter": 100},
+    }
+    pipeline = train_logistic(features, target, cfg, seed=42, class_weight=False)
+    schema = create_feature_schema(features, ["x"], ["cat"])
+
+    # Valid bundle
+    metadata = {
+        "model_version": "valid-bundle",
+        "model_type": "logistic",
+        "training": {"created_at": "2026-10-17T00:00:00Z"},
+    }
+    bundle_dir = tmp_path / "valid"
+    save_bundle(pipeline, bundle_dir, schema, metadata)
+    # Should not raise
+    loaded = load_bundle(bundle_dir)
+    assert loaded.model_version == "valid-bundle"
+
+    # Missing model_version
+    bundle_dir2 = tmp_path / "missing_version"
+    bad_meta = {"model_type": "logistic"}
+    save_bundle(pipeline, bundle_dir2, schema, bad_meta)
+    with pytest.raises(ValueError, match="model_version.*" + str(bundle_dir2)):
+        load_bundle(bundle_dir2)
+
+    # Missing model_type
+    bundle_dir3 = tmp_path / "missing_type"
+    bad_meta2 = {"model_version": "v1"}
+    save_bundle(pipeline, bundle_dir3, schema, bad_meta2)
+    with pytest.raises(ValueError, match="model_type.*" + str(bundle_dir3)):
+        load_bundle(bundle_dir3)
+
+    # Wrong type for model_version
+    bundle_dir4 = tmp_path / "wrong_type_version"
+    bad_meta3 = {"model_version": 123, "model_type": "logistic"}
+    save_bundle(pipeline, bundle_dir4, schema, bad_meta3)
+    with pytest.raises(ValueError, match="model_version.*str.*" + str(bundle_dir4)):
+        load_bundle(bundle_dir4)
+
+    # Invalid feature_schema: missing 'name'
+    bundle_dir5 = tmp_path / "invalid_schema_name"
+    bad_schema = [{"kind": "numeric", "dtype": "float64"}]
+    save_bundle(pipeline, bundle_dir5, bad_schema, metadata)
+    with pytest.raises(ValueError, match="name.*" + str(bundle_dir5)):
+        load_bundle(bundle_dir5)
+
+    # Invalid feature_schema: missing 'kind'
+    bundle_dir6 = tmp_path / "invalid_schema_kind"
+    bad_schema2 = [{"name": "x", "dtype": "float64"}]
+    save_bundle(pipeline, bundle_dir6, bad_schema2, metadata)
+    with pytest.raises(ValueError, match="kind.*" + str(bundle_dir6)):
+        load_bundle(bundle_dir6)
+
+    # Invalid feature_schema: wrong kind value
+    bundle_dir7 = tmp_path / "invalid_kind_value"
+    bad_schema3 = [{"name": "x", "kind": "invalid_kind", "dtype": "float64"}]
+    save_bundle(pipeline, bundle_dir7, bad_schema3, metadata)
+    with pytest.raises(ValueError, match="kind.*numeric.*categorical.*" + str(bundle_dir7)):
+        load_bundle(bundle_dir7)
+
+
+def test_load_bundle_warns_on_version_mismatch(tmp_path: Path) -> None:
+    """R05: when model_version in metadata differs from directory name, warn but don't error."""
+    from churn_retention.ml.training.baseline import train_logistic
+
+    features = pd.DataFrame({"x": [1.0, 2.0]})
+    target = pd.Series([0, 1])
+    cfg = {
+        "numeric_features": ["x"],
+        "categorical_features": [],
+        "logistic": {"C": 1.0, "max_iter": 100},
+    }
+    pipeline = train_logistic(features, target, cfg, seed=42, class_weight=False)
+    schema = create_feature_schema(features, ["x"], [])
+    metadata = {"model_version": "v1-mismatch", "model_type": "logistic"}
+
+    bundle_dir = tmp_path / "v2-dirname"
+    save_bundle(pipeline, bundle_dir, schema, metadata)
+
+    with pytest.warns(UserWarning, match="model_version.*v1-mismatch.*v2-dirname"):
+        loaded = load_bundle(bundle_dir)
+        assert loaded.model_version == "v1-mismatch"
+
+
+def test_predict_proba_empty_dataframe(tmp_path: Path) -> None:
+    """R11: LoadedBundle.predict_proba must return empty array for empty DataFrame (with correct columns),
+    for both logistic and catboost models.
+    """
+    from churn_retention.ml.training.baseline import train_logistic
+    from churn_retention.ml.training.catboost_model import train_catboost
+
+    features = pd.DataFrame(
+        {"x": [1.0, 2.0, 3.0, 4.0], "cat": ["a", "b", "a", "b"]}
+    )
+    target = pd.Series([0, 1, 0, 1])
+    cfg = {
+        "numeric_features": ["x"],
+        "categorical_features": ["cat"],
+        "logistic": {"C": 1.0, "max_iter": 100},
+        "catboost": {"iterations": 10, "depth": 2, "learning_rate": 0.1},
+    }
+
+    for model_type, trainer in [("logistic", train_logistic), ("catboost", train_catboost)]:
+        pipeline = trainer(features, target, cfg, seed=42, class_weight=False)
+        schema = create_feature_schema(features, ["x"], ["cat"])
+        metadata = {"model_version": f"{model_type}-empty", "model_type": model_type}
+
+        bundle_dir = tmp_path / f"empty-{model_type}"
+        save_bundle(pipeline, bundle_dir, schema, metadata)
+        loaded = load_bundle(bundle_dir)
+
+        # Empty DataFrame with correct columns
+        empty_df = pd.DataFrame(columns=["x", "cat"])
+        result = loaded.predict_proba(empty_df)
+
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (0,)
+        assert result.dtype == np.float64

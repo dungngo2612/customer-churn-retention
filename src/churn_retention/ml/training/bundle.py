@@ -114,6 +114,10 @@ class LoadedBundle:
 
     def predict_proba(self, df: pd.DataFrame) -> NDArray[np.float64]:
         """Predict encoded class 1, preserving row order and validating features."""
+        # R11: handle empty DataFrame
+        if len(df) == 0:
+            return np.array([], dtype=np.float64)
+
         feature_names = [column["name"] for column in self.feature_schema]
         missing = [name for name in feature_names if name not in df.columns]
         if missing:
@@ -152,4 +156,36 @@ def load_bundle(path: str | Path) -> LoadedBundle:
         feature_schema = json.load(f)
     with open(bundle_dir / "metadata.json", encoding="utf-8") as f:
         metadata = json.load(f)
+
+    # R05: validate metadata has required keys and correct types
+    if "model_version" not in metadata:
+        raise ValueError(f"metadata missing required key 'model_version' in bundle {bundle_dir}")
+    if not isinstance(metadata["model_version"], str):
+        raise ValueError(f"metadata['model_version'] must be str in bundle {bundle_dir}")
+    if "model_type" not in metadata:
+        raise ValueError(f"metadata missing required key 'model_type' in bundle {bundle_dir}")
+
+    # R05: validate feature_schema structure
+    for i, column in enumerate(feature_schema):
+        if "name" not in column:
+            raise ValueError(f"feature_schema[{i}] missing 'name' in bundle {bundle_dir}")
+        if "kind" not in column:
+            raise ValueError(f"feature_schema[{i}] missing 'kind' in bundle {bundle_dir}")
+        if column["kind"] not in ("numeric", "categorical"):
+            raise ValueError(
+                f"feature_schema[{i}]['kind'] must be 'numeric' or 'categorical' in bundle {bundle_dir}"
+            )
+        if "dtype" not in column:
+            raise ValueError(f"feature_schema[{i}] missing 'dtype' in bundle {bundle_dir}")
+
+    # R05: warn if model_version differs from directory name
+    dir_name = bundle_dir.name
+    if metadata["model_version"] != dir_name:
+        warnings.warn(
+            f"model_version in metadata ('{metadata['model_version']}') differs from "
+            f"directory name ('{dir_name}')",
+            UserWarning,
+            stacklevel=2,
+        )
+
     return LoadedBundle(pipeline, metadata, feature_schema)
