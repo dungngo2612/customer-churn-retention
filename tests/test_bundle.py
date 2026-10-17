@@ -48,6 +48,7 @@ def demo_bundle(
     version = f"{request.param}-20261017T000000-seed42"
     metadata = {
         "model_version": version,
+        "model_type": request.param,
         "label": {"target_col": "demo_outcome", "positive_label": "demo_left"},
     }
     bundle_dir = tmp_path / version

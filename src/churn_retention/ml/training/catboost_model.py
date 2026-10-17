@@ -10,21 +10,23 @@ class CatBoostPreprocessor(BaseEstimator, TransformerMixin):
     Numeric features are left as-is (CatBoost handles NaN natively).
     """
 
-    def __init__(self, categorical_features: list[str]) -> None:
+    def __init__(self, categorical_features: list[str], feature_cols: list[str]) -> None:
         self.categorical_features = categorical_features
+        self.feature_cols = feature_cols
 
     def fit(self, X: pd.DataFrame, y=None):
         return self
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        X_copy = X.copy()
+        # R08: Select and order columns according to config
+        X_selected = X[self.feature_cols].copy()
 
         # Fill missing values in categorical columns
         for col in self.categorical_features:
-            if col in X_copy.columns:
-                X_copy[col] = X_copy[col].astype(str).fillna("__MISSING__")
+            if col in X_selected.columns:
+                X_selected[col] = X_selected[col].astype(str).fillna("__MISSING__")
 
-        return X_copy
+        return X_selected
 
 
 def train_catboost(
@@ -61,30 +63,29 @@ def train_catboost(
     if missing_cols:
         raise ValueError(f"Missing columns in X_train: {missing_cols}")
 
-    # Build preprocessor
-    preprocessor = CatBoostPreprocessor(categorical_features=categorical_features)
+    # R08: Select and order columns according to config
+    feature_cols = numeric_features + categorical_features
 
-    # Build model
-    cat_features_indices = [
-        i
-        for i, col in enumerate(numeric_features + categorical_features)
-        if col in categorical_features
-    ]
+    # Build preprocessor (now selects columns in transform)
+    preprocessor = CatBoostPreprocessor(
+        categorical_features=categorical_features,
+        feature_cols=feature_cols
+    )
 
+    # R08: Use column names (not indices) for cat_features
     model = CatBoostClassifier(
         iterations=cfg["catboost"]["iterations"],
         depth=cfg["catboost"]["depth"],
         learning_rate=cfg["catboost"]["learning_rate"],
         auto_class_weights="Balanced" if class_weight else None,
-        cat_features=cat_features_indices,
+        cat_features=categorical_features,
         random_state=seed,
         verbose=False,
         allow_writing_files=False,
     )
 
-    # Build and fit pipeline
+    # R15: Build and fit pipeline (fit once, not fit_transform then fit)
     pipeline = Pipeline(steps=[("preprocessor", preprocessor), ("model", model)])
-    X_train_preprocessed = preprocessor.fit_transform(X_train)
-    pipeline.fit(X_train_preprocessed, y_train)
+    pipeline.fit(X_train, y_train)
 
     return pipeline
