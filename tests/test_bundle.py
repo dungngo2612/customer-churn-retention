@@ -1,3 +1,7 @@
+import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -186,3 +190,45 @@ def test_bundle_predictor_empty_batch(
     predictor.load(str(bundle_dir))
 
     assert predictor.predict_batch(pd.DataFrame(), []) == []
+
+
+def test_bundle_reload_in_fresh_python_process(
+    demo_bundle: tuple[Path, Pipeline, pd.DataFrame, dict[str, Any]], tmp_path: Path
+) -> None:
+    bundle_dir, pipeline, features, metadata = demo_bundle
+    ordered_features = features.iloc[[3, 0, 5, 1, 7, 2, 6, 4]]
+    input_path = tmp_path / "demo-features.csv"
+    ordered_features.iloc[:, ::-1].to_csv(input_path, index=False)
+    expected = pipeline.predict_proba(ordered_features)[:, 1]
+    script = """
+import json
+import os
+import sys
+
+import pandas as pd
+
+from churn_retention.ml.training.bundle import load_bundle
+
+bundle = load_bundle(sys.argv[1])
+features = pd.read_csv(sys.argv[2])
+print(json.dumps({
+    "pid": os.getpid(),
+    "model_version": bundle.model_version,
+    "probabilities": bundle.predict_proba(features).tolist(),
+}))
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(bundle_dir), str(input_path)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=60,
+    )
+    reloaded = json.loads(result.stdout)
+
+    assert reloaded["pid"] != os.getpid()
+    assert reloaded["model_version"] == metadata["model_version"]
+    assert len(reloaded["probabilities"]) == len(ordered_features)
+    assert np.allclose(reloaded["probabilities"], expected)
