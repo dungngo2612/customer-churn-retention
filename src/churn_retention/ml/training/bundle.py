@@ -1,11 +1,15 @@
 import importlib.metadata
 import json
+import pickle
 import subprocess
 import warnings
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
+from numpy.typing import NDArray
 from sklearn.pipeline import Pipeline
 
 
@@ -81,7 +85,6 @@ def save_bundle(
     bundle_dir.mkdir(parents=True, exist_ok=True)
 
     # Save pipeline
-    import pickle
     with open(bundle_dir / "model.pkl", "wb") as f:
         pickle.dump(pipeline, f)
 
@@ -92,3 +95,56 @@ def save_bundle(
     # Save metadata
     with open(bundle_dir / "metadata.json", "w") as f:
         json.dump(metadata, f, indent=2)
+
+
+@dataclass
+class LoadedBundle:
+    _pipeline: Pipeline
+    metadata: dict[str, Any]
+    feature_schema: list[dict[str, str]]
+
+    @property
+    def model_version(self) -> str:
+        return self.metadata["model_version"]
+
+    def predict_proba(self, df: pd.DataFrame) -> NDArray[np.float64]:
+        """Predict encoded class 1, preserving row order and validating features."""
+        feature_names = [column["name"] for column in self.feature_schema]
+        missing = [name for name in feature_names if name not in df.columns]
+        if missing:
+            raise ValueError(f"Missing required columns: {missing}")
+
+        extra = [name for name in df.columns if name not in feature_names]
+        if extra:
+            warnings.warn(f"Ignoring extra columns: {extra}", stacklevel=2)
+
+        for column in self.feature_schema:
+            if column["kind"] != "numeric":
+                continue
+            name = column["name"]
+            values = df[name]
+            invalid = values.notna() & pd.to_numeric(values, errors="coerce").isna()
+            if invalid.any():
+                samples = values[invalid].head(5).tolist()
+                raise ValueError(
+                    f"Numeric column '{name}' contains non-numeric values. "
+                    f"Examples: {samples}"
+                )
+
+        features = df.loc[:, feature_names]
+        positive_index = list(self._pipeline.classes_).index(1)
+        return np.asarray(
+            self._pipeline.predict_proba(features)[:, positive_index], dtype=np.float64
+        )
+
+
+def load_bundle(path: str | Path) -> LoadedBundle:
+    """Load a trusted local bundle containing a pickled, fitted pipeline."""
+    bundle_dir = Path(path)
+    with open(bundle_dir / "model.pkl", "rb") as f:
+        pipeline = pickle.load(f)
+    with open(bundle_dir / "feature_schema.json", encoding="utf-8") as f:
+        feature_schema = json.load(f)
+    with open(bundle_dir / "metadata.json", encoding="utf-8") as f:
+        metadata = json.load(f)
+    return LoadedBundle(pipeline, metadata, feature_schema)
