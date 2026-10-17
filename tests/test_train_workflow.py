@@ -457,6 +457,56 @@ def test_mlflow_logging(synthetic_train_val_data, config_file, tmp_path):
     assert "config" in artifact_paths
 
 
+def test_metadata_has_root_created_at(
+    synthetic_train_val_data, config_file, tmp_path,
+) -> None:
+    """R12: metadata must have created_at at root level, same as training.created_at."""
+    train_path, val_path = synthetic_train_val_data
+    result = train_model(
+        config_file, "logistic", False, 42, train_path, val_path, tmp_path / "bundles",
+    )
+    with open(result["bundle_dir"] / "metadata.json") as f:
+        metadata = json.load(f)
+
+    assert "created_at" in metadata, "root-level created_at missing"
+    assert metadata["created_at"] == metadata["training"]["created_at"]
+
+
+def test_metadata_has_metric_threshold(
+    synthetic_train_val_data, config_file, tmp_path,
+) -> None:
+    """R13: metadata must record metric_threshold (0.5) with a note."""
+    train_path, val_path = synthetic_train_val_data
+    result = train_model(
+        config_file, "logistic", False, 42, train_path, val_path, tmp_path / "bundles",
+    )
+    with open(result["bundle_dir"] / "metadata.json") as f:
+        metadata = json.load(f)
+
+    assert metadata["metric_threshold"] == 0.5
+    assert "metric_threshold_note" in metadata
+
+
+def test_mlflow_logs_effective_config_and_threshold(
+    synthetic_train_val_data, config_file, tmp_path,
+) -> None:
+    """R06+R13: MLflow must log effective_config.yaml artifact and metric_threshold param."""
+    import mlflow
+
+    train_path, val_path = synthetic_train_val_data
+    mlflow_uri = os.environ["MLFLOW_TRACKING_URI"]
+    result = train_model(
+        config_file, "logistic", False, 99, train_path, val_path, tmp_path / "bundles",
+    )
+    mlflow.set_tracking_uri(mlflow_uri)
+    run = mlflow.get_run(result["run_id"])
+    client = mlflow.tracking.MlflowClient(mlflow_uri)
+    artifacts = client.list_artifacts(result["run_id"])
+    artifact_paths = [a.path for a in artifacts]
+
+    assert "effective_config" in artifact_paths, "effective_config artifact missing"
+    assert run.data.params["metric_threshold"] == "0.5"
+
 def test_workflow_keeps_mlflow_storage_in_tmp_path(
     synthetic_train_val_data: tuple[Path, Path], config_file: Path, tmp_path: Path
 ) -> None:

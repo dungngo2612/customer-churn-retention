@@ -258,6 +258,8 @@ def train_model(
     git_info = get_git_info()
     library_versions = get_library_versions()
 
+    created_at = datetime.now(timezone.utc).isoformat()
+
     metadata = {
         "model_version": model_version,
         "model_type": model_type,
@@ -268,12 +270,15 @@ def train_model(
             "target_col": target_col,
             "positive_label": positive_label,
         },
+        "created_at": created_at,
         "training": {
             "duration_seconds": duration_seconds,
             "train_samples": len(X_train),
             "val_samples": len(X_val),
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": created_at,
         },
+        "metric_threshold": 0.5,
+        "metric_threshold_note": "tạm, chưa chốt với nhóm",
         "git": git_info,
         "libraries": library_versions,
         "metrics": {f"val_{k}": v for k, v in metrics.items()},
@@ -290,6 +295,7 @@ def train_model(
         "model_type": model_type,
         "seed": seed,
         "class_weight": class_weight,
+        "metric_threshold": 0.5,
     }
 
     # Add model-specific params
@@ -300,6 +306,11 @@ def train_model(
 
     tags = {"model_version": model_version}
 
+    # Save effective config (after CLI overrides) as YAML for MLflow artifact
+    effective_config_path = bundle_dir / "effective_config.yaml"
+    with open(effective_config_path, "w") as f:
+        yaml.dump(cfg, f, default_flow_style=False)
+
     run_id = log_training_run(
         experiment_name=experiment_name,
         params=params,
@@ -307,6 +318,7 @@ def train_model(
         bundle_dir=bundle_dir,
         config_path=config_path,
         tags=tags,
+        effective_config_path=effective_config_path,
     )
 
     print(f"MLflow run_id: {run_id}")

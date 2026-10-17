@@ -17,6 +17,7 @@ def log_training_run(
     bundle_dir: Path,
     config_path: Path,
     tags: dict[str, str] | None = None,
+    effective_config_path: Path | None = None,
 ) -> str:
     """
     Log a training run to MLflow.
@@ -28,6 +29,7 @@ def log_training_run(
         bundle_dir: Path to model bundle directory to log as artifact.
         config_path: Path to config YAML to log as artifact.
         tags: Optional tags for the run.
+        effective_config_path: Path to effective config YAML (after CLI overrides).
 
     Returns:
         MLflow run ID.
@@ -49,6 +51,10 @@ def log_training_run(
 
         # Log config as artifact
         mlflow.log_artifact(str(config_path), artifact_path="config")
+
+        # Log effective config as artifact
+        if effective_config_path is not None:
+            mlflow.log_artifact(str(effective_config_path), artifact_path="effective_config")
 
         # Log bundle directory
         mlflow.log_artifacts(str(bundle_dir), artifact_path="bundle")
