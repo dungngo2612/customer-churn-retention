@@ -1,6 +1,9 @@
 import json
+import os
 import pickle
+from collections.abc import Iterator
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 import numpy as np
 import pandas as pd
@@ -16,6 +19,23 @@ from churn_retention.workflows.train_model import (
     train_model,
     validate_dataframe,
 )
+
+
+@pytest.fixture(autouse=True)
+def isolated_mlflow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    import mlflow
+
+    previous_uri = mlflow.get_tracking_uri()
+    uri = f"sqlite:///{tmp_path}/mlflow.db"
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", uri)
+    mlflow.set_tracking_uri(uri)
+    mlflow.create_experiment(
+        "test-experiment", artifact_location=(tmp_path / "mlruns").as_uri()
+    )
+    try:
+        yield
+    finally:
+        mlflow.set_tracking_uri(previous_uri)
 
 
 @pytest.fixture
@@ -382,16 +402,13 @@ def test_train_model_feature_schema_correct_order(
     assert schema[4]["kind"] == "categorical"
 
 
-def test_mlflow_logging(synthetic_train_val_data, config_file, tmp_path, monkeypatch):
+def test_mlflow_logging(synthetic_train_val_data, config_file, tmp_path):
     """Test that MLflow logging works correctly."""
-    import os
     
     train_path, val_path = synthetic_train_val_data
     out_dir = tmp_path / "bundles"
     
-    # Set MLflow tracking URI to tmp_path sqlite
-    mlflow_uri = f"sqlite:///{tmp_path}/test_mlflow.db"
-    monkeypatch.setenv("MLFLOW_TRACKING_URI", mlflow_uri)
+    mlflow_uri = os.environ["MLFLOW_TRACKING_URI"]
     
     result = train_model(
         config_path=config_file,
@@ -438,3 +455,19 @@ def test_mlflow_logging(synthetic_train_val_data, config_file, tmp_path, monkeyp
 
     assert "bundle" in artifact_paths
     assert "config" in artifact_paths
+
+
+def test_workflow_keeps_mlflow_storage_in_tmp_path(
+    synthetic_train_val_data: tuple[Path, Path], config_file: Path, tmp_path: Path
+) -> None:
+    import mlflow
+
+    train_path, val_path = synthetic_train_val_data
+    result = train_model(
+        config_file, "logistic", False, 42, train_path, val_path, tmp_path / "bundles"
+    )
+    run = mlflow.get_run(result["run_id"])
+    artifact_path = Path(unquote(urlparse(run.info.artifact_uri).path))
+
+    assert artifact_path.is_relative_to(tmp_path)
+    assert mlflow.get_tracking_uri() == f"sqlite:///{tmp_path}/mlflow.db"
