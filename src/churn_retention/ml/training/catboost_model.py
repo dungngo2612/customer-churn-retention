@@ -79,6 +79,7 @@ def train_catboost(
         cat_features=cat_features_indices,
         random_state=seed,
         verbose=False,
+        allow_writing_files=False,
     )
 
     # Build and fit pipeline
