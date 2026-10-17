@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Iterable, Mapping, Sequence
 
 import pandas as pd
+df_pred = df_pred.rename(columns={"churn_probability": "churn_prob"})
 
 # Cột bắt buộc để tính. Churn và tenure cần thêm để lọc khách đang hoạt động.
 REQUIRED_COLUMNS = ("customerID", "MonthlyCharges", "Contract", "InternetService",
