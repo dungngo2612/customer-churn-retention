@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 from sklearn.pipeline import Pipeline
 
+from churn_retention.adapters.predictor.bundle_predictor import BundlePredictor
 from churn_retention.ml.training.baseline import train_logistic
 from churn_retention.ml.training.bundle import (
     create_feature_schema,
@@ -13,6 +14,7 @@ from churn_retention.ml.training.bundle import (
     save_bundle,
 )
 from churn_retention.ml.training.catboost_model import train_catboost
+from churn_retention.modules.scoring.ports import Predictor
 
 
 @pytest.fixture(params=["logistic", "catboost"])
@@ -116,3 +118,71 @@ def test_load_bundle_leaves_numeric_nan_to_preprocessing(
     probabilities = load_bundle(bundle_dir).predict_proba(features)
 
     assert np.allclose(probabilities, pipeline.predict_proba(features)[:, 1])
+
+
+@pytest.mark.parametrize("operation", ["model_version", "predict_batch"])
+def test_bundle_predictor_requires_load(operation: str) -> None:
+    predictor: Predictor = BundlePredictor()
+
+    with pytest.raises(RuntimeError, match="^chưa load bundle$"):
+        if operation == "model_version":
+            _ = predictor.model_version
+        else:
+            predictor.predict_batch(pd.DataFrame(), [])
+
+
+def test_bundle_predictor_model_version(
+    demo_bundle: tuple[Path, Pipeline, pd.DataFrame, dict[str, Any]],
+) -> None:
+    bundle_dir, _, _, metadata = demo_bundle
+    predictor: Predictor = BundlePredictor()
+    predictor.load(str(bundle_dir))
+
+    assert predictor.model_version == metadata["model_version"]
+
+
+def test_bundle_predictor_preserves_customer_order(
+    demo_bundle: tuple[Path, Pipeline, pd.DataFrame, dict[str, Any]],
+) -> None:
+    bundle_dir, pipeline, features, _ = demo_bundle
+    predictor: Predictor = BundlePredictor()
+    predictor.load(str(bundle_dir))
+    customer_ids = [f"demo-customer-{i}" for i in range(len(features))]
+    expected_by_id = dict(
+        zip(customer_ids, pipeline.predict_proba(features)[:, 1], strict=True)
+    )
+    order = [3, 0, 5, 1, 7, 2, 6, 4]
+    ordered_ids = tuple(customer_ids[i] for i in order)
+    ordered_features = features.iloc[order, ::-1].copy()
+    original = ordered_features.copy(deep=True)
+
+    probabilities = predictor.predict_batch(ordered_features, ordered_ids)
+
+    assert isinstance(probabilities, list)
+    assert len(probabilities) == len(ordered_ids)
+    assert all(isinstance(probability, float) for probability in probabilities)
+    assert np.allclose(
+        probabilities, [expected_by_id[customer_id] for customer_id in ordered_ids]
+    )
+    pd.testing.assert_frame_equal(ordered_features, original)
+
+
+def test_bundle_predictor_rejects_length_mismatch(
+    demo_bundle: tuple[Path, Pipeline, pd.DataFrame, dict[str, Any]],
+) -> None:
+    bundle_dir, _, features, _ = demo_bundle
+    predictor: Predictor = BundlePredictor()
+    predictor.load(str(bundle_dir))
+
+    with pytest.raises(ValueError, match="Length mismatch: 1 customer_ids vs 8 features"):
+        predictor.predict_batch(features, ["demo-customer"])
+
+
+def test_bundle_predictor_empty_batch(
+    demo_bundle: tuple[Path, Pipeline, pd.DataFrame, dict[str, Any]],
+) -> None:
+    bundle_dir, _, _, _ = demo_bundle
+    predictor: Predictor = BundlePredictor()
+    predictor.load(str(bundle_dir))
+
+    assert predictor.predict_batch(pd.DataFrame(), []) == []
