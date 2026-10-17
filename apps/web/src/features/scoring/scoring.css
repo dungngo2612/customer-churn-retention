@@ -1,0 +1,140 @@
+.scoring-screen {
+  box-sizing: border-box;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px;
+  color: #172b4d;
+  font-family: inherit;
+}
+
+.scoring-screen__header h1 {
+  margin: 0 0 8px;
+  font-size: 1.6rem;
+}
+
+.scoring-screen__header p,
+.scoring-screen__run,
+.scoring-screen__count {
+  color: #526175;
+  line-height: 1.5;
+}
+
+.scoring-screen__demo {
+  padding: 12px 16px;
+  border: 1px solid #e8c46d;
+  border-radius: 8px;
+  background: #fff8e6;
+  color: #72520b;
+  line-height: 1.5;
+}
+
+.scoring-screen__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 16px;
+  border: 1px solid #dbe3ed;
+  border-radius: 8px;
+  background: #f7f9fc;
+}
+
+.scoring-screen__controls label {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.scoring-screen__controls select,
+.scoring-screen button {
+  padding: 10px 12px;
+  border: 1px solid #b6c4d6;
+  border-radius: 6px;
+  background: #fff;
+  color: #172b4d;
+  font: inherit;
+}
+
+.scoring-screen__controls input {
+  width: 100%;
+  margin: 8px 0;
+  accent-color: #2563eb;
+}
+
+.scoring-screen button {
+  cursor: pointer;
+}
+
+.scoring-screen button:focus-visible,
+.scoring-screen select:focus-visible,
+.scoring-screen input:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+}
+
+.scoring-screen__state {
+  padding: 28px 16px;
+  border: 1px dashed #b6c4d6;
+  border-radius: 8px;
+  background: #f7f9fc;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.scoring-screen__state--error {
+  border-color: #d29c9c;
+  background: #fff4f4;
+  color: #922b2b;
+}
+
+.scoring-screen__table-wrap {
+  overflow-x: auto;
+  border: 1px solid #dbe3ed;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.scoring-screen table {
+  width: 100%;
+  min-width: 700px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.scoring-screen th,
+.scoring-screen td {
+  padding: 16px;
+  border-bottom: 1px solid #e7edf4;
+  vertical-align: top;
+}
+
+.scoring-screen th {
+  background: #f1f5fa;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.scoring-screen tbody tr:hover {
+  background: #f7f9fc;
+}
+
+.scoring-screen__probability {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.scoring-screen caption {
+  padding: 12px 16px;
+  caption-side: bottom;
+  color: #526175;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+@media (max-width: 600px) {
+  .scoring-screen {
+    padding: 16px;
+  }
+}
