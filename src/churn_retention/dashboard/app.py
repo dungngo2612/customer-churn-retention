@@ -413,11 +413,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- TABS ĐIỀU HƯỚNG ---
-tab1, tab2, tab3 = st.tabs([
+# --- TABS ĐIỀU HƯỚNG (4 TẦNG HỆ THỐNG) ---
+tab1, tab2, tab3, tab4 = st.tabs([
     "📊 Tổng quan Kinh tế (Overview)",
+    "🔍 Khám Phá Dữ Liệu & Hành Vi Churn (EDA)",
     "👤 Hồ Sơ Khách Hàng 360° & Đề Xuất Can Thiệp",
-    "📈 Phân tích Độ nhạy (Sensitivity)",
+    "🎛️ Phân Tích Độ Nhạy & Mô Phỏng Ngân Sách",
 ])
 
 # ==============================================================================
@@ -641,9 +642,186 @@ with tab1:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# TAB 2: HỒ SƠ KHÁCH HÀNG 360° & ĐỀ XUẤT CÁ NHÂN HÓA (CUSTOMER 360)
+# TAB 2: KHÁM PHÁ DỮ LIỆU & HÀNH VI CHURN (EDA PATTERNS)
 # ==============================================================================
 with tab2:
+    st.markdown("### 🔍 Khám Phá Dữ Liệu & Quy Luật Hành Vi Khách Hàng Rời Bỏ")
+    st.caption("Bức tranh dữ liệu toàn tệp viễn thông: Phát hiện các điểm nghẽn trải nghiệm và xác định chân dung nhóm khách hàng có nguy cơ rời mạng cao nhất.")
+
+    # 1. KPI tổng quan tập dữ liệu
+    eda_total = len(customers_df)
+    churn_count = int((customers_df["Churn"] == "Yes").sum())
+    churn_pct = (churn_count / eda_total) * 100 if eda_total > 0 else 0
+    retained_count = eda_total - churn_count
+    avg_mc = float(customers_df["MonthlyCharges"].mean())
+    avg_tenure = float(customers_df["tenure"].mean())
+
+    eda_kpi1, eda_kpi2, eda_kpi3, eda_kpi4 = st.columns(4)
+    with eda_kpi1:
+        st.markdown(
+            f"""
+            <div class="modern-card">
+                <div class="card-label"><span>Tổng Tệp Khảo Sát</span><span>📁</span></div>
+                <div class="card-value">{eda_total:,}</div>
+                <div class="card-footer"><span>Toàn bộ mẫu dữ liệu Telco</span></div>
+            </div>
+            """, unsafe_allow_html=True
+        )
+    with eda_kpi2:
+        st.markdown(
+            f"""
+            <div class="modern-card">
+                <div class="card-label"><span>Tỷ Lệ Churn Toàn Mạng</span><span>⚠️</span></div>
+                <div class="card-value" style="color: #e11d48;">{churn_pct:.1f}%</div>
+                <div class="card-footer"><span>{churn_count:,} khách đã rời mạng</span></div>
+            </div>
+            """, unsafe_allow_html=True
+        )
+    with eda_kpi3:
+        st.markdown(
+            f"""
+            <div class="modern-card">
+                <div class="card-label"><span>Cước TB Toàn Mạng</span><span>💵</span></div>
+                <div class="card-value">${avg_mc:.1f}</div>
+                <div class="card-footer"><span>Cước trung bình / tháng</span></div>
+            </div>
+            """, unsafe_allow_html=True
+        )
+    with eda_kpi4:
+        st.markdown(
+            f"""
+            <div class="modern-card">
+                <div class="card-label"><span>Thời Gian Gắn Bó TB</span><span>⏳</span></div>
+                <div class="card-value">{avg_tenure:.1f} <span style="font-size:1.1rem;font-weight:600;">tháng</span></div>
+                <div class="card-footer"><span>Khoảng ~2.7 năm trung bình</span></div>
+            </div>
+            """, unsafe_allow_html=True
+        )
+
+    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+
+    # 2. Hai biểu đồ cột đối sánh: Hợp đồng & Internet Service
+    eda_row1_c1, eda_row1_c2 = st.columns([1, 1])
+
+    with eda_row1_c1:
+        st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-header">📑 Tỷ Lệ Churn Theo Loại Hợp Đồng (Contract)</div>', unsafe_allow_html=True)
+        
+        contract_churn = customers_df.groupby("Contract")["Churn"].apply(lambda s: (s == "Yes").mean() * 100).reset_index()
+        contract_churn.columns = ["Contract", "ChurnRate"]
+        contract_order = ["Month-to-month", "One year", "Two year"]
+        contract_churn = contract_churn.sort_values(by="Contract", key=lambda x: x.map({v: i for i, v in enumerate(contract_order)}))
+
+        fig_contract = go.Figure(go.Bar(
+            x=contract_churn["Contract"],
+            y=contract_churn["ChurnRate"],
+            marker_color=["#f43f5e", "#f59e0b", "#10b981"],
+            text=[f"{v:.1f}%" for v in contract_churn["ChurnRate"]],
+            textposition="auto",
+        ))
+        fig_contract.update_layout(
+            height=280,
+            margin=dict(l=10, r=10, t=10, b=10),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            yaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="#f1f5f9"),
+            xaxis=dict(title="Loại hợp đồng"),
+        )
+        st.plotly_chart(fig_contract, use_container_width=True)
+        st.caption("💡 **Insight:** Hợp đồng Month-to-month có tỷ lệ churn lên tới ~43%, cao gấp gần **15 lần** so với hợp đồng 2 năm (~2.8%). Đây là lý do chính sách A3 nhắm thẳng vào nhóm này.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with eda_row1_c2:
+        st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-header">🌐 Nghịch Lý Dịch Vụ Cáp Quang (Fiber Optic Paradox)</div>', unsafe_allow_html=True)
+        
+        internet_churn = customers_df.groupby("InternetService")["Churn"].apply(lambda s: (s == "Yes").mean() * 100).reset_index()
+        internet_churn.columns = ["InternetService", "ChurnRate"]
+        
+        fig_internet = go.Figure(go.Bar(
+            x=internet_churn["InternetService"],
+            y=internet_churn["ChurnRate"],
+            marker_color=["#0284c7", "#f43f5e", "#94a3b8"],
+            text=[f"{v:.1f}%" for v in internet_churn["ChurnRate"]],
+            textposition="auto",
+        ))
+        fig_internet.update_layout(
+            height=280,
+            margin=dict(l=10, r=10, t=10, b=10),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            yaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="#f1f5f9"),
+            xaxis=dict(title="Dịch vụ Internet"),
+        )
+        st.plotly_chart(fig_internet, use_container_width=True)
+        st.caption("💡 **Insight:** Mạng Fiber optic tốc độ cao nhưng tỷ lệ churn tới ~42% (cao hơn DSL gấp đôi) do giá cước cao và thường thiếu gói dịch vụ hỗ trợ kỹ thuật đi kèm.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # 3. Phân tích Dịch vụ đi kèm & Phương thức thanh toán
+    eda_row2_c1, eda_row2_c2 = st.columns([1, 1])
+
+    with eda_row2_c1:
+        st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-header">🛠️ Tác Động Của Hỗ Trợ Kỹ Thuật (Tech Support)</div>', unsafe_allow_html=True)
+        
+        tech_churn = customers_df.groupby("TechSupport")["Churn"].apply(lambda s: (s == "Yes").mean() * 100).reset_index()
+        tech_churn.columns = ["TechSupport", "ChurnRate"]
+
+        fig_tech = go.Figure(go.Bar(
+            x=tech_churn["TechSupport"],
+            y=tech_churn["ChurnRate"],
+            marker_color=["#f43f5e", "#94a3b8", "#10b981"],
+            text=[f"{v:.1f}%" for v in tech_churn["ChurnRate"]],
+            textposition="auto",
+        ))
+        fig_tech.update_layout(
+            height=260,
+            margin=dict(l=10, r=10, t=10, b=10),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            yaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="#f1f5f9"),
+            xaxis=dict(title="Có dịch vụ Tech Support không"),
+        )
+        st.plotly_chart(fig_tech, use_container_width=True)
+        st.caption("💡 **Insight:** Khách hàng không có hỗ trợ kỹ thuật có tỷ lệ rời mạng ~41.6%, trong khi khách có dịch vụ này chỉ rời mạng ~15.2%. Đây là căn cứ thiết kế gói A1.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with eda_row2_c2:
+        st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-header">💳 Tác Động Của Phương Thức Thanh Toán</div>', unsafe_allow_html=True)
+        
+        pay_churn = customers_df.groupby("PaymentMethod")["Churn"].apply(lambda s: (s == "Yes").mean() * 100).reset_index()
+        pay_churn.columns = ["PaymentMethod", "ChurnRate"]
+        pay_churn["ShortName"] = pay_churn["PaymentMethod"].map({
+            "Electronic check": "Electronic check (Thủ công)",
+            "Mailed check": "Mailed check (Thủ công)",
+            "Bank transfer (automatic)": "Bank transfer (Tự động)",
+            "Credit card (automatic)": "Credit card (Tự động)"
+        })
+
+        fig_pay = go.Figure(go.Bar(
+            y=pay_churn["ShortName"],
+            x=pay_churn["ChurnRate"],
+            orientation="h",
+            marker_color=["#10b981", "#10b981", "#f43f5e", "#f59e0b"],
+            text=[f"{v:.1f}%" for v in pay_churn["ChurnRate"]],
+            textposition="auto",
+        ))
+        fig_pay.update_layout(
+            height=260,
+            margin=dict(l=10, r=10, t=10, b=10),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            xaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="#f1f5f9"),
+        )
+        st.plotly_chart(fig_pay, use_container_width=True)
+        st.caption("💡 **Insight:** Thanh toán bằng Electronic check rời mạng tới ~45.3%, trong khi thanh toán tự động chỉ ~16-17%. Đây là căn cứ thiết kế gói A2.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# ==============================================================================
+# TAB 3: HỒ SƠ KHÁCH HÀNG 360° & ĐỀ XUẤT CÁ NHÂN HÓA (CUSTOMER 360)
+# ==============================================================================
+with tab3:
     st.markdown("### 📋 Danh Sách Đề Xuất & Hồ Sơ Khách Hàng 360°")
     st.caption("Khám phá chi tiết từng khách hàng, thấu hiểu nguyên nhân rời bỏ và xem căn cứ kinh tế của gói can thiệp tối ưu.")
 
@@ -967,6 +1145,30 @@ with tab2:
 
             st.info(script_text)
 
+            if best_code != "A0":
+                sms_voucher = f"RET-{best_code}-2026"
+                if best_code == "A3":
+                    sms_body = f"[VNPT/Viettel Telecom] Tri an KH {selected_cust_id}: Tang quy khach Voucher giam cuoc {c3_offer:.0f}$ (Ma: {sms_voucher}) khi gia han hop dong 12 thang. Soan DK gui 8079 de nhan uu dai!"
+                elif best_code == "A1":
+                    sms_body = f"[VNPT/Viettel Telecom] Ho tro ky thuat: Duong truyen Fiber cua KH {selected_cust_id} duoc kich hoat mien phi goi Online Security & TechSupport chu dong. KTV se lien he ho tro trong 24h."
+                elif best_code == "A2":
+                    sms_body = f"[VNPT/Viettel Telecom] Tien loi hon moi ngay: Quy khach {selected_cust_id} dang ky Thanh toan tu dong nhan ngay uu dai hoan cuoc {c2_offer:.0f}$. Truy cap app de bat tinh nang!"
+                
+                st.markdown(
+                    f"""
+                    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 14px; margin-top: 10px; margin-bottom: 12px;">
+                        <div style="font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                            <span>📱 XEM TRƯỚC TIN NHẮN TỰ ĐỘNG (SMS / ZALO)</span>
+                            <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">Sẵn sàng gửi</span>
+                        </div>
+                        <div style="background: #f1f5f9; border-radius: 8px; padding: 10px 12px; font-size: 0.82rem; color: #0f172a; line-height: 1.4; border-left: 3px solid #3b82f6; font-family: monospace;">
+                            {sms_body}
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
             # Nút hành động tương tác
             if best_code != "A0":
                 if st.button("🚀 Kích Hoạt Gói Can Thiệp Cho Khách Hàng Này", key="btn_apply", use_container_width=True):
@@ -975,9 +1177,9 @@ with tab2:
             st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
-# TAB 3: PHÂN TÍCH ĐỘ NHẠY & MÔ PHỎNG NGÂN SÁCH (SENSITIVITY & BUDGET SIMULATION)
+# TAB 4: PHÂN TÍCH ĐỘ NHẠY & MÔ PHỎNG NGÂN SÁCH (SENSITIVITY & BUDGET SIMULATION)
 # ==============================================================================
-with tab3:
+with tab4:
     st.markdown("### 📈 Phân Tích Độ Nhạy & Mô Phỏng Giới Hạn Ngân Sách")
     st.caption("Khảo sát sự thay đổi của lợi nhuận ròng khi biên lợi nhuận (m) thay đổi, và mô phỏng tối ưu hóa danh mục can thiệp khi bị giới hạn ngân sách.")
 
