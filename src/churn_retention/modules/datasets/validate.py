@@ -1,19 +1,22 @@
 from dataclasses import dataclass, field
 from typing import List, Optional, Set
+
 import pandas as pd
 
 
 @dataclass
 class ValidationErrorDetail:
     """Lưu chi tiết từng vị trí lỗi phát hiện được trong file dữ liệu."""
-    row: Optional[int]   # Số thứ tự dòng trên file CSV (dòng 1 là tiêu đề, dữ liệu tính từ dòng 2)
-    column: str          # Tên cột bị lỗi
-    reason: str          # Mô tả cụ thể lỗi để trả lời cho người dùng
+
+    row: Optional[int]  # Số thứ tự dòng trên file CSV (dòng 1 là tiêu đề, dữ liệu tính từ dòng 2)
+    column: str  # Tên cột bị lỗi
+    reason: str  # Mô tả cụ thể lỗi để trả lời cho người dùng
 
 
 @dataclass
 class ValidationReport:
     """Báo cáo tổng kết toàn bộ quá trình kiểm tra."""
+
     is_valid: bool
     total_rows: int
     errors: List[ValidationErrorDetail] = field(default_factory=list)
@@ -76,9 +79,9 @@ def validate_dataset(df: pd.DataFrame) -> ValidationReport:
 
     # --- KIỂM TRA 3: KIỂU DỮ LIỆU VÀ MIỀN GIÁ TRỊ SỐ ---
     numeric_checks = [
-        ("tenure", 0, None),            # tenure phải >= 0
+        ("tenure", 0, None),  # tenure phải >= 0
         ("MonthlyCharges", 0.0, None),  # MonthlyCharges phải >= 0.0
-        ("TotalCharges", 0.0, None),    # TotalCharges phải >= 0.0
+        ("TotalCharges", 0.0, None),  # TotalCharges phải >= 0.0
     ]
 
     for col, min_val, max_val in numeric_checks:
@@ -119,7 +122,10 @@ def validate_dataset(df: pd.DataFrame) -> ValidationReport:
                     ValidationErrorDetail(
                         row=row_num,
                         column=col,
-                        reason=f"Sai kiểu dữ liệu cột '{col}': giá trị '{val}' không thể chuyển thành số",
+                        reason=(
+                            f"Sai kiểu dữ liệu cột '{col}': "
+                            f"giá trị '{val}' không thể chuyển thành số"
+                        ),
                     )
                 )
 

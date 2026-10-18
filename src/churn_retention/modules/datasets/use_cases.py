@@ -5,6 +5,7 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
 import pandas as pd
 
 from .validate import validate_dataset
@@ -61,9 +62,13 @@ def clean_and_split_features(df: pd.DataFrame):
 
     # Ép kiểu chuẩn cho tenure và MonthlyCharges
     if "tenure" in df_clean.columns:
-        df_clean["tenure"] = pd.to_numeric(df_clean["tenure"], errors="coerce").fillna(0).astype(int)
+        df_clean["tenure"] = (
+            pd.to_numeric(df_clean["tenure"], errors="coerce").fillna(0).astype(int)
+        )
     if "MonthlyCharges" in df_clean.columns:
-        df_clean["MonthlyCharges"] = pd.to_numeric(df_clean["MonthlyCharges"], errors="coerce").fillna(0.0)
+        df_clean["MonthlyCharges"] = pd.to_numeric(
+            df_clean["MonthlyCharges"], errors="coerce"
+        ).fillna(0.0)
 
     # Tách riêng nhãn Churn (nếu có)
     labels_series = None
@@ -114,10 +119,12 @@ def process_dataset_upload(file_bytes: bytes, filename: str) -> Dict[str, Any]:
     # Lưu ra định dạng Parquet để tối ưu hóa tốc độ và giữ nguyên kiểu dữ liệu
     features_df.to_parquet(dataset_folder / "features.parquet", index=False)
     if labels_series is not None:
-        pd.DataFrame({
-            "customerID": features_df["customerID"],
-            "Churn": labels_series,
-        }).to_parquet(dataset_folder / "labels.parquet", index=False)
+        pd.DataFrame(
+            {
+                "customerID": features_df["customerID"],
+                "Churn": labels_series,
+            }
+        ).to_parquet(dataset_folder / "labels.parquet", index=False)
 
     # 5. Lưu thông tin metadata
     meta = _load_metadata()

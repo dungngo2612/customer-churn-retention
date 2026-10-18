@@ -1,5 +1,6 @@
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from typing import Any, Dict, List
+
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from churn_retention.modules.datasets import use_cases
 
@@ -13,7 +14,7 @@ async def upload_dataset(file: UploadFile = File(...)) -> Dict[str, Any]:
     - Trả về 201 nếu file hợp lệ và gán dataset_id thành công.
     - Trả về 422 kèm danh sách chi tiết (row, column, reason) nếu vi phạm quy tắc dữ liệu.
     """
-    if not file.filename.endswith(".csv"):
+    if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Hệ thống chỉ hỗ trợ file định dạng .csv",

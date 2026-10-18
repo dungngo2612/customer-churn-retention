@@ -1,0 +1,70 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: ["main", "feature/**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+
+    # Khởi tạo một dịch vụ PostgreSQL tạm thời trên GitHub Actions để test migration
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: churn_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # 1. Kéo mã nguồn của repo về máy runner
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Thiết lập môi trường Python
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      # 3. Nâng cấp pip và cài đặt dự án kèm nhóm dev + training
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,training]"
+
+      # 4. Kiểm tra chuẩn code và format bằng Ruff
+      - name: Check code formatting and lint with Ruff
+        run: |
+          ruff check .
+          ruff format --check .
+
+      # 5. Kiểm tra kiểu tĩnh với mypy
+      - name: Type check with mypy
+        run: |
+          mypy src
+
+      # 6. Chạy migration trên Database PostgreSQL trống để xác nhận schema hợp lệ
+      - name: Run Alembic migrations on clean DB
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/churn_db
+        run: |
+          alembic upgrade head
+
+      # 7. Chạy kiểm thử tự động với Pytest
+      - name: Run unit tests with Pytest
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/churn_db
+        run: |
+          pytest -v
