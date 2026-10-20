@@ -89,6 +89,9 @@ def validate_dataset(df: pd.DataFrame) -> ValidationReport:
             row_num = int(idx) + 2
             val_str = str(val).strip() if not pd.isna(val) else ""
 
+            if col == "TotalCharges" and val_str == "":
+                continue
+
             if val_str == "":
                 errors.append(
                     ValidationErrorDetail(
@@ -147,7 +150,7 @@ def validate_dataset(df: pd.DataFrame) -> ValidationReport:
                 ValidationErrorDetail(
                     row=row_num,
                     column="Churn",
-                    reason=f"Nhãn Churn không hợp lệ: '{val}'. Chỉ chấp nhận: Yes, No, 0, 1",
+                    reason=f"Nhãn Churn không hợp lệ: '{val}'. Chỉ chấp nhận: Yes, No, 0, 1, True, False",
                 )
             )
 

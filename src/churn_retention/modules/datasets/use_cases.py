@@ -98,9 +98,20 @@ def process_dataset_upload(file_bytes: bytes, filename: str) -> Dict[str, Any]:
             "validation": None,
         }
 
-    # 2. Chạy module kiểm tra tính hợp lệ
-    report = validate_dataset(raw_df)
+    # 2. Làm sạch data
+    # Cắt khoảng trắng thừa, 
+    # tự động điền 0.0 cho TotalCharges rỗng, ép kiểu số
+    cleaned_features_df, labels_series = clean_and_split_features(raw_df)
 
+    # Ghép tạm nhãn Churn lại để tạo thành bảng dữ liệu hoàn chỉnh đưa đi kiểm định
+    df_to_validate = cleaned_features_df.copy()
+    if labels_series is not None:
+        df_to_validate["Churn"] = labels_series
+
+    # 3. Validate dữ liệu đã làm sạch
+    report = validate_dataset(df_to_validate)
+
+    # Nếu sau khi làm sạch mà vẫn có lỗi vi phạm (thiếu cột, ID trùng/rỗng, số âm, sai nhãn)
     if not report.is_valid:
         return {
             "status": "invalid",
@@ -108,23 +119,24 @@ def process_dataset_upload(file_bytes: bytes, filename: str) -> Dict[str, Any]:
             "errors": [asdict(err) for err in report.errors],
         }
 
-    # 3. Tạo ID mới và thư mục lưu trữ
+    # 4. Khi dữ liệu đã sạch và hợp lệ -> Cấp phát dataset_id và lưu trữ Parquet
     dataset_id = str(uuid.uuid4())
     dataset_folder = STORAGE_DIR / dataset_id
     dataset_folder.mkdir(parents=True, exist_ok=True)
 
-    # 4. Làm sạch và tách riêng nhãn
-    features_df, labels_series = clean_and_split_features(raw_df)
+    features_path = dataset_folder / "features.parquet"
+    cleaned_features_df.to_parquet(features_path, index=False)
 
-    # Lưu ra định dạng Parquet để tối ưu hóa tốc độ và giữ nguyên kiểu dữ liệu
-    features_df.to_parquet(dataset_folder / "features.parquet", index=False)
+    labels_path = None
     if labels_series is not None:
-        pd.DataFrame(
+        labels_path = dataset_folder / "labels.parquet"
+        labels_df = pd.DataFrame(
             {
-                "customerID": features_df["customerID"],
+                "customerID": cleaned_features_df["customerID"],
                 "Churn": labels_series,
             }
-        ).to_parquet(dataset_folder / "labels.parquet", index=False)
+        )
+        labels_df.to_parquet(labels_path, index=False)
 
     # 5. Lưu thông tin metadata
     meta = _load_metadata()
