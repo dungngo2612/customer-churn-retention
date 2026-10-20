@@ -641,6 +641,91 @@ with tab1:
 
     st.markdown('</div>', unsafe_allow_html=True)
 
+    # 4. MA TRẬN PHÂN KHÚC: GIÁ TRỊ VÒNG ĐỜI (PROXY CLV) vs RỦI RO CHURN
+    st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
+    st.markdown('<div class="chart-header">🎯 Ma Trận Phân Khúc Chiến Lược: Giá Trị Khách Hàng (Proxy CLV) vs Rủi Ro Rời Mạng</div>', unsafe_allow_html=True)
+
+    sample_recs = recommendations.sample(n=min(1200, len(recommendations)), random_state=42).copy()
+    median_val = float(recommendations["proxy_value"].median())
+
+    def assign_segment(row):
+        is_high_risk = row["churn_prob"] >= 0.50
+        is_high_val = row["proxy_value"] >= median_val
+        if is_high_risk and is_high_val:
+            return "🔴 High Value - High Risk (Ưu tiên can thiệp số 1)"
+        elif not is_high_risk and is_high_val:
+            return "🟢 High Value - Low Risk (VIP trung thành)"
+        elif is_high_risk and not is_high_val:
+            return "🟠 Low Value - High Risk (Cân nhắc chi phí)"
+        else:
+            return "⚪ Low Value - Low Risk (Bình ổn)"
+
+    sample_recs["Phân khúc"] = sample_recs.apply(assign_segment, axis=1)
+
+    fig_matrix = px.scatter(
+        sample_recs,
+        x="proxy_value",
+        y="churn_prob",
+        color="Phân khúc",
+        color_discrete_map={
+            "🔴 High Value - High Risk (Ưu tiên can thiệp số 1)": "#ef4444",
+            "🟢 High Value - Low Risk (VIP trung thành)": "#10b981",
+            "🟠 Low Value - High Risk (Cân nhắc chi phí)": "#f59e0b",
+            "⚪ Low Value - Low Risk (Bình ổn)": "#94a3b8",
+        },
+        hover_data=["customerID", "action_code", "net_value"],
+        labels={"proxy_value": "Giá trị Proxy CLV ($)", "churn_prob": "Xác suất Churn (%)"},
+    )
+    fig_matrix.add_hline(y=0.50, line_dash="dash", line_color="#94a3b8", annotation_text="Ngưỡng rủi ro cao (50%)")
+    fig_matrix.add_vline(x=median_val, line_dash="dash", line_color="#94a3b8", annotation_text=f"Trung vị CLV (${median_val:.0f})")
+    fig_matrix.update_layout(
+        height=380,
+        margin=dict(l=10, r=10, t=10, b=10),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        yaxis=dict(tickformat=".0%", gridcolor="#f1f5f9"),
+        xaxis=dict(gridcolor="#f1f5f9"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title=None),
+    )
+    st.plotly_chart(fig_matrix, use_container_width=True)
+    st.caption("💡 **Cơ sở phân bổ nguồn lực:** Doanh nghiệp tập trung ngân sách và các gói ưu đãi giá trị cao ($A_3$) vào góc trên-phải (Nhóm Đỏ: Giá trị cao & Rủi ro cao) để tối đa hóa lợi nhuận ròng $\\Delta EV$.")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 5. XUẤT BÁO CÁO TÓM TẮT ĐIỀU HÀNH (1-CLICK EXECUTIVE SUMMARY)
+    with st.expander("📄 Xem & Tải Báo Cáo Tóm Tắt Điều Hành (Executive Summary Report)", expanded=False):
+        top_action = summary_df.loc[summary_df[summary_df["action_code"] != "A0"]["net_value_sum"].idxmax()]
+        a0_row = summary_df[summary_df['action_code']=='A0']
+        a0_count = int(a0_row['n_customers'].values[0]) if not a0_row.empty else 0
+        report_text = f"""# BÁO CÁO TÓM TẮT CHIẾN LƯỢC GIỮ CHÂN KHÁCH HÀNG (EXECUTIVE SUMMARY)
+**Dự án:** Customer Churn & Retention Decision Support System
+**Kịch bản cơ sở:** Biên lợi nhuận m = {base_margin:.0%} | Kỳ hạn H = {horizon} tháng
+
+---
+
+### 1. KẾT QUẢ ĐIỀU HÀNH TỔNG THỂ
+- **Quy mô tệp khách hàng hoạt động:** {n_total:,} khách hàng
+- **Quy mô can thiệp được duyệt (ΔEV > 0):** {n_intervened:,} khách hàng ({intervention_rate:.1%} tổng tệp)
+- **Tổng ngân sách đề xuất đầu tư:** ${total_cost:,.2f} (Chi phí trung bình: ${avg_cost_per_user:,.2f}/khách)
+- **Tổng doanh thu giữ lại dự kiến (Gross Benefit):** ${total_benefit:,.2f}
+- **Lợi nhuận ròng kỳ vọng (Net Economic Value - ΔEV):** +${total_net_value:,.2f}
+- **Tỷ suất sinh lời trên chi phí (ROI):** +{roi:.1f}%
+
+### 2. PHÂN BỔ THEO GÓI HÀNH ĐỘNG
+- **Gói hiệu quả tài chính cao nhất:** {top_action['action_code']} ({top_action['action_name']}) mang lại +${top_action['net_value_sum']:,.2f} lợi nhuận ròng.
+- **Phương án không can thiệp (A0):** {a0_count:,} khách hàng do chi phí can thiệp lớn hơn lợi ích bảo vệ được (ΔEV ≤ 0).
+
+### 3. KHUYẾN NGHỊ CHÍNH SÁCH
+1. Ưu tiên giải ngân trước cho nhóm khách hàng **High Value - High Risk** (hợp đồng tháng, cước phí cao) bằng gói A3.
+2. Kiểm soát chặt chi phí tiếp cận qua điện thoại, chuyển dịch dần sang kênh số hóa để mở rộng điểm hòa vốn p*.
+"""
+        st.markdown(report_text)
+        st.download_button(
+            label="📥 Tải Văn Bản Báo Cáo (.MD)",
+            data=report_text.encode("utf-8"),
+            file_name="executive_retention_summary.md",
+            mime="text/markdown",
+        )
+
 # ==============================================================================
 # TAB 2: KHÁM PHÁ DỮ LIỆU & HÀNH VI CHURN (EDA PATTERNS)
 # ==============================================================================
@@ -1092,7 +1177,7 @@ with tab3:
             )
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # CỘT 3: YẾU TỐ TRẢI NGHIỆM GÂY CHURN & KỊCH BẢN CSKH
+        # CỘT 3: YẾU TỐ TRẢI NGHIỆM GÂY CHURN & CƠ SỞ RA QUYẾT ĐỊNH
         with col_c360_right:
             st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
             st.markdown('<div class="chart-header">🔍 Yếu Tố Trải Nghiệm Gây Rời Bỏ</div>', unsafe_allow_html=True)
@@ -1125,7 +1210,7 @@ with tab3:
                 color_discrete_sequence=["#f43f5e"]
             )
             fig_drivers.update_layout(
-                height=200,
+                height=220,
                 margin=dict(l=10, r=10, t=10, b=10),
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)",
@@ -1133,46 +1218,23 @@ with tab3:
             )
             st.plotly_chart(fig_drivers, use_container_width=True)
 
-            st.markdown("##### 💬 Kịch Bản Tư Vấn Cho Nhân Viên CSKH:")
-            if best_code == "A3":
-                script_text = f"Chào anh/chị {selected_cust_id}, cảm ơn anh/chị đã đồng hành cùng nhà mạng. Để tri ân khách hàng thân thiết, chúng em xin gửi tặng voucher giảm giá cước và gói cước ưu đãi đặc biệt khi anh/chị nâng cấp hợp đồng 1 năm..."
-            elif best_code == "A1":
-                script_text = f"Chào anh/chị {selected_cust_id}, kỹ thuật viên của nhà mạng liên hệ hỗ trợ kiểm tra định kỳ đường truyền Fiber và kích hoạt miễn phí gói bảo mật Online Security cho gia đình mình..."
-            elif best_code == "A2":
-                script_text = f"Chào anh/chị {selected_cust_id}, nhà mạng xin giới thiệu tính năng thanh toán tự động tiện lợi kèm ưu đãi hoàn tiền 10% cước phí kỳ đầu tiên..."
-            else:
-                script_text = "Khách hàng có nguy cơ rời mạng thấp hoặc phương án can thiệp không mang lại hiệu quả kinh tế. Không cần chủ động gọi điện ưu đãi."
-
-            st.info(script_text)
-
+            st.markdown("##### 💡 Luận Cứ Ra Quyết Định Can Thiệp:")
             if best_code != "A0":
-                sms_voucher = f"RET-{best_code}-2026"
-                if best_code == "A3":
-                    sms_body = f"[VNPT/Viettel Telecom] Tri an KH {selected_cust_id}: Tang quy khach Voucher giam cuoc {c3_offer:.0f}$ (Ma: {sms_voucher}) khi gia han hop dong 12 thang. Soan DK gui 8079 de nhan uu dai!"
-                elif best_code == "A1":
-                    sms_body = f"[VNPT/Viettel Telecom] Ho tro ky thuat: Duong truyen Fiber cua KH {selected_cust_id} duoc kich hoat mien phi goi Online Security & TechSupport chu dong. KTV se lien he ho tro trong 24h."
-                elif best_code == "A2":
-                    sms_body = f"[VNPT/Viettel Telecom] Tien loi hon moi ngay: Quy khach {selected_cust_id} dang ky Thanh toan tu dong nhan ngay uu dai hoan cuoc {c2_offer:.0f}$. Truy cap app de bat tinh nang!"
-                
                 st.markdown(
                     f"""
-                    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 14px; margin-top: 10px; margin-bottom: 12px;">
-                        <div style="font-size: 0.78rem; font-weight: 700; color: #475569; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-                            <span>📱 XEM TRƯỚC TIN NHẮN TỰ ĐỘNG (SMS / ZALO)</span>
-                            <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">Sẵn sàng gửi</span>
-                        </div>
-                        <div style="background: #f1f5f9; border-radius: 8px; padding: 10px 12px; font-size: 0.82rem; color: #0f172a; line-height: 1.4; border-left: 3px solid #3b82f6; font-family: monospace;">
-                            {sms_body}
-                        </div>
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; font-size: 0.85rem; line-height: 1.5; color: #334155;">
+                        <div>• <b>Lý do chọn {best_code}:</b> Mang lại lợi nhuận kỳ vọng ròng lớn nhất (+${best_ev:.2f}) so với các phương án còn lại.</div>
+                        <div style="margin-top: 4px;">• <b>Xác suất hòa vốn:</b> Cần giảm xác suất churn của khách hàng tối thiểu <b>{cust_rec['break_even_p']:.1%}</b> để bù đắp chi phí gói ${cust_rec['cost']:.1f}.</div>
+                        <div style="margin-top: 4px;">• <b>Khuyến nghị điều hành:</b> Phê duyệt gói can thiệp để bảo toàn dòng tiền cước ${cust_info['MonthlyCharges']:.1f}/tháng.</div>
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
-
-            # Nút hành động tương tác
-            if best_code != "A0":
-                if st.button("🚀 Kích Hoạt Gói Can Thiệp Cho Khách Hàng Này", key="btn_apply", use_container_width=True):
-                    st.success(f"✅ Đã ghi nhận áp dụng gói {best_code} cho khách hàng {selected_cust_id}. Chi phí dự kiến: ${cust_rec['cost']:.2f}, Lợi nhuận ròng kỳ vọng: +${best_ev:.2f}!")
+                st.write("")
+                if st.button("🚀 Phê Duyệt & Ghi Nhận Gói Can Thiệp", key="btn_apply", use_container_width=True):
+                    st.success(f"✅ Đã ghi nhận áp dụng gói {best_code} ({cust_rec['action_name']}) cho khách hàng {selected_cust_id}. Chi phí dự kiến: ${cust_rec['cost']:.2f}, Lợi nhuận ròng kỳ vọng: +${best_ev:.2f}!")
+            else:
+                st.info("Phương án tối ưu là **A0 (Không can thiệp)** vì mọi phương án có chi phí đều mang lại lợi nhuận ròng âm (ΔEV ≤ 0). Giữ nguyên trạng thái để tối ưu hóa ngân sách.")
 
             st.markdown('</div>', unsafe_allow_html=True)
 
