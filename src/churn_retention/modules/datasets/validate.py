@@ -150,7 +150,8 @@ def validate_dataset(df: pd.DataFrame) -> ValidationReport:
                 ValidationErrorDetail(
                     row=row_num,
                     column="Churn",
-                    reason=f"Nhãn Churn không hợp lệ: '{val}'. Chỉ chấp nhận: Yes, No, 0, 1, True, False",
+                    reason=f"Nhãn Churn không hợp lệ: '{val}'. "
+                           "Chỉ chấp nhận: Yes, No, 0, 1, True, False",
                 )
             )
 
