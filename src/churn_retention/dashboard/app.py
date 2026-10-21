@@ -545,7 +545,7 @@ with tab1:
 
     with col_chart_right:
         st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
-        st.markdown('<div class="chart-header">🌊 Phân Rã Dòng Tiền Kinh Tế (Waterfall Analysis)</div>', unsafe_allow_html=True)
+        st.markdown('<div class="chart-header">💰 Cân Đối Dòng Tiền & Hiệu Quả Can Thiệp</div>', unsafe_allow_html=True)
 
         total_contact_cost = sum(
             len(recommendations[recommendations["action_code"] == a.code]) * a.contact_cost
@@ -553,30 +553,40 @@ with tab1:
         )
         total_offer_cost = total_cost - total_contact_cost
 
-        fig_waterfall = go.Figure(
-            go.Waterfall(
-                name="Tài chính",
-                orientation="v",
-                measure=["relative", "relative", "relative", "total"],
-                x=["Lợi Ích Gộp (Benefit)", "Chi Phí Liên Hệ", "Chi Phí Ưu Đãi", "Lợi Nhuận Ròng (ΔEV)"],
-                textposition="outside",
-                text=[f"+${total_benefit:,.0f}", f"-${total_contact_cost:,.0f}", f"-${total_offer_cost:,.0f}", f"+${total_net_value:,.0f}"],
-                y=[total_benefit, -total_contact_cost, -total_offer_cost, total_net_value],
-                connector=dict(line=dict(color="#94a3b8", width=1, dash="dot")),
-                decreasing=dict(marker=dict(color="#f43f5e")),
-                increasing=dict(marker=dict(color="#0284c7")),
-                totals=dict(marker=dict(color="#10b981")),
-            )
-        )
-        fig_waterfall.update_layout(
+        flow_labels = [
+            "Lợi ích gộp (Gross Benefit)",
+            "Chi phí liên hệ CSKH",
+            "Chi phí gói ưu đãi/voucher",
+            "Lợi nhuận ròng (Net ΔEV)"
+        ]
+        flow_values = [total_benefit, total_contact_cost, total_offer_cost, total_net_value]
+        flow_colors = ["#0284c7", "#f43f5e", "#f97316", "#10b981"]
+        flow_texts = [
+            f"+${total_benefit:,.0f}",
+            f"-${total_contact_cost:,.0f}",
+            f"-${total_offer_cost:,.0f}",
+            f"+${total_net_value:,.0f}"
+        ]
+
+        fig_cashflow = go.Figure(go.Bar(
+            y=flow_labels,
+            x=flow_values,
+            orientation="h",
+            text=flow_texts,
+            textposition="auto",
+            marker=dict(color=flow_colors),
+            hovertemplate="<b>%{y}</b>: %{text}<extra></extra>",
+        ))
+        fig_cashflow.update_layout(
             height=320,
-            margin=dict(l=20, r=20, t=20, b=20),
+            margin=dict(l=10, r=20, t=10, b=10),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            yaxis=dict(title="Giá trị ($)", gridcolor="#f1f5f9"),
-            xaxis=dict(tickfont=dict(size=12, family="Plus Jakarta Sans")),
+            xaxis=dict(title="Giá trị tài chính ($)", gridcolor="#f1f5f9"),
+            yaxis=dict(autorange="reversed", tickfont=dict(size=12, family="Plus Jakarta Sans")),
         )
-        st.plotly_chart(fig_waterfall, use_container_width=True)
+        st.plotly_chart(fig_cashflow, use_container_width=True)
+        st.caption("💡 Lợi ích gộp bảo vệ được sau khi trừ chi phí CSKH và voucher sẽ đem lại khoản **Lợi nhuận ròng (ΔEV) dương**.")
         st.markdown('</div>', unsafe_allow_html=True)
 
     # 3. SO SÁNH HIỆU QUẢ CÁC GÓI CAN THIỆP & BẢNG TỔNG HỢP CHI TIẾT
@@ -615,6 +625,7 @@ with tab1:
             plot_bgcolor="rgba(0,0,0,0)",
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             yaxis=dict(gridcolor="#f1f5f9"),
+            xaxis=dict(tickangle=0),
         )
         st.plotly_chart(fig_grouped, use_container_width=True)
 
@@ -641,57 +652,7 @@ with tab1:
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 4. MA TRẬN PHÂN KHÚC: GIÁ TRỊ VÒNG ĐỜI (PROXY CLV) vs RỦI RO CHURN
-    st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="chart-header">🎯 Ma Trận Phân Khúc Chiến Lược: Giá Trị Khách Hàng (Proxy CLV) vs Rủi Ro Rời Mạng</div>', unsafe_allow_html=True)
-
-    sample_recs = recommendations.sample(n=min(1200, len(recommendations)), random_state=42).copy()
-    median_val = float(recommendations["proxy_value"].median())
-
-    def assign_segment(row):
-        is_high_risk = row["churn_prob"] >= 0.50
-        is_high_val = row["proxy_value"] >= median_val
-        if is_high_risk and is_high_val:
-            return "🔴 High Value - High Risk (Ưu tiên can thiệp số 1)"
-        elif not is_high_risk and is_high_val:
-            return "🟢 High Value - Low Risk (VIP trung thành)"
-        elif is_high_risk and not is_high_val:
-            return "🟠 Low Value - High Risk (Cân nhắc chi phí)"
-        else:
-            return "⚪ Low Value - Low Risk (Bình ổn)"
-
-    sample_recs["Phân khúc"] = sample_recs.apply(assign_segment, axis=1)
-
-    fig_matrix = px.scatter(
-        sample_recs,
-        x="proxy_value",
-        y="churn_prob",
-        color="Phân khúc",
-        color_discrete_map={
-            "🔴 High Value - High Risk (Ưu tiên can thiệp số 1)": "#ef4444",
-            "🟢 High Value - Low Risk (VIP trung thành)": "#10b981",
-            "🟠 Low Value - High Risk (Cân nhắc chi phí)": "#f59e0b",
-            "⚪ Low Value - Low Risk (Bình ổn)": "#94a3b8",
-        },
-        hover_data=["customerID", "action_code", "net_value"],
-        labels={"proxy_value": "Giá trị Proxy CLV ($)", "churn_prob": "Xác suất Churn (%)"},
-    )
-    fig_matrix.add_hline(y=0.50, line_dash="dash", line_color="#94a3b8", annotation_text="Ngưỡng rủi ro cao (50%)")
-    fig_matrix.add_vline(x=median_val, line_dash="dash", line_color="#94a3b8", annotation_text=f"Trung vị CLV (${median_val:.0f})")
-    fig_matrix.update_layout(
-        height=380,
-        margin=dict(l=10, r=10, t=10, b=10),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        yaxis=dict(tickformat=".0%", gridcolor="#f1f5f9"),
-        xaxis=dict(gridcolor="#f1f5f9"),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title=None),
-    )
-    st.plotly_chart(fig_matrix, use_container_width=True)
-    st.caption("💡 **Cơ sở phân bổ nguồn lực:** Doanh nghiệp tập trung ngân sách và các gói ưu đãi giá trị cao ($A_3$) vào góc trên-phải (Nhóm Đỏ: Giá trị cao & Rủi ro cao) để tối đa hóa lợi nhuận ròng $\\Delta EV$.")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # 5. XUẤT BÁO CÁO TÓM TẮT ĐIỀU HÀNH (1-CLICK EXECUTIVE SUMMARY)
+    # 4. XUẤT BÁO CÁO TÓM TẮT ĐIỀU HÀNH (1-CLICK EXECUTIVE SUMMARY)
     with st.expander("📄 Xem & Tải Báo Cáo Tóm Tắt Điều Hành (Executive Summary Report)", expanded=False):
         top_action = summary_df.loc[summary_df[summary_df["action_code"] != "A0"]["net_value_sum"].idxmax()]
         a0_row = summary_df[summary_df['action_code']=='A0']
@@ -715,7 +676,7 @@ with tab1:
 - **Phương án không can thiệp (A0):** {a0_count:,} khách hàng do chi phí can thiệp lớn hơn lợi ích bảo vệ được (ΔEV ≤ 0).
 
 ### 3. KHUYẾN NGHỊ CHÍNH SÁCH
-1. Ưu tiên giải ngân trước cho nhóm khách hàng **High Value - High Risk** (hợp đồng tháng, cước phí cao) bằng gói A3.
+1. Ưu tiên giải ngân trước cho nhóm khách hàng hợp đồng từng tháng và cước cao bằng gói A3.
 2. Kiểm soát chặt chi phí tiếp cận qua điện thoại, chuyển dịch dần sang kênh số hóa để mở rộng điểm hòa vốn p*.
 """
         st.markdown(report_text)
@@ -810,7 +771,7 @@ with tab2:
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             yaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="#f1f5f9"),
-            xaxis=dict(title="Loại hợp đồng"),
+            xaxis=dict(title="Loại hợp đồng", tickangle=0),
         )
         st.plotly_chart(fig_contract, use_container_width=True)
         st.caption("💡 **Insight:** Hợp đồng Month-to-month có tỷ lệ churn lên tới ~43%, cao gấp gần **15 lần** so với hợp đồng 2 năm (~2.8%). Đây là lý do chính sách A3 nhắm thẳng vào nhóm này.")
@@ -836,7 +797,7 @@ with tab2:
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             yaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="#f1f5f9"),
-            xaxis=dict(title="Dịch vụ Internet"),
+            xaxis=dict(title="Dịch vụ Internet", tickangle=0),
         )
         st.plotly_chart(fig_internet, use_container_width=True)
         st.caption("💡 **Insight:** Mạng Fiber optic tốc độ cao nhưng tỷ lệ churn tới ~42% (cao hơn DSL gấp đôi) do giá cước cao và thường thiếu gói dịch vụ hỗ trợ kỹ thuật đi kèm.")
@@ -865,7 +826,7 @@ with tab2:
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             yaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="#f1f5f9"),
-            xaxis=dict(title="Có dịch vụ Tech Support không"),
+            xaxis=dict(title="Có dịch vụ Tech Support không", tickangle=0),
         )
         st.plotly_chart(fig_tech, use_container_width=True)
         st.caption("💡 **Insight:** Khách hàng không có hỗ trợ kỹ thuật có tỷ lệ rời mạng ~41.6%, trong khi khách có dịch vụ này chỉ rời mạng ~15.2%. Đây là căn cứ thiết kế gói A1.")
@@ -1150,7 +1111,7 @@ with tab3:
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)",
                 yaxis=dict(title="Lợi nhuận ròng ΔEV ($)", gridcolor="#f1f5f9"),
-                xaxis=dict(title="Mã hành động"),
+                xaxis=dict(title="Mã hành động", tickangle=0),
             )
             st.plotly_chart(fig_action_comp, use_container_width=True)
 
@@ -1220,11 +1181,13 @@ with tab3:
 
             st.markdown("##### 💡 Luận Cứ Ra Quyết Định Can Thiệp:")
             if best_code != "A0":
+                be_val = cust_rec.get("breakeven_prob", None)
+                be_text = f"{be_val:.1%}" if (be_val is not None and pd.notna(be_val)) else "N/A"
                 st.markdown(
                     f"""
                     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; font-size: 0.85rem; line-height: 1.5; color: #334155;">
                         <div>• <b>Lý do chọn {best_code}:</b> Mang lại lợi nhuận kỳ vọng ròng lớn nhất (+${best_ev:.2f}) so với các phương án còn lại.</div>
-                        <div style="margin-top: 4px;">• <b>Xác suất hòa vốn:</b> Cần giảm xác suất churn của khách hàng tối thiểu <b>{cust_rec['break_even_p']:.1%}</b> để bù đắp chi phí gói ${cust_rec['cost']:.1f}.</div>
+                        <div style="margin-top: 4px;">• <b>Xác suất hòa vốn:</b> Cần giảm xác suất churn của khách hàng tối thiểu <b>{be_text}</b> để bù đắp chi phí gói ${cust_rec['cost']:.1f}.</div>
                         <div style="margin-top: 4px;">• <b>Khuyến nghị điều hành:</b> Phê duyệt gói can thiệp để bảo toàn dòng tiền cước ${cust_info['MonthlyCharges']:.1f}/tháng.</div>
                     </div>
                     """,
@@ -1292,7 +1255,7 @@ with tab4:
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             yaxis=dict(title="Giá trị ($)", gridcolor="#f1f5f9"),
-            xaxis=dict(title="Biên Lợi Nhuận (m)"),
+            xaxis=dict(title="Biên Lợi Nhuận (m)", tickangle=0),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
         st.plotly_chart(fig_sens, use_container_width=True)
@@ -1325,7 +1288,7 @@ with tab4:
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             yaxis=dict(title="Số lượng khách can thiệp", gridcolor="#f1f5f9"),
-            xaxis=dict(title="Biên Lợi Nhuận (m)"),
+            xaxis=dict(title="Biên Lợi Nhuận (m)", tickangle=0),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
         st.plotly_chart(fig_stacked, use_container_width=True)
@@ -1440,7 +1403,7 @@ with tab4:
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)",
                 yaxis=dict(title="Giá trị ($)", gridcolor="#f1f5f9"),
-                xaxis=dict(title="Gói can thiệp"),
+                xaxis=dict(title="Gói can thiệp", tickangle=0),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             )
             st.plotly_chart(fig_sim, use_container_width=True)
