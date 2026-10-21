@@ -1,0 +1,37 @@
+features:
+  categorical_cols:
+  - gender
+  - Partner
+  - Dependents
+  - PhoneService
+  - MultipleLines
+  - InternetService
+  - OnlineSecurity
+  - OnlineBackup
+  - DeviceProtection
+  - TechSupport
+  - StreamingTV
+  - StreamingMovies
+  - Contract
+  - PaperlessBilling
+  - PaymentMethod
+  drop_cols:
+  - customerID
+  numeric_cols:
+  - SeniorCitizen
+  - tenure
+  - MonthlyCharges
+  - TotalCharges
+  positive_label: 'Yes'
+  target_col: Churn
+mlflow:
+  experiment_name: churn-retention
+models:
+  catboost:
+    depth: 6
+    iterations: 200
+    learning_rate: 0.05
+  logistic:
+    C: 1.0
+    max_iter: 1000
+seed: 42
