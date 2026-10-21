@@ -52,86 +52,129 @@ st.markdown(
         max-width: 95% !important;
     }
 
-    /* Hero Banner hiện đại */
+    /* Hero Banner chuẩn Bento Executive */
     .hero-banner {
-        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
-        border-radius: 16px;
-        padding: 24px 30px;
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 45%, #2e1065 100%);
+        border-radius: 18px;
+        padding: 26px 32px;
         color: #ffffff;
-        margin-bottom: 22px;
-        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 24px;
+        box-shadow: 0 12px 30px -8px rgba(15, 23, 42, 0.25), 0 4px 6px -4px rgba(15, 23, 42, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        position: relative;
+        overflow: hidden;
+    }
+    .hero-banner::after {
+        content: "";
+        position: absolute;
+        top: -40px;
+        right: -40px;
+        width: 220px;
+        height: 220px;
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.35) 0%, rgba(99, 102, 241, 0) 70%);
+        pointer-events: none;
     }
     .hero-title {
-        font-size: 1.85rem;
+        font-size: 1.95rem;
         font-weight: 800;
-        letter-spacing: -0.02em;
-        margin-bottom: 6px;
+        letter-spacing: -0.025em;
+        margin-bottom: 8px;
         display: flex;
         align-items: center;
         gap: 12px;
     }
     .hero-desc {
         color: #cbd5e1;
-        font-size: 0.95rem;
-        max-width: 850px;
-        line-height: 1.5;
-        margin-bottom: 14px;
+        font-size: 0.96rem;
+        max-width: 880px;
+        line-height: 1.6;
+        margin-bottom: 16px;
     }
     .pill-group {
         display: flex;
-        gap: 8px;
+        gap: 10px;
         flex-wrap: wrap;
+        align-items: center;
     }
     .status-pill {
-        background: rgba(255, 255, 255, 0.12);
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.18);
         border-radius: 9999px;
-        padding: 4px 14px;
+        padding: 5px 14px;
         font-size: 0.82rem;
         font-weight: 600;
         color: #f8fafc;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
     }
 
-    /* KPI Card Containers */
+    /* KPI Grid chuẩn Bento Card */
     .kpi-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
-        margin-bottom: 24px;
+        gap: 18px;
+        margin-bottom: 26px;
     }
     .modern-card {
         background: #ffffff;
         border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 20px 22px;
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 16px;
+        padding: 22px 24px;
+        box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 4px 6px -2px rgba(15, 23, 42, 0.02);
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
     }
     .modern-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+        transform: translateY(-3px);
+        box-shadow: 0 12px 24px -6px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.03);
         border-color: #cbd5e1;
     }
+    .modern-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: transparent;
+        transition: background 0.2s ease;
+    }
+    .card-accent-blue::before { background: #3b82f6; }
+    .card-accent-indigo::before { background: #6366f1; }
+    .card-accent-amber::before { background: #f59e0b; }
+    .card-accent-emerald::before { background: #10b981; }
+
     .card-label {
-        font-size: 0.82rem;
+        font-size: 0.8rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.06em;
         color: #64748b;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
+    .card-icon-wrap {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.05rem;
+    }
     .card-value {
-        font-size: 2.1rem;
+        font-size: 2.25rem;
         font-weight: 800;
         color: #0f172a;
         line-height: 1.1;
-        letter-spacing: -0.03em;
-        margin-bottom: 8px;
+        letter-spacing: -0.035em;
+        margin-bottom: 10px;
+        font-feature-settings: "tnum" on, "lnum" on;
     }
     .card-footer {
         font-size: 0.84rem;
@@ -141,70 +184,81 @@ st.markdown(
         gap: 6px;
     }
 
+    /* Badges ngữ nghĩa */
     .badge-emerald {
         background: #ecfdf5;
-        color: #047857;
-        padding: 2px 8px;
+        color: #059669;
+        border: 1px solid #a7f3d0;
+        padding: 3px 9px;
         border-radius: 6px;
         font-weight: 700;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
     }
     .badge-indigo {
         background: #eef2ff;
-        color: #4338ca;
-        padding: 2px 8px;
+        color: #4f46e5;
+        border: 1px solid #c7d2fe;
+        padding: 3px 9px;
         border-radius: 6px;
         font-weight: 700;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
     }
     .badge-rose {
-        background: #ffe4e6;
+        background: #fff1f2;
         color: #e11d48;
-        padding: 2px 8px;
+        border: 1px solid #fecdd3;
+        padding: 3px 9px;
         border-radius: 6px;
         font-weight: 700;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
     }
     .badge-amber {
-        background: #fef3c7;
+        background: #fffbeb;
         color: #d97706;
-        padding: 2px 8px;
+        border: 1px solid #fde68a;
+        padding: 3px 9px;
         border-radius: 6px;
         font-weight: 700;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
     }
 
-    /* Container bao bọc các biểu đồ và panel */
+    /* Container bao bọc các biểu đồ chuẩn Bento Panel */
     .chart-panel {
         background: #ffffff;
         border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 20px;
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
-        margin-bottom: 20px;
+        border-radius: 16px;
+        padding: 22px 24px;
+        box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04);
+        margin-bottom: 22px;
+        transition: border-color 0.2s ease;
+    }
+    .chart-panel:hover {
+        border-color: #cbd5e1;
     }
     .chart-header {
-        font-size: 1.05rem;
+        font-size: 1.08rem;
         font-weight: 700;
-        color: #1e293b;
-        margin-bottom: 12px;
+        color: #0f172a;
+        margin-bottom: 14px;
         display: flex;
         align-items: center;
         gap: 8px;
+        letter-spacing: -0.01em;
     }
 
-    /* Hồ sơ 360 styling */
+    /* Hồ sơ Customer 360 styling */
     .profile-box {
         background: #f8fafc;
         border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 16px 18px;
-        margin-bottom: 14px;
+        border-radius: 14px;
+        padding: 16px 20px;
+        margin-bottom: 16px;
     }
     .profile-item {
         display: flex;
         justify-content: space-between;
-        padding: 6px 0;
+        align-items: center;
+        padding: 7px 0;
         border-bottom: 1px dashed #e2e8f0;
         font-size: 0.88rem;
     }
@@ -220,26 +274,28 @@ st.markdown(
         font-weight: 700;
     }
 
+    /* Hộp Đề Xuất Tối Ưu chuẩn Executive Decision Ticket */
     .recommend-box {
         background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
         border: 1px solid #86efac;
-        border-radius: 12px;
-        padding: 18px 20px;
-        margin-bottom: 14px;
+        border-radius: 14px;
+        padding: 20px 22px;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 6px -2px rgba(22, 101, 52, 0.05);
     }
     .recommend-title {
-        font-size: 1.15rem;
+        font-size: 1.2rem;
         font-weight: 800;
         color: #15803d;
-        margin-bottom: 6px;
+        margin-bottom: 8px;
         display: flex;
         align-items: center;
         gap: 8px;
     }
     .recommend-sub {
-        font-size: 0.88rem;
+        font-size: 0.9rem;
         color: #166534;
-        line-height: 1.4;
+        line-height: 1.5;
     }
 
     /* Tùy biến thanh Sidebar */
@@ -248,25 +304,32 @@ st.markdown(
         border-right: 1px solid #e2e8f0;
     }
 
-    /* Tùy biến Tabs */
+    /* Tùy biến Tabs dạng Segmented Control */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
+        gap: 6px;
         background-color: #f1f5f9;
         padding: 6px;
-        border-radius: 10px;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
     }
     .stTabs [data-baseweb="tab"] {
         border-radius: 8px;
-        padding: 8px 18px;
+        padding: 9px 20px;
         font-weight: 600;
-        color: #475569;
+        font-size: 0.92rem;
+        color: #64748b;
         background-color: transparent;
         border: none;
+        transition: all 0.2s ease;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #1e293b;
     }
     .stTabs [aria-selected="true"] {
         background-color: #ffffff !important;
         color: #4338ca !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+        font-weight: 700 !important;
     }
     </style>
     """,
@@ -439,40 +502,40 @@ with tab1:
     st.markdown(
         f"""
         <div class="kpi-grid">
-            <div class="modern-card">
+            <div class="modern-card card-accent-blue">
                 <div class="card-label">
                     <span>Khách Hàng Hoạt Động</span>
-                    <span>👥</span>
+                    <div class="card-icon-wrap" style="background:#eff6ff; color:#2563eb;">👥</div>
                 </div>
                 <div class="card-value">{n_total:,}</div>
                 <div class="card-footer">
                     <span>Đủ điều kiện xét duyệt chính sách</span>
                 </div>
             </div>
-            <div class="modern-card">
+            <div class="modern-card card-accent-indigo">
                 <div class="card-label">
                     <span>Quyết Định Can Thiệp</span>
-                    <span>🎯</span>
+                    <div class="card-icon-wrap" style="background:#eef2ff; color:#4f46e5;">🎯</div>
                 </div>
                 <div class="card-value">{n_intervened:,}</div>
                 <div class="card-footer">
                     Tỷ lệ tiếp cận: <span class="badge-indigo">{intervention_rate:.1%} tổng tệp</span>
                 </div>
             </div>
-            <div class="modern-card">
+            <div class="modern-card card-accent-amber">
                 <div class="card-label">
                     <span>Tổng Ngân Sách Dự Kiến</span>
-                    <span>💳</span>
+                    <div class="card-icon-wrap" style="background:#fffbeb; color:#d97706;">💳</div>
                 </div>
                 <div class="card-value">${total_cost:,.2f}</div>
                 <div class="card-footer">
-                    Trung bình: <strong>${avg_cost_per_user:,.2f}</strong> / khách
+                    TB: <strong>${avg_cost_per_user:,.2f}</strong> / khách
                 </div>
             </div>
-            <div class="modern-card">
+            <div class="modern-card card-accent-emerald">
                 <div class="card-label">
                     <span>Lợi Nhuận Ròng (ΔEV)</span>
-                    <span>🚀</span>
+                    <div class="card-icon-wrap" style="background:#ecfdf5; color:#059669;">🚀</div>
                 </div>
                 <div class="card-value" style="color: #059669;">+${total_net_value:,.2f}</div>
                 <div class="card-footer">
@@ -706,8 +769,11 @@ with tab2:
     with eda_kpi1:
         st.markdown(
             f"""
-            <div class="modern-card">
-                <div class="card-label"><span>Tổng Tệp Khảo Sát</span><span>📁</span></div>
+            <div class="modern-card card-accent-blue">
+                <div class="card-label">
+                    <span>Tổng Tệp Khảo Sát</span>
+                    <div class="card-icon-wrap" style="background:#eff6ff; color:#2563eb;">📁</div>
+                </div>
                 <div class="card-value">{eda_total:,}</div>
                 <div class="card-footer"><span>Toàn bộ mẫu dữ liệu Telco</span></div>
             </div>
@@ -716,8 +782,11 @@ with tab2:
     with eda_kpi2:
         st.markdown(
             f"""
-            <div class="modern-card">
-                <div class="card-label"><span>Tỷ Lệ Churn Toàn Mạng</span><span>⚠️</span></div>
+            <div class="modern-card card-accent-amber">
+                <div class="card-label">
+                    <span>Tỷ Lệ Churn Toàn Mạng</span>
+                    <div class="card-icon-wrap" style="background:#fff1f2; color:#e11d48;">⚠️</div>
+                </div>
                 <div class="card-value" style="color: #e11d48;">{churn_pct:.1f}%</div>
                 <div class="card-footer"><span>{churn_count:,} khách đã rời mạng</span></div>
             </div>
@@ -726,8 +795,11 @@ with tab2:
     with eda_kpi3:
         st.markdown(
             f"""
-            <div class="modern-card">
-                <div class="card-label"><span>Cước TB Toàn Mạng</span><span>💵</span></div>
+            <div class="modern-card card-accent-indigo">
+                <div class="card-label">
+                    <span>Cước TB Toàn Mạng</span>
+                    <div class="card-icon-wrap" style="background:#eef2ff; color:#4f46e5;">💵</div>
+                </div>
                 <div class="card-value">${avg_mc:.1f}</div>
                 <div class="card-footer"><span>Cước trung bình / tháng</span></div>
             </div>
@@ -736,9 +808,12 @@ with tab2:
     with eda_kpi4:
         st.markdown(
             f"""
-            <div class="modern-card">
-                <div class="card-label"><span>Thời Gian Gắn Bó TB</span><span>⏳</span></div>
-                <div class="card-value">{avg_tenure:.1f} <span style="font-size:1.1rem;font-weight:600;">tháng</span></div>
+            <div class="modern-card card-accent-emerald">
+                <div class="card-label">
+                    <span>Thời Gian Gắn Bó TB</span>
+                    <div class="card-icon-wrap" style="background:#ecfdf5; color:#059669;">⏳</div>
+                </div>
+                <div class="card-value">{avg_tenure:.1f} <span style="font-size:1.1rem;font-weight:600;">th</span></div>
                 <div class="card-footer"><span>Khoảng ~2.7 năm trung bình</span></div>
             </div>
             """, unsafe_allow_html=True
@@ -1034,17 +1109,22 @@ with tab3:
             )
             st.plotly_chart(fig_gauge, use_container_width=True)
 
-            # Chi tiết thông tin dịch vụ
+            # Chi tiết thông tin dịch vụ với visual badges
+            contract_badge = '<span class="badge-rose">Month-to-month</span>' if cust_info['Contract'] == 'Month-to-month' else f'<span class="badge-emerald">{cust_info["Contract"]}</span>'
+            tech_badge = '<span class="badge-rose">Chưa có</span>' if cust_info['TechSupport'] == 'No' else '<span class="badge-emerald">Đã kích hoạt</span>'
+            sec_badge = '<span class="badge-rose">Chưa có</span>' if cust_info['OnlineSecurity'] == 'No' else '<span class="badge-emerald">Đã kích hoạt</span>'
+            pay_badge = '<span class="badge-amber">Thủ công</span>' if cust_info['PaymentMethod'] in MANUAL_PAYMENTS else '<span class="badge-indigo">Tự động</span>'
+
             st.markdown(
                 f"""
                 <div class="profile-box">
-                    <div class="profile-item"><span class="profile-key">Loại Hợp Đồng:</span> <span class="profile-val">{cust_info['Contract']}</span></div>
+                    <div class="profile-item"><span class="profile-key">Loại Hợp Đồng:</span> {contract_badge}</div>
                     <div class="profile-item"><span class="profile-key">Thời Gian Gắn Bó:</span> <span class="profile-val">{cust_info['tenure']} tháng</span></div>
-                    <div class="profile-item"><span class="profile-key">Cước Phí Tháng:</span> <span class="profile-val">${cust_info['MonthlyCharges']:.2f} / tháng</span></div>
+                    <div class="profile-item"><span class="profile-key">Cước Phí Tháng:</span> <span class="profile-val" style="color:#0284c7;">${cust_info['MonthlyCharges']:.2f}</span></div>
                     <div class="profile-item"><span class="profile-key">Dịch Vụ Internet:</span> <span class="profile-val">{cust_info['InternetService']}</span></div>
-                    <div class="profile-item"><span class="profile-key">Hỗ Trợ Kỹ Thuật:</span> <span class="profile-val">{cust_info['TechSupport']}</span></div>
-                    <div class="profile-item"><span class="profile-key">Bảo Mật Online:</span> <span class="profile-val">{cust_info['OnlineSecurity']}</span></div>
-                    <div class="profile-item"><span class="profile-key">Thanh Toán:</span> <span class="profile-val">{cust_info['PaymentMethod']}</span></div>
+                    <div class="profile-item"><span class="profile-key">Hỗ Trợ Kỹ Thuật:</span> {tech_badge}</div>
+                    <div class="profile-item"><span class="profile-key">Bảo Mật Online:</span> {sec_badge}</div>
+                    <div class="profile-item"><span class="profile-key">Thanh Toán:</span> {pay_badge}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1070,7 +1150,7 @@ with tab3:
                             <span>⭐</span> Đề Xuất: Gói {best_code} — {best_name}
                         </div>
                         <div class="recommend-sub">
-                            Lợi nhuận ròng tối đa: <strong>+${best_ev:.2f}</strong> | Ngưỡng hòa vốn p*: <strong>{breakeven:.1%}</strong> (Rủi ro hiện tại {churn_val:.1%} > p* nên can thiệp có lãi).
+                            Lợi nhuận ròng tối đa: <strong style="font-size:1.05rem; color:#15803d;">+${best_ev:.2f}</strong> | Ngưỡng hòa vốn p*: <strong>{breakeven:.1%}</strong> (Rủi ro {churn_val:.1%} > p* nên can thiệp có lãi).
                         </div>
                     </div>
                     """,
