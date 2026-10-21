@@ -1,0 +1,86 @@
+{
+  "model_version": "catboost-20261018T130222-seed42",
+  "model_type": "catboost",
+  "class_weight": false,
+  "seed": 42,
+  "config": {
+    "seed": 42,
+    "features": {
+      "numeric_cols": [
+        "SeniorCitizen",
+        "tenure",
+        "MonthlyCharges",
+        "TotalCharges"
+      ],
+      "categorical_cols": [
+        "gender",
+        "Partner",
+        "Dependents",
+        "PhoneService",
+        "MultipleLines",
+        "InternetService",
+        "OnlineSecurity",
+        "OnlineBackup",
+        "DeviceProtection",
+        "TechSupport",
+        "StreamingTV",
+        "StreamingMovies",
+        "Contract",
+        "PaperlessBilling",
+        "PaymentMethod"
+      ],
+      "drop_cols": [
+        "customerID"
+      ],
+      "target_col": "Churn",
+      "positive_label": "Yes"
+    },
+    "models": {
+      "logistic": {
+        "C": 1.0,
+        "max_iter": 1000
+      },
+      "catboost": {
+        "iterations": 200,
+        "depth": 6,
+        "learning_rate": 0.05
+      }
+    },
+    "mlflow": {
+      "experiment_name": "churn-retention"
+    }
+  },
+  "label": {
+    "target_col": "Churn",
+    "positive_label": "Yes"
+  },
+  "created_at": "2026-10-18T13:02:22.248745+00:00",
+  "training": {
+    "duration_seconds": 1.7636988162994385,
+    "train_samples": 4930,
+    "val_samples": 1056,
+    "created_at": "2026-10-18T13:02:22.248745+00:00"
+  },
+  "metric_threshold": 0.5,
+  "metric_threshold_note": "t\u1ea1m, ch\u01b0a ch\u1ed1t v\u1edbi nh\u00f3m",
+  "git": {
+    "git_commit": "592e0c7f735e349cc6597a1236787715bc506855",
+    "git_dirty": true
+  },
+  "libraries": {
+    "python": "3.14.2",
+    "scikit-learn": "1.9.1",
+    "catboost": "1.2.10",
+    "pandas": "3.0.6",
+    "numpy": "2.4.4"
+  },
+  "metrics": {
+    "val_average_precision": 0.6535053589731583,
+    "val_roc_auc": 0.8476113770250367,
+    "val_precision": 0.6666666666666666,
+    "val_recall": 0.5285714285714286,
+    "val_f1": 0.5896414342629482,
+    "val_brier_score": 0.13440457400610278,
+    "val_log_loss": 0.4146793169056145
+  }
+}
