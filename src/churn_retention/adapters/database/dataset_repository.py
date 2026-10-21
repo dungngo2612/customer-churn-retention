@@ -21,14 +21,10 @@ class DatasetRepository:
 
     def get_by_id(self, dataset_id: str) -> Optional[DatasetMetadataModel]:
         """Lấy thông tin metadata theo dataset_id."""
-        stmt = select(DatasetMetadataModel).where(
-            DatasetMetadataModel.dataset_id == dataset_id
-        )
+        stmt = select(DatasetMetadataModel).where(DatasetMetadataModel.dataset_id == dataset_id)
         return self.session.scalars(stmt).first()
 
     def list_all(self) -> List[DatasetMetadataModel]:
         """Lấy danh sách toàn bộ datasets, sắp xếp theo thời gian tạo mới nhất."""
-        stmt = select(DatasetMetadataModel).order_by(
-            DatasetMetadataModel.created_at.desc()
-        )
+        stmt = select(DatasetMetadataModel).order_by(DatasetMetadataModel.created_at.desc())
         return list(self.session.scalars(stmt).all())
