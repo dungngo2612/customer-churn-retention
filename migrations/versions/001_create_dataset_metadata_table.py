@@ -23,8 +23,8 @@ def upgrade() -> None:
         sa.Column("filename", sa.String(length=255), nullable=False),
         sa.Column("total_rows", sa.Integer(), nullable=False),
         sa.Column("total_columns", sa.Integer(), nullable=False),
-        sa.Column("features_path", sa.String(length=500), nullable=True),
-        sa.Column("labels_path", sa.String(length=500), nullable=True),
+        sa.Column("features_s3_uri", sa.String(length=500), nullable=True),
+        sa.Column("labels_s3_uri", sa.String(length=500), nullable=True),
         sa.Column("has_labels", sa.Boolean(), nullable=False, default=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
     )

@@ -1,13 +1,16 @@
 import io
 import json
+import shutil
 import uuid
 from dataclasses import asdict
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+
+from churn_retention.adapters.database.dataset_repository import DatasetRepository
+from churn_retention.adapters.database.models import DatasetMetadataModel
 
 from .validate import validate_dataset
 
@@ -100,7 +103,9 @@ def clean_and_split_features(
     return features_df, labels_series
 
 
-def process_dataset_upload(file_bytes: bytes, filename: str) -> Dict[str, Any]:
+def process_dataset_upload(
+    file_bytes: bytes, filename: str, dataset_repo: DatasetRepository
+) -> Dict[str, Any]:
     """Luồng tiếp nhận file, chạy kiểm tra và lưu trữ dataset hợp lệ."""
     _ensure_storage()
 
@@ -143,7 +148,7 @@ def process_dataset_upload(file_bytes: bytes, filename: str) -> Dict[str, Any]:
     features_path = dataset_folder / "features.parquet"
     cleaned_features_df.to_parquet(features_path, index=False)
 
-    labels_path = None
+    labels_path_str: Optional[str] = None
     if labels_series is not None:
         labels_path = dataset_folder / "labels.parquet"
         labels_df = pd.DataFrame(
@@ -153,18 +158,23 @@ def process_dataset_upload(file_bytes: bytes, filename: str) -> Dict[str, Any]:
             }
         )
         labels_df.to_parquet(labels_path, index=False)
+        labels_path_str = str(labels_path)
 
     # 5. Lưu thông tin metadata
-    meta = _load_metadata()
-    meta[dataset_id] = {
-        "dataset_id": dataset_id,
-        "filename": filename,
-        "total_rows": len(raw_df),
-        "total_columns": len(raw_df.columns),
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "has_labels": labels_series is not None,
-    }
-    _save_metadata(meta)
+    dataset_entity = DatasetMetadataModel(
+        id=dataset_id,  # Lưu ý: nếu trong models.py cột khóa chính tên là dataset_id thì đổi thành dataset_id=dataset_id
+        filename=filename,
+        total_rows=len(cleaned_features_df),
+        features_path=str(features_path),
+        labels_path=labels_path_str,
+    )
+
+    try:
+        dataset_repo.create(dataset=dataset_entity)
+    except Exception as db_exc:
+        if dataset_folder.exists():
+            shutil.rmtree(dataset_folder)
+        raise db_exc
 
     return {
         "status": "valid",
