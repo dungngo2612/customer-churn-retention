@@ -68,8 +68,8 @@ def clean_and_split_features(
             mask_new_customer = (df_clean["tenure"] == 0) & (tc_numeric.isna())
             tc_numeric = tc_numeric.mask(mask_new_customer, 0.0)
 
-        # Với các dòng còn lại vẫn NaN (tenure > 0 bị mất cước), điền 0.0 an toàn
-        df_clean["TotalCharges"] = tc_numeric.fillna(0.0)
+        # Gán lại giá trị vào dataframe
+        df_clean["TotalCharges"] = tc_numeric
 
     # Ép kiểu chuẩn cho tenure và MonthlyCharges
     if "tenure" in df_clean.columns:

@@ -155,6 +155,21 @@ def validate_dataset(df: pd.DataFrame) -> ValidationReport:
                 )
             )
 
+    # Kiểm tra tính toàn vẹn: tenure > 0 thì TotalCharges bắt buộc phải > 0
+    if "tenure" in df.columns and "TotalCharges" in df.columns:
+        invalid_rows = df[
+            (df["tenure"] > 0) & (df["TotalCharges"].isna() | (df["TotalCharges"] <= 0))
+        ]
+        for idx in invalid_rows.index:
+            errors.append(
+                ValidationErrorDetail(
+                    row=int(idx),
+                    column="TotalCharges",
+                    reason=f"Khách hàng có tenure = {df.loc[idx, 'tenure']} "
+                    "(> 0) nhưng TotalCharges bị trống hoặc <= 0.",
+                )
+            )
+
     return ValidationReport(
         is_valid=(len(errors) == 0),
         total_rows=total_rows,

@@ -68,14 +68,14 @@ def test_block_non_finite_numbers() -> None:
     df_raw = pd.DataFrame(
         {
             "customerID": ["KH-INF"],
-            "tenure": [np.inf],
+            "tenure": [0],
             "MonthlyCharges": [-np.inf],
             "TotalCharges": [np.inf],
             "Churn": ["No"],
         }
     )
 
-    features, _ = clean_and_split_features(df_raw)
+    features, _ = clean_and_split_features(df_raw, drop_churn=False)
 
     # Đảm bảo toàn bộ giá trị sau khi làm sạch đều là số hữu hạn (finite)
     assert np.isfinite(features["tenure"].iloc[0])
@@ -127,3 +127,39 @@ def test_upload_validate_pipeline_flow() -> None:
     assert "Churn" not in features.columns
     assert labels is not None
     assert labels.iloc[0] == 0
+
+
+def test_validate_rejects_missing_totalcharges_when_tenure_positive() -> None:
+    """Kiểm tra hệ thống báo lỗi khi tenure > 0 mà TotalCharges bị trống."""
+    df_corrupted = pd.DataFrame(
+        {
+            "customerID": ["KH-ERR"],
+            "gender": ["Male"],
+            "SeniorCitizen": [0],
+            "Partner": ["No"],
+            "Dependents": ["No"],
+            "tenure": [10],  # Dùng 10 tháng
+            "PhoneService": ["Yes"],
+            "MultipleLines": ["No"],
+            "InternetService": ["Fiber optic"],
+            "OnlineSecurity": ["No"],
+            "OnlineBackup": ["No"],
+            "DeviceProtection": ["No"],
+            "TechSupport": ["No"],
+            "StreamingTV": ["No"],
+            "StreamingMovies": ["No"],
+            "Contract": ["Month-to-month"],
+            "PaperlessBilling": ["Yes"],
+            "PaymentMethod": ["Electronic check"],
+            "MonthlyCharges": [70.0],
+            "TotalCharges": [" "],  # Nhưng cước lại trống -> Dữ liệu hỏng
+            "Churn": ["No"],
+        }
+    )
+
+    cleaned_df, _ = clean_and_split_features(df_corrupted, drop_churn=False)
+    report = validate_dataset(cleaned_df)
+
+    # Bắt buộc phải phát hiện ra lỗi và từ chối file
+    assert report.is_valid is False
+    assert any(err.column == "TotalCharges" for err in report.errors)
