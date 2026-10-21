@@ -362,6 +362,10 @@ def load_data_and_predict():
         })
     else:
         customers = pd.read_csv(data_path)
+        if "TotalCharges" in customers.columns:
+            customers["TotalCharges"] = pd.to_numeric(
+                customers["TotalCharges"].astype(str).str.strip(), errors="coerce"
+            ).fillna(0.0)
 
     # 1. Kiểm tra xem có Model Bundle thật từ Người 1 trong artifacts không
     bundle_dirs = [
