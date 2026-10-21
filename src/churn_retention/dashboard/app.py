@@ -337,74 +337,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- SIDEBAR: CẤU HÌNH THAM SỐ KINH TẾ (GIỮ NGUYÊN 100% LOGIC) ---
-with st.sidebar:
-    st.markdown("### ⚙️ Thiết Lập Kịch Bản")
-    st.caption("Cấu hình giả định cho mô hình Proxy CLV")
-
-    base_margin = st.slider(
-        "Biên lợi nhuận giả định (m)",
-        min_value=0.10,
-        max_value=0.70,
-        value=0.50,
-        step=0.05,
-        help="Dùng để tính Proxy CLV: V = MonthlyCharges * H * m",
-    )
-    horizon = st.selectbox(
-        "Kỳ hạn đánh giá H (tháng)",
-        options=[6, 12, 24],
-        index=1,
-        help="Kỳ hạn ước lượng dòng tiền giữ chân",
-    )
-
-    st.markdown("---")
-    st.markdown("### 🛠️ Chi Phí & Hiệu Quả Gói Can Thiệp")
-    st.caption("Tùy biến tham số chi phí ($c, f$), tỷ lệ nhận ($u$) & mức giảm ($e$)")
-
-    with st.expander("A1: Hỗ trợ Kỹ thuật & Bảo mật", expanded=False):
-        c1_contact = st.number_input("A1: Chi phí liên hệ ($)", value=2.0, step=0.5, key="c1_c")
-        c1_offer = st.number_input("A1: Chi phí ưu đãi ($)", value=15.0, step=1.0, key="c1_o")
-        c1_u = st.slider("A1: Tỷ lệ chấp nhận (u)", 0.1, 1.0, 0.40, 0.05, key="c1_u")
-        c1_e = st.slider("A1: Mức giảm churn (e)", 0.1, 1.0, 0.25, 0.05, key="c1_e")
-
-    with st.expander("A2: Tư vấn Hợp đồng & Thanh toán", expanded=False):
-        c2_contact = st.number_input("A2: Chi phí liên hệ ($)", value=2.0, step=0.5, key="c2_c")
-        c2_offer = st.number_input("A2: Chi phí ưu đãi ($)", value=20.0, step=1.0, key="c2_o")
-        c2_u = st.slider("A2: Tỷ lệ chấp nhận (u)", 0.1, 1.0, 0.35, 0.05, key="c2_u")
-        c2_e = st.slider("A2: Mức giảm churn (e)", 0.1, 1.0, 0.40, 0.05, key="c2_e")
-
-    with st.expander("A3: Ưu đãi Giảm Cước Dài Hạn", expanded=False):
-        c3_contact = st.number_input("A3: Chi phí liên hệ ($)", value=3.0, step=0.5, key="c3_c")
-        c3_offer = st.number_input("A3: Chi phí voucher ($)", value=40.0, step=2.0, key="c3_o")
-        c3_u = st.slider("A3: Tỷ lệ chấp nhận (u)", 0.1, 1.0, 0.40, 0.05, key="c3_u")
-        c3_e = st.slider("A3: Mức giảm churn (e)", 0.1, 1.0, 0.50, 0.05, key="c3_e")
-
-    st.markdown("---")
-    st.markdown("### 🤖 Nguồn Dự Đoán Churn")
-    st.caption(f"Trạng thái: **{predictor_info}**")
-
-# Dựng lại danh mục hành động theo tham số người dùng nhập
-current_actions = (
-    ActionConfig("A0", "Không can thiệp", 0, 0, 0, 0, is_no_action=True),
-    ActionConfig(
-        "A1", "Hỗ trợ kỹ thuật & bảo mật chủ động",
-        c1_contact, c1_offer, c1_u, c1_e,
-        all_of=(Condition("InternetService", "ne", "No"),),
-        any_of=(Condition("TechSupport", "eq", "No"), Condition("OnlineSecurity", "eq", "No")),
-    ),
-    ActionConfig(
-        "A2", "Tư vấn hợp đồng & thanh toán tự động",
-        c2_contact, c2_offer, c2_u, c2_e,
-        any_of=(Condition("Contract", "eq", "Month-to-month"), Condition("PaymentMethod", "in", MANUAL_PAYMENTS)),
-    ),
-    ActionConfig(
-        "A3", "Ưu đãi giảm cước cam kết dài hạn",
-        c3_contact, c3_offer, c3_u, c3_e,
-        all_of=(Condition("Contract", "eq", "Month-to-month"), Condition("MonthlyCharges", "ge", 50.0)),
-    ),
-)
-
-
 # --- NẠP DỮ LIỆU & CHẠY DỰ ĐOÁN (TÍCH HỢP BUNDLE PREDICTOR THẬT CỦA NGƯỜI 1 & FALLBACK AN TOÀN) ---
 @st.cache_data
 def load_data_and_predict():
@@ -478,6 +410,76 @@ def load_data_and_predict():
 
 
 customers_df, predictions_df, predictor_info = load_data_and_predict()
+
+
+# --- SIDEBAR: CẤU HÌNH THAM SỐ KINH TẾ (GIỮ NGUYÊN 100% LOGIC) ---
+with st.sidebar:
+    st.markdown("### ⚙️ Thiết Lập Kịch Bản")
+    st.caption("Cấu hình giả định cho mô hình Proxy CLV")
+
+    base_margin = st.slider(
+        "Biên lợi nhuận giả định (m)",
+        min_value=0.10,
+        max_value=0.70,
+        value=0.50,
+        step=0.05,
+        help="Dùng để tính Proxy CLV: V = MonthlyCharges * H * m",
+    )
+    horizon = st.selectbox(
+        "Kỳ hạn đánh giá H (tháng)",
+        options=[6, 12, 24],
+        index=1,
+        help="Kỳ hạn ước lượng dòng tiền giữ chân",
+    )
+
+    st.markdown("---")
+    st.markdown("### 🛠️ Chi Phí & Hiệu Quả Gói Can Thiệp")
+    st.caption("Tùy biến tham số chi phí ($c, f$), tỷ lệ nhận ($u$) & mức giảm ($e$)")
+
+    with st.expander("A1: Hỗ trợ Kỹ thuật & Bảo mật", expanded=False):
+        c1_contact = st.number_input("A1: Chi phí liên hệ ($)", value=2.0, step=0.5, key="c1_c")
+        c1_offer = st.number_input("A1: Chi phí ưu đãi ($)", value=15.0, step=1.0, key="c1_o")
+        c1_u = st.slider("A1: Tỷ lệ chấp nhận (u)", 0.1, 1.0, 0.40, 0.05, key="c1_u")
+        c1_e = st.slider("A1: Mức giảm churn (e)", 0.1, 1.0, 0.25, 0.05, key="c1_e")
+
+    with st.expander("A2: Tư vấn Hợp đồng & Thanh toán", expanded=False):
+        c2_contact = st.number_input("A2: Chi phí liên hệ ($)", value=2.0, step=0.5, key="c2_c")
+        c2_offer = st.number_input("A2: Chi phí ưu đãi ($)", value=20.0, step=1.0, key="c2_o")
+        c2_u = st.slider("A2: Tỷ lệ chấp nhận (u)", 0.1, 1.0, 0.35, 0.05, key="c2_u")
+        c2_e = st.slider("A2: Mức giảm churn (e)", 0.1, 1.0, 0.40, 0.05, key="c2_e")
+
+    with st.expander("A3: Ưu đãi Giảm Cước Dài Hạn", expanded=False):
+        c3_contact = st.number_input("A3: Chi phí liên hệ ($)", value=3.0, step=0.5, key="c3_c")
+        c3_offer = st.number_input("A3: Chi phí voucher ($)", value=40.0, step=2.0, key="c3_o")
+        c3_u = st.slider("A3: Tỷ lệ chấp nhận (u)", 0.1, 1.0, 0.40, 0.05, key="c3_u")
+        c3_e = st.slider("A3: Mức giảm churn (e)", 0.1, 1.0, 0.50, 0.05, key="c3_e")
+
+    st.markdown("---")
+    st.markdown("### 🤖 Nguồn Dự Đoán Churn")
+    st.caption(f"Trạng thái: **{predictor_info}**")
+
+# Dựng lại danh mục hành động theo tham số người dùng nhập
+current_actions = (
+    ActionConfig("A0", "Không can thiệp", 0, 0, 0, 0, is_no_action=True),
+    ActionConfig(
+        "A1", "Hỗ trợ kỹ thuật & bảo mật chủ động",
+        c1_contact, c1_offer, c1_u, c1_e,
+        all_of=(Condition("InternetService", "ne", "No"),),
+        any_of=(Condition("TechSupport", "eq", "No"), Condition("OnlineSecurity", "eq", "No")),
+    ),
+    ActionConfig(
+        "A2", "Tư vấn hợp đồng & thanh toán tự động",
+        c2_contact, c2_offer, c2_u, c2_e,
+        any_of=(Condition("Contract", "eq", "Month-to-month"), Condition("PaymentMethod", "in", MANUAL_PAYMENTS)),
+    ),
+    ActionConfig(
+        "A3", "Ưu đãi giảm cước cam kết dài hạn",
+        c3_contact, c3_offer, c3_u, c3_e,
+        all_of=(Condition("Contract", "eq", "Month-to-month"), Condition("MonthlyCharges", "ge", 50.0)),
+    ),
+)
+
+
 
 # --- CHẠY KHUYẾN NGHỊ VÀ TỔNG HỢP ---
 recommendations = recommend(
