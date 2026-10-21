@@ -168,13 +168,14 @@ st.markdown(
         font-size: 1.05rem;
     }
     .card-value {
-        font-size: 2.25rem;
+        font-size: 1.85rem;
         font-weight: 800;
         color: #0f172a;
-        line-height: 1.1;
-        letter-spacing: -0.035em;
-        margin-bottom: 10px;
+        line-height: 1.15;
+        letter-spacing: -0.025em;
+        margin-bottom: 8px;
         font-feature-settings: "tnum" on, "lnum" on;
+        white-space: nowrap;
     }
     .card-footer {
         font-size: 0.84rem;
@@ -527,9 +528,9 @@ with tab1:
                     <span>Tổng Ngân Sách Dự Kiến</span>
                     <div class="card-icon-wrap" style="background:#fffbeb; color:#d97706;">💳</div>
                 </div>
-                <div class="card-value">${total_cost:,.2f}</div>
+                <div class="card-value">${total_cost:,.0f}</div>
                 <div class="card-footer">
-                    TB: <strong>${avg_cost_per_user:,.2f}</strong> / khách
+                    TB: <strong>${avg_cost_per_user:,.1f}</strong> / khách
                 </div>
             </div>
             <div class="modern-card card-accent-emerald">
@@ -537,9 +538,9 @@ with tab1:
                     <span>Lợi Nhuận Ròng (ΔEV)</span>
                     <div class="card-icon-wrap" style="background:#ecfdf5; color:#059669;">🚀</div>
                 </div>
-                <div class="card-value" style="color: #059669;">+${total_net_value:,.2f}</div>
+                <div class="card-value" style="color: #059669;">+${total_net_value:,.0f}</div>
                 <div class="card-footer">
-                    Gross: <strong>${total_benefit:,.2f}</strong> | <span class="badge-emerald">ROI: +{roi:.1f}%</span>
+                    Gross: <strong>${total_benefit:,.0f}</strong> | <span class="badge-emerald">ROI: +{roi:.1f}%</span>
                 </div>
             </div>
         </div>
@@ -581,16 +582,24 @@ with tab1:
                     values=summary_df["n_customers"],
                     hole=0.58,
                     marker=dict(colors=[colors_map.get(code, "#6366f1") for code in summary_df["action_code"]]),
-                    textinfo="percent+label",
+                    textinfo="percent",
                     textposition="inside",
                     hovertemplate="<b>%{label}</b><br>Số lượng: %{value:,} khách<br>Tỷ lệ: %{percent}<extra></extra>",
                 )
             ]
         )
         fig_donut.update_layout(
-            showlegend=False,
-            height=320,
-            margin=dict(l=10, r=10, t=10, b=10),
+            showlegend=True,
+            legend=dict(
+                orientation="h",
+                yanchor="top",
+                y=-0.12,
+                xanchor="center",
+                x=0.5,
+                font=dict(size=11),
+            ),
+            height=350,
+            margin=dict(l=10, r=10, t=10, b=40),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             annotations=[
@@ -598,7 +607,7 @@ with tab1:
                     text=f"<b>{n_total:,}</b><br><span style='font-size:12px;color:#64748b;'>Tổng khách</span>",
                     x=0.5,
                     y=0.5,
-                    font_size=16,
+                    font_size=15,
                     showarrow=False,
                 )
             ],
@@ -657,7 +666,7 @@ with tab1:
     st.markdown('<div class="chart-header">⚖️ So Sánh Hiệu Quả Tài Chính Từng Gói Can Thiệp (A1, A2, A3)</div>', unsafe_allow_html=True)
 
     interv_actions = summary_df[summary_df["action_code"] != "A0"].copy()
-    col_bar, col_table = st.columns([1, 1.2])
+    col_bar, col_table = st.columns([0.7, 1.8])
 
     with col_bar:
         fig_grouped = go.Figure(
@@ -696,7 +705,7 @@ with tab1:
         table_display = summary_df[[
             "action_code", "action_name", "n_customers", "percentage",
             "cost_sum", "benefit_sum", "net_value_sum"
-        ]].copy()
+        ]].copy().reset_index(drop=True)
         table_display.columns = [
             "Mã", "Tên Gói Hành Động", "Số Khách", "Tỷ Lệ %",
             "Tổng Chi Phí", "Lợi Ích Gộp", "Lợi Nhuận Ròng (ΔEV)"
@@ -1000,12 +1009,15 @@ with tab3:
 
     st.markdown(f"**Kết quả:** Tìm thấy **{len(filtered_df):,}** khách hàng thỏa mãn tiêu chí.")
 
-    # Hiển thị bảng tổng hợp
+    # Hiển thị bảng tổng hợp (Index và số thứ tự bắt đầu từ 0)
+    filtered_display = filtered_df[[
+        "rank", "customerID", "action_code", "action_name", "churn_prob",
+        "proxy_value", "cost", "benefit", "net_value", "breakeven_prob", "churn_prob_after"
+    ]].copy().reset_index(drop=True)
+    filtered_display["rank"] = range(len(filtered_display))
+
     st.dataframe(
-        filtered_df[[
-            "rank", "customerID", "action_code", "action_name", "churn_prob",
-            "proxy_value", "cost", "benefit", "net_value", "breakeven_prob", "churn_prob_after"
-        ]].style.format({
+        filtered_display.style.format({
             "churn_prob": "{:.1%}",
             "churn_prob_after": "{:.1%}",
             "breakeven_prob": "{:.1%}",
@@ -1065,12 +1077,13 @@ with tab3:
             horizon_months=horizon,
         )
 
-        col_c360_left, col_c360_mid, col_c360_right = st.columns([1, 1.3, 1.1])
+        # HÀNG 1: PROFILE, QUYẾT ĐỊNH TỐI ƯU & YẾU TỐ TRẢI NGHIỆM GÂY RỜI BỎ (3 CỘT THOÁNG ĐÃNG)
+        r1_col1, r1_col2, r1_col3 = st.columns([1, 1.15, 1.15])
 
-        # CỘT 1: PROFILE & GAUGE RỦI RO
-        with col_c360_left:
+        # HÀNG 1 - CỘT 1: PROFILE & GAUGE RỦI RO
+        with r1_col1:
             st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
-            st.markdown(f'<div class="chart-header">📌 Profile: {selected_cust_id}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="chart-header">📌 Hồ Sơ Khách Hàng: {selected_cust_id}</div>', unsafe_allow_html=True)
             
             # Gauge Chart Plotly đo Churn Risk
             churn_val = float(cust_rec["churn_prob"]) * 100
@@ -1100,8 +1113,8 @@ with tab3:
                 }
             ))
             fig_gauge.update_layout(
-                height=220,
-                margin=dict(l=15, r=15, t=25, b=15),
+                height=210,
+                margin=dict(l=15, r=15, t=20, b=10),
                 paper_bgcolor="rgba(0,0,0,0)",
                 annotations=[
                     dict(text="Vạch xanh: Sau can thiệp", x=0.5, y=-0.15, showarrow=False, font=dict(size=11, color="#3b82f6"))
@@ -1131,8 +1144,8 @@ with tab3:
             )
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # CỘT 2: CĂN CỨ KINH TẾ & SO SÁNH CÁC PHƯƠNG ÁN HỢP LỆ
-        with col_c360_mid:
+        # HÀNG 1 - CỘT 2: QUYẾT ĐỊNH TỐI ƯU & CĂN CỨ KINH TẾ (THIẾT KẾ XUỐNG DÒNG RÕ RÀNG)
+        with r1_col2:
             st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
             st.markdown('<div class="chart-header">💡 Quyết Định Tối Ưu & Căn Cứ Kinh Tế</div>', unsafe_allow_html=True)
 
@@ -1147,10 +1160,25 @@ with tab3:
                     f"""
                     <div class="recommend-box">
                         <div class="recommend-title">
-                            <span>⭐</span> Đề Xuất: Gói {best_code} — {best_name}
+                            <span>⭐</span> Gói Đề Xuất: {best_code} — {best_name}
                         </div>
-                        <div class="recommend-sub">
-                            Lợi nhuận ròng tối đa: <strong style="font-size:1.05rem; color:#15803d;">+${best_ev:.2f}</strong> | Ngưỡng hòa vốn p*: <strong>{breakeven:.1%}</strong> (Rủi ro {churn_val:.1%} > p* nên can thiệp có lãi).
+                        <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <div style="background: rgba(255,255,255,0.7); padding: 8px 12px; border-radius: 8px; border: 1px solid #bbf7d0;">
+                                <div style="font-size: 0.78rem; color: #166534; font-weight: 600;">LỢI NHUẬN RÒNG (ΔEV)</div>
+                                <div style="font-size: 1.25rem; font-weight: 800; color: #15803d;">+${best_ev:.2f}</div>
+                            </div>
+                            <div style="background: rgba(255,255,255,0.7); padding: 8px 12px; border-radius: 8px; border: 1px solid #bbf7d0;">
+                                <div style="font-size: 0.78rem; color: #166534; font-weight: 600;">GIÁ TRỊ BẢO VỆ (V)</div>
+                                <div style="font-size: 1.25rem; font-weight: 800; color: #0369a1;">${proxy_val:.2f}</div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 12px; padding: 12px 14px; background: rgba(255,255,255,0.85); border-radius: 10px; border: 1px solid #86efac; line-height: 1.6; font-size: 0.86rem; color: #14532d;">
+                            <div>🎯 <b>Căn cứ kinh tế & điều kiện hòa vốn:</b></div>
+                            <div style="margin-top: 4px;">• Ngưỡng hòa vốn tối thiểu: <b>p* = {breakeven:.1%}</b></div>
+                            <div>• Rủi ro rời bỏ hiện tại: <b>p = {churn_val:.1f}%</b></div>
+                            <div style="margin-top: 4px; padding-top: 4px; border-top: 1px dashed #bbf7d0; color: #15803d; font-weight: 600;">
+                                ➔ Vì <b>p ({churn_val:.1f}%) > p* ({breakeven:.1%})</b> nên can thiệp chắc chắn sinh lời kỳ vọng dương (+${best_ev:.2f}).
+                            </div>
                         </div>
                     </div>
                     """,
@@ -1159,67 +1187,21 @@ with tab3:
             else:
                 st.markdown(
                     """
-                    <div class="recommend-box" style="background:#f1f5f9; border-color:#cbd5e1;">
+                    <div class="recommend-box" style="background:#f8fafc; border-color:#cbd5e1;">
                         <div class="recommend-title" style="color:#475569;">
                             <span>⚪</span> Đề Xuất: Gói A0 — Không Can Thiệp
                         </div>
-                        <div class="recommend-sub" style="color:#64748b;">
-                            Các gói can thiệp có chi phí vượt quá lợi ích kỳ vọng (ΔEV ≤ 0) hoặc khách hàng không đủ điều kiện.
+                        <div class="recommend-sub" style="color:#64748b; margin-top: 8px; line-height: 1.6;">
+                            Tất cả phương án can thiệp có chi phí đều mang lại lợi nhuận ròng âm (ΔEV ≤ 0) hoặc rủi ro rời bỏ thấp hơn ngưỡng hòa vốn (p < p*). Giữ nguyên trạng thái để tối ưu hóa hiệu quả ngân sách.
                         </div>
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
-
-            st.markdown("##### So Sánh Giá Trị Ròng (ΔEV) Từng Phương Án Hợp Lệ:")
-            
-            # Biểu đồ cột so sánh ΔEV các action của riêng khách hàng này
-            fig_action_comp = go.Figure()
-            colors_comp = ["#10b981" if code == best_code and best_code != "A0" else ("#94a3b8" if code == "A0" else "#3b82f6") for code in cust_eval["action_code"]]
-            
-            fig_action_comp.add_trace(go.Bar(
-                x=cust_eval["action_code"],
-                y=cust_eval["net_value"],
-                text=[f"${v:+.2f}" for v in cust_eval["net_value"]],
-                textposition="auto",
-                marker_color=colors_comp,
-                hovertemplate="<b>%{x}</b><br>Giá trị ròng (ΔEV): %{y:$.2f}<extra></extra>",
-            ))
-            fig_action_comp.update_layout(
-                height=220,
-                margin=dict(l=10, r=10, t=10, b=10),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                yaxis=dict(title="Lợi nhuận ròng ΔEV ($)", gridcolor="#f1f5f9"),
-                xaxis=dict(title="Mã hành động", tickangle=0),
-            )
-            st.plotly_chart(fig_action_comp, use_container_width=True)
-
-            # Bảng con so sánh các phương án
-            cust_eval_display = cust_eval[[
-                "action_code", "action_name", "cost", "benefit", "net_value", "breakeven_prob"
-            ]].rename(columns={
-                "action_code": "Mã",
-                "action_name": "Tên gói",
-                "cost": "Chi phí C",
-                "benefit": "Lợi ích B",
-                "net_value": "Giá trị ròng ΔEV",
-                "breakeven_prob": "Hòa vốn p*",
-            })
-            st.dataframe(
-                cust_eval_display.style.format({
-                    "Chi phí C": "${:.2f}",
-                    "Lợi ích B": "${:.2f}",
-                    "Giá trị ròng ΔEV": "${:+.2f}",
-                    "Hòa vốn p*": "{:.1%}",
-                }),
-                use_container_width=True,
-                height=160,
-            )
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # CỘT 3: YẾU TỐ TRẢI NGHIỆM GÂY CHURN & CƠ SỞ RA QUYẾT ĐỊNH
-        with col_c360_right:
+        # HÀNG 1 - CỘT 3: YẾU TỐ TRẢI NGHIỆM GÂY RỜI BỎ (SỐ NẰM NGANG, RÕ RÀNG)
+        with r1_col3:
             st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
             st.markdown('<div class="chart-header">🔍 Yếu Tố Trải Nghiệm Gây Rời Bỏ</div>', unsafe_allow_html=True)
 
@@ -1251,24 +1233,90 @@ with tab3:
                 color_discrete_sequence=["#f43f5e"]
             )
             fig_drivers.update_layout(
+                height=260,
+                margin=dict(l=10, r=20, t=10, b=10),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                xaxis=dict(showgrid=True, gridcolor="#f1f5f9", tickangle=0),
+                yaxis=dict(autorange="reversed"),
+            )
+            fig_drivers.update_traces(
+                textposition="inside",
+                textangle=0,
+                insidetextanchor="middle",
+                textfont=dict(size=12, color="white", family="Plus Jakarta Sans", weight="bold"),
+            )
+            st.plotly_chart(fig_drivers, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # HÀNG 2: SO SÁNH GIÁ TRỊ RÒNG (ΔEV) & LUẬN CỨ RA QUYẾT ĐỊNH (2 CỘT RỘNG RÃI, THOÁNG MẮT)
+        r2_col1, r2_col2 = st.columns([1.35, 1])
+
+        # HÀNG 2 - CỘT 1: SO SÁNH CÁC PHƯƠNG ÁN HỢP LỆ (BIỂU ĐỒ & BẢNG CON)
+        with r2_col1:
+            st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
+            st.markdown('<div class="chart-header">⚖️ So Sánh Giá Trị Ròng (ΔEV) Từng Phương Án Hợp Lệ</div>', unsafe_allow_html=True)
+
+            # Biểu đồ cột so sánh ΔEV các action của riêng khách hàng này
+            fig_action_comp = go.Figure()
+            colors_comp = ["#10b981" if code == best_code and best_code != "A0" else ("#94a3b8" if code == "A0" else "#3b82f6") for code in cust_eval["action_code"]]
+            
+            fig_action_comp.add_trace(go.Bar(
+                x=cust_eval["action_code"],
+                y=cust_eval["net_value"],
+                text=[f"${v:+.2f}" for v in cust_eval["net_value"]],
+                textposition="auto",
+                marker_color=colors_comp,
+                hovertemplate="<b>%{x}</b><br>Giá trị ròng (ΔEV): %{y:$.2f}<extra></extra>",
+            ))
+            fig_action_comp.update_layout(
                 height=220,
                 margin=dict(l=10, r=10, t=10, b=10),
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)",
-                xaxis=dict(showgrid=True, gridcolor="#f1f5f9"),
+                yaxis=dict(title="Lợi nhuận ròng ΔEV ($)", gridcolor="#f1f5f9"),
+                xaxis=dict(title="Mã hành động", tickangle=0),
             )
-            st.plotly_chart(fig_drivers, use_container_width=True)
+            st.plotly_chart(fig_action_comp, use_container_width=True)
 
-            st.markdown("##### 💡 Luận Cứ Ra Quyết Định Can Thiệp:")
+            # Bảng con so sánh các phương án (Index bắt đầu từ 0)
+            cust_eval_display = cust_eval[[
+                "action_code", "action_name", "cost", "benefit", "net_value", "breakeven_prob"
+            ]].rename(columns={
+                "action_code": "Mã",
+                "action_name": "Tên gói",
+                "cost": "Chi phí C",
+                "benefit": "Lợi ích B",
+                "net_value": "Giá trị ròng ΔEV",
+                "breakeven_prob": "Hòa vốn p*",
+            }).reset_index(drop=True)
+
+            st.dataframe(
+                cust_eval_display.style.format({
+                    "Chi phí C": "${:.2f}",
+                    "Lợi ích B": "${:.2f}",
+                    "Giá trị ròng ΔEV": "${:+.2f}",
+                    "Hòa vốn p*": "{:.1%}",
+                }),
+                use_container_width=True,
+                height=170,
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # HÀNG 2 - CỘT 2: LUẬN CỨ RA QUYẾT ĐỊNH CAN THIỆP & PHÊ DUYỆT HÀNH ĐỘNG
+        with r2_col2:
+            st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
+            st.markdown('<div class="chart-header">💡 Luận Cứ Ra Quyết Định Can Thiệp</div>', unsafe_allow_html=True)
+
             if best_code != "A0":
                 be_val = cust_rec.get("breakeven_prob", None)
                 be_text = f"{be_val:.1%}" if (be_val is not None and pd.notna(be_val)) else "N/A"
                 st.markdown(
                     f"""
-                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; font-size: 0.85rem; line-height: 1.5; color: #334155;">
-                        <div>• <b>Lý do chọn {best_code}:</b> Mang lại lợi nhuận kỳ vọng ròng lớn nhất (+${best_ev:.2f}) so với các phương án còn lại.</div>
-                        <div style="margin-top: 4px;">• <b>Xác suất hòa vốn:</b> Cần giảm xác suất churn của khách hàng tối thiểu <b>{be_text}</b> để bù đắp chi phí gói ${cust_rec['cost']:.1f}.</div>
-                        <div style="margin-top: 4px;">• <b>Khuyến nghị điều hành:</b> Phê duyệt gói can thiệp để bảo toàn dòng tiền cước ${cust_info['MonthlyCharges']:.1f}/tháng.</div>
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 18px; font-size: 0.88rem; line-height: 1.6; color: #334155;">
+                        <div style="margin-bottom: 8px;">• <b>Lý do lựa chọn gói {best_code}:</b> Phương án mang lại thặng dư lợi nhuận kỳ vọng ròng cao nhất (+${best_ev:.2f}) sau khi đã trừ toàn bộ chi phí liên hệ và ưu đãi (${cust_rec['cost']:.1f}).</div>
+                        <div style="margin-bottom: 8px;">• <b>Điều kiện hòa vốn (p* = {be_text}):</b> Hiệu lực giữ chân của gói can thiệp cần giảm xác suất rời bỏ tối thiểu {be_text} để đảm bảo không lỗ vốn. Hiện tại rủi ro rời bỏ là {churn_val:.1f}%, vượt xa ngưỡng an toàn.</div>
+                        <div>• <b>Khuyến nghị điều hành:</b> Phê duyệt gói can thiệp ngay để giữ chân khách hàng và bảo toàn dòng tiền cước định kỳ <b>${cust_info['MonthlyCharges']:.1f}/tháng</b>.</div>
                     </div>
                     """,
                     unsafe_allow_html=True,
