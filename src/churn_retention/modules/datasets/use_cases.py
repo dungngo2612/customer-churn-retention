@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import numpy as np
 import pandas as pd
 
 from .validate import validate_dataset
@@ -40,35 +41,47 @@ def _save_metadata(metadata: Dict[str, Any]) -> None:
         json.dump(metadata, f, indent=2, ensure_ascii=False)
 
 
-def clean_and_split_features(df: pd.DataFrame):
+def clean_and_split_features(
+    df: pd.DataFrame, drop_churn: bool = True
+) -> tuple[pd.DataFrame, Optional[pd.Series]]:
     """
     Quy tắc làm sạch cố định:
     1. Chuẩn hóa khoảng trắng cho toàn bộ cột dạng text.
     2. Điền 0.0 cho các ô TotalCharges trống/khoảng trắng.
     3. Tách riêng cột 'Churn' ra khỏi features để tránh rò rỉ nhãn (label leakage).
+    4. Chuyển đổi và chặn số không hữu hạn (inf, -inf) cho các cột số.
     """
     df_clean = df.copy()
 
     # Chuẩn hóa khoảng trắng đầu/cuối của các cột chuỗi
-    for col in df_clean.select_dtypes(include=["object"]).columns:
+    for col in df_clean.select_dtypes(include=["object", "str"]).columns:
         df_clean[col] = df_clean[col].astype(str).str.strip()
 
     # Chuẩn hóa cột TotalCharges
     if "TotalCharges" in df_clean.columns:
-        df_clean["TotalCharges"] = pd.to_numeric(
-            df_clean["TotalCharges"].replace(r"^\s*$", "0.0", regex=True),
-            errors="coerce",
-        ).fillna(0.0)
+        # Thay thế khoảng trắng rỗng hoặc chuỗi trống thành NaN
+        tc_series = df_clean["TotalCharges"].replace(r"^\s*$", np.nan, regex=True)
+        tc_numeric = pd.to_numeric(tc_series, errors="coerce").replace([np.inf, -np.inf], np.nan)
+
+        # Điều kiện nghiệp vụ: Nếu tenure == 0 và TotalCharges rỗng -> điền 0.0
+        if "tenure" in df_clean.columns:
+            mask_new_customer = (df_clean["tenure"] == 0) & (tc_numeric.isna())
+            tc_numeric = tc_numeric.mask(mask_new_customer, 0.0)
+
+        # Với các dòng còn lại vẫn NaN (tenure > 0 bị mất cước), điền 0.0 an toàn
+        df_clean["TotalCharges"] = tc_numeric.fillna(0.0)
 
     # Ép kiểu chuẩn cho tenure và MonthlyCharges
     if "tenure" in df_clean.columns:
-        df_clean["tenure"] = (
-            pd.to_numeric(df_clean["tenure"], errors="coerce").fillna(0).astype(int)
+        tenure_num = pd.to_numeric(df_clean["tenure"], errors="coerce").replace(
+            [np.inf, -np.inf], np.nan
         )
+        df_clean["tenure"] = tenure_num.fillna(0).astype(int)
     if "MonthlyCharges" in df_clean.columns:
-        df_clean["MonthlyCharges"] = pd.to_numeric(
-            df_clean["MonthlyCharges"], errors="coerce"
-        ).fillna(0.0)
+        mc_numeric = pd.to_numeric(df_clean["MonthlyCharges"], errors="coerce").replace(
+            [np.inf, -np.inf], np.nan
+        )
+        df_clean["MonthlyCharges"] = mc_numeric.fillna(0.0)
 
     # Tách riêng nhãn Churn (nếu có)
     labels_series = None
@@ -77,7 +90,10 @@ def clean_and_split_features(df: pd.DataFrame):
             lambda x: 1 if str(x).strip().lower() in {"yes", "1", "true"} else 0
         )
         # Loại bỏ hoàn toàn cột Churn khỏi tập đặc trưng (features)
-        features_df = df_clean.drop(columns=["Churn"])
+        if drop_churn:
+            features_df = df_clean.drop(columns=["Churn"])
+        else:
+            features_df = df_clean
     else:
         features_df = df_clean
 
