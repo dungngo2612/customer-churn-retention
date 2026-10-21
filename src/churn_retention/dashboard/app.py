@@ -379,6 +379,10 @@ with st.sidebar:
         c3_u = st.slider("A3: Tỷ lệ chấp nhận (u)", 0.1, 1.0, 0.40, 0.05, key="c3_u")
         c3_e = st.slider("A3: Mức giảm churn (e)", 0.1, 1.0, 0.50, 0.05, key="c3_e")
 
+    st.markdown("---")
+    st.markdown("### 🤖 Nguồn Dự Đoán Churn")
+    st.caption(f"Trạng thái: **{predictor_info}**")
+
 # Dựng lại danh mục hành động theo tham số người dùng nhập
 current_actions = (
     ActionConfig("A0", "Không can thiệp", 0, 0, 0, 0, is_no_action=True),
@@ -401,7 +405,7 @@ current_actions = (
 )
 
 
-# --- NẠP DỮ LIỆU & CHẠY DỰ ĐOÁN (FAKE PREDICTOR CỦA NGƯỜI 1) ---
+# --- NẠP DỮ LIỆU & CHẠY DỰ ĐOÁN (TÍCH HỢP BUNDLE PREDICTOR THẬT CỦA NGƯỜI 1 & FALLBACK AN TOÀN) ---
 @st.cache_data
 def load_data_and_predict():
     possible_paths = [
@@ -427,20 +431,53 @@ def load_data_and_predict():
     else:
         customers = pd.read_csv(data_path)
 
-    predictor = FakePredictor(seed=42)
-    probs = predictor.predict_batch(
-        features=customers,
-        customer_ids=customers["customerID"].tolist()
-    )
+    # 1. Kiểm tra xem có Model Bundle thật từ Người 1 trong artifacts không
+    bundle_dirs = [
+        ROOT_DIR / "artifacts" / "bundles",
+        ROOT_DIR / "artifacts" / "bundle",
+    ]
+    bundle_path = None
+    for b_dir in bundle_dirs:
+        if b_dir.exists():
+            for p in b_dir.glob("**/model.pkl"):
+                bundle_path = p.parent
+                break
+            if bundle_path:
+                break
+
+    predictor_info = "FakePredictor (Mô phỏng)"
+    probs = None
+
+    if bundle_path and bundle_path.exists():
+        try:
+            from churn_retention.adapters.predictor.bundle_predictor import BundlePredictor
+            bp = BundlePredictor()
+            bp.load(str(bundle_path))
+            probs = bp.predict_batch(
+                features=customers,
+                customer_ids=customers["customerID"].tolist()
+            )
+            predictor_info = f"BundlePredictor (CatBoost - {bp.model_version})"
+        except Exception:
+            probs = None
+
+    # 2. Nếu chưa có bundle hoặc bundle chưa sẵn sàng, fallback an toàn sang FakePredictor
+    if probs is None:
+        fake_pred = FakePredictor(seed=42)
+        probs = fake_pred.predict_batch(
+            features=customers,
+            customer_ids=customers["customerID"].tolist()
+        )
+
     predictions = pd.DataFrame({
         "customer_id": customers["customerID"].tolist(),
         "churn_prob": probs,
     })
 
-    return customers, predictions
+    return customers, predictions, predictor_info
 
 
-customers_df, predictions_df = load_data_and_predict()
+customers_df, predictions_df, predictor_info = load_data_and_predict()
 
 # --- CHẠY KHUYẾN NGHỊ VÀ TỔNG HỢP ---
 recommendations = recommend(

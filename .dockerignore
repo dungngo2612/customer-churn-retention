@@ -1,0 +1,12 @@
+mlruns/
+mlflow.db
+artifacts/
+catboost_info/
+.git
+__pycache__
+**/__pycache__
+.venv
+node_modules
+**/node_modules
+apps/
+data/
