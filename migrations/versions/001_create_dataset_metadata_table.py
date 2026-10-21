@@ -5,8 +5,9 @@ Revises:
 Create Date: 2026-10-21 10:00:00.000000
 """
 from typing import Sequence, Union
-from alembic import op
+
 import sqlalchemy as sa
+from alembic import op
 
 revision: str = "001_create_dataset_metadata"
 down_revision: Union[str, None] = None
