@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from math import isfinite
 from typing import List, Optional, Set
 
 import pandas as pd
@@ -87,7 +88,17 @@ def validate_dataset(df: pd.DataFrame) -> ValidationReport:
     for col, min_val, max_val in numeric_checks:
         for idx, val in df[col].items():
             row_num = int(idx) + 2
-            val_str = str(val).strip() if not pd.isna(val) else ""
+            if pd.isna(val):
+                errors.append(
+                    ValidationErrorDetail(
+                        row=row_num,
+                        column=col,
+                        reason=f"Giá trị tại cột '{col}' không phải số hữu hạn: '{val}'",
+                    )
+                )
+                continue
+
+            val_str = str(val).strip()
 
             if col == "TotalCharges" and val_str == "":
                 continue
@@ -104,6 +115,15 @@ def validate_dataset(df: pd.DataFrame) -> ValidationReport:
 
             try:
                 num = float(val_str)
+                if not isfinite(num):
+                    errors.append(
+                        ValidationErrorDetail(
+                            row=row_num,
+                            column=col,
+                            reason=f"Giá trị tại cột '{col}' không phải số hữu hạn: '{val}'",
+                        )
+                    )
+                    continue
                 if min_val is not None and num < min_val:
                     errors.append(
                         ValidationErrorDetail(
@@ -157,13 +177,13 @@ def validate_dataset(df: pd.DataFrame) -> ValidationReport:
 
     # Kiểm tra tính toàn vẹn: tenure > 0 thì TotalCharges bắt buộc phải > 0
     if "tenure" in df.columns and "TotalCharges" in df.columns:
-        invalid_rows = df[
-            (df["tenure"] > 0) & (df["TotalCharges"].isna() | (df["TotalCharges"] <= 0))
-        ]
+        tenure = pd.to_numeric(df["tenure"], errors="coerce")
+        total_charges = pd.to_numeric(df["TotalCharges"], errors="coerce")
+        invalid_rows = df[(tenure > 0) & (total_charges.isna() | (total_charges <= 0))]
         for idx in invalid_rows.index:
             errors.append(
                 ValidationErrorDetail(
-                    row=int(idx),
+                    row=int(idx) + 2,
                     column="TotalCharges",
                     reason=f"Khách hàng có tenure = {df.loc[idx, 'tenure']} "
                     "(> 0) nhưng TotalCharges bị trống hoặc <= 0.",

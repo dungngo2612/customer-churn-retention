@@ -76,15 +76,9 @@ def clean_and_split_features(
 
     # Ép kiểu chuẩn cho tenure và MonthlyCharges
     if "tenure" in df_clean.columns:
-        tenure_num = pd.to_numeric(df_clean["tenure"], errors="coerce").replace(
-            [np.inf, -np.inf], np.nan
-        )
-        df_clean["tenure"] = tenure_num.fillna(0).astype(int)
+        df_clean["tenure"] = pd.to_numeric(df_clean["tenure"], errors="coerce")
     if "MonthlyCharges" in df_clean.columns:
-        mc_numeric = pd.to_numeric(df_clean["MonthlyCharges"], errors="coerce").replace(
-            [np.inf, -np.inf], np.nan
-        )
-        df_clean["MonthlyCharges"] = mc_numeric.fillna(0.0)
+        df_clean["MonthlyCharges"] = pd.to_numeric(df_clean["MonthlyCharges"], errors="coerce")
 
     # Tách riêng nhãn Churn (nếu có)
     labels_series = None

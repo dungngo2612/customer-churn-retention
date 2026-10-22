@@ -1,6 +1,11 @@
+from pathlib import Path
+from unittest.mock import Mock
+
 import numpy as np
 import pandas as pd
+import pytest
 
+from churn_retention.modules.datasets import use_cases
 from churn_retention.modules.datasets.use_cases import clean_and_split_features
 from churn_retention.modules.datasets.validate import validate_dataset
 
@@ -64,7 +69,7 @@ def test_clean_totalcharges_by_tenure() -> None:
 
 
 def test_block_non_finite_numbers() -> None:
-    """Kiểm tra chặn các giá trị vô cực (inf, -inf) trong các cột số."""
+    """Cleaner giữ số vô cực ở MonthlyCharges để validator báo lỗi."""
     df_raw = pd.DataFrame(
         {
             "customerID": ["KH-INF"],
@@ -77,10 +82,75 @@ def test_block_non_finite_numbers() -> None:
 
     features, _ = clean_and_split_features(df_raw, drop_churn=False)
 
-    # Đảm bảo toàn bộ giá trị sau khi làm sạch đều là số hữu hạn (finite)
-    assert np.isfinite(features["tenure"].iloc[0])
-    assert np.isfinite(features["MonthlyCharges"].iloc[0])
-    assert np.isfinite(features["TotalCharges"].iloc[0])
+    assert features["MonthlyCharges"].iloc[0] == -np.inf
+    report = validate_dataset(features)
+    assert report.is_valid is False
+    assert any(err.column == "MonthlyCharges" and err.row == 2 for err in report.errors)
+
+
+@pytest.mark.parametrize("column", ["tenure", "MonthlyCharges", "TotalCharges"])
+@pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf], ids=["nan", "inf", "negative-inf"])
+def test_validate_rejects_non_finite_numbers(column: str, value: float) -> None:
+    df = pd.DataFrame(
+        {
+            "customerID": ["KH-VALID", "KH-NONFINITE"],
+            "tenure": [1.0, 12.0],
+            "MonthlyCharges": [25.0, 50.0],
+            "TotalCharges": [25.0, 600.0],
+            "Churn": ["No", "Yes"],
+        }
+    )
+    df.loc[1, column] = value
+
+    report = validate_dataset(df)
+
+    assert report.is_valid is False
+    column_errors = [err for err in report.errors if err.column == column]
+    assert column_errors
+    assert all(err.row == 3 and column in err.reason for err in column_errors)
+    assert any("hữu hạn" in err.reason for err in column_errors)
+
+
+@pytest.mark.parametrize("column", ["tenure", "MonthlyCharges"])
+@pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf], ids=["nan", "inf", "negative-inf"])
+def test_cleaner_preserves_non_finite_numbers(column: str, value: float) -> None:
+    df = pd.DataFrame(
+        {
+            "customerID": ["KH-NONFINITE"],
+            "tenure": [12.0],
+            "MonthlyCharges": [50.0],
+            "TotalCharges": [600.0],
+            "Churn": ["No"],
+        }
+    )
+    df.loc[0, column] = value
+
+    cleaned_df, _ = clean_and_split_features(df, drop_churn=False)
+
+    cleaned_value = cleaned_df[column].iloc[0]
+    if np.isnan(value):
+        assert pd.isna(cleaned_value)
+    else:
+        assert cleaned_value == value
+    report = validate_dataset(cleaned_df)
+    assert report.is_valid is False
+    assert any(err.column == column and err.row == 2 for err in report.errors)
+
+
+def test_process_dataset_upload_rejects_inf_without_writing_parquet(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(use_cases, "STORAGE_DIR", tmp_path)
+    monkeypatch.setattr(use_cases, "METADATA_FILE", tmp_path / "metadata.json")
+    dataset_repo = Mock(spec=use_cases.DatasetRepository)
+    file_bytes = b"customerID,tenure,MonthlyCharges,TotalCharges,Churn\nKH-INF,12,inf,600,No\n"
+
+    result = use_cases.process_dataset_upload(file_bytes, "nonfinite.csv", dataset_repo)
+
+    assert result["status"] == "invalid"
+    assert any(err["column"] == "MonthlyCharges" and err["row"] == 2 for err in result["errors"])
+    assert not list(tmp_path.rglob("*.parquet"))
+    dataset_repo.create.assert_not_called()
 
 
 def test_upload_validate_pipeline_flow() -> None:
