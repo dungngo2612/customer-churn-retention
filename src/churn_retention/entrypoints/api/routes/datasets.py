@@ -10,8 +10,14 @@ from churn_retention.modules.datasets import use_cases
 router = APIRouter(prefix="/datasets", tags=["Datasets"])
 
 
-@router.post("/upload", status_code=status.HTTP_201_CREATED,)
-async def upload_dataset(file: UploadFile = File(...), db: Session = Depends(get_db),) -> Dict[str, Any]:
+@router.post(
+    "/upload",
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_dataset(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
     """
     Endpoint tải lên file CSV dataset.
     - Trả về 201 nếu file hợp lệ và gán dataset_id thành công.
@@ -26,7 +32,9 @@ async def upload_dataset(file: UploadFile = File(...), db: Session = Depends(get
     # Đọc toàn bộ nội dung file tải lên dưới dạng bytes
     content = await file.read()
     repo = DatasetRepository(db)
-    result = use_cases.process_dataset_upload(file_bytes=content, filename=file.filename, dataset_repo=repo)
+    result = use_cases.process_dataset_upload(
+        file_bytes=content, filename=file.filename, dataset_repo=repo
+    )
 
     # Nếu dữ liệu vi phạm quy tắc kiểm định
     if result["status"] == "invalid":

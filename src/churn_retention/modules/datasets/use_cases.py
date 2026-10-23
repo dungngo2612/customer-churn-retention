@@ -162,7 +162,7 @@ def process_dataset_upload(
 
     # 5. Lưu thông tin metadata
     dataset_entity = DatasetMetadataModel(
-        id=dataset_id,  # Lưu ý: nếu trong models.py cột khóa chính tên là dataset_id thì đổi thành dataset_id=dataset_id
+        id=dataset_id,
         filename=filename,
         total_rows=len(cleaned_features_df),
         features_path=str(features_path),
