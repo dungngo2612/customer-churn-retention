@@ -419,7 +419,7 @@ def load_data_and_predict(is_demo_mode: bool = False):
             bp = BundlePredictor()
             bp.load(str(bundle_path))
             probs = bp.predict_batch(
-                features=customers,
+                features=customers.drop(columns=[c for c in ("customerID", "Churn") if c in customers.columns]),
                 customer_ids=customers["customerID"].tolist()
             )
             model_version = bp.model_version
@@ -599,7 +599,7 @@ with tab_e2e:
     ])
 
     with step1_exp:
-        st.markdown("#### 1️⃣ Quản Lý & Tải Lên Tập Dữ Liệu Khách Hàng (Module Dataset của Hiếu)")
+        st.markdown("#### 1️⃣ Quản Lý & Tải Lên Tập Dữ Liệu Khách Hàng")
         st.caption("Kiểm tra toàn diện dữ liệu theo hợp đồng schema trước khi đưa vào mô hình học máy.")
 
         uploaded_file = st.file_uploader(
@@ -614,19 +614,27 @@ with tab_e2e:
                 val_report = validate_dataset(uploaded_df)
                 if val_report.is_valid:
                     st.success(f"✅ File `{uploaded_file.name}` hợp lệ 100%! Tổng số: **{val_report.total_rows:,}** dòng dữ liệu.")
-                    st.dataframe(uploaded_df.head(5), use_container_width=True)
+                    st.dataframe(uploaded_df.head(5), width="stretch")
                 else:
                     st.error(f"❌ File `{uploaded_file.name}` có {len(val_report.errors)} lỗi dữ liệu:")
                     err_df = pd.DataFrame([{"Dòng": e.row or "Toàn bảng", "Cột": e.column, "Chi tiết lỗi": e.reason} for e in val_report.errors])
-                    st.dataframe(err_df, use_container_width=True)
+                    st.dataframe(err_df, width="stretch")
             except Exception as e:
                 st.error(f"Lỗi đọc file CSV: {e}")
         else:
-            st.info(f"📂 Đang kết nối trực tiếp với tập dữ liệu chuẩn: **`{active_dataset_name}`** ({len(customers_df):,} bản ghi). Dữ liệu đã được kiểm toán sạch sẽ (Audit Checked).")
-            st.dataframe(customers_df.head(4), use_container_width=True)
+            st.info(f"📂 Đang dùng tập dữ liệu mặc định: **`{active_dataset_name}`** ({len(customers_df):,} bản ghi).")
+            try:
+                _default_val = validate_dataset(customers_df)
+                if _default_val.is_valid:
+                    st.success(f"✅ Kiểm tra schema: {_default_val.total_rows:,} dòng, 0 lỗi (ô `TotalCharges` trống đã được chuẩn hoá về 0).")
+                else:
+                    st.warning(f"⚠️ Kiểm tra schema phát hiện {len(_default_val.errors)} vấn đề trong dữ liệu mặc định.")
+            except Exception as _exc:
+                st.warning(f"Không thể chạy kiểm tra schema cho dữ liệu mặc định: {_exc}")
+            st.dataframe(customers_df.head(4), width="stretch")
 
     with step2_exp:
-        st.markdown("#### 2️⃣ Chạy Scoring Job Chấm Điểm Rời Mạng (Module Scoring của Dũng)")
+        st.markdown("#### 2️⃣ Chạy Scoring Job Chấm Điểm Rời Mạng")
         st.caption("Áp dụng mô hình CatBoost đã đóng gói (Bundle) để dự báo xác suất rời mạng cho từng khách hàng.")
 
         sc_col1, sc_col2 = st.columns([1.5, 1])
@@ -635,26 +643,65 @@ with tab_e2e:
             st.markdown(f"• **Tập khách hàng đầu vào:** `{active_dataset_name}` ({len(customers_df):,} khách)")
             st.markdown(f"• **Cơ chế Inference:** `{predictor_info}`")
 
-            if st.button("🚀 Chạy Lại Scoring Job Trên Toàn Bộ Dữ Liệu", type="primary", key="btn_run_scoring"):
-                with st.spinner("Đang chạy dự báo hàng loạt bằng CatBoost..."):
-                    st.success(f"✅ Scoring Job hoàn tất thành công! Đã chấm điểm {len(predictions_df):,} khách hàng.")
-                    st.session_state["scoring_run_id"] = f"run-batch-{active_model_version[:10]}"
+            if st.button("🚀 Chạy Scoring Job Trên Toàn Bộ Dữ Liệu", type="primary", key="btn_run_scoring", disabled=not bundle_ready):
+                from churn_retention.adapters.task_queue.queue import SqliteTaskQueue
+                from churn_retention.contracts.jobs.models import JobType, TaskJob
+                from churn_retention.entrypoints.worker.worker import JobWorker
+
+                _ds_path = next(
+                    (p for p in [
+                        ROOT_DIR / "data" / "raw" / "telco_churn.csv",
+                        ROOT_DIR / "data" / "telco_churn.csv",
+                        ROOT_DIR / "telco_churn.csv",
+                    ] if p.exists()),
+                    None,
+                )
+                _run_id = f"run-batch-{active_model_version[:10]}"
+                _idem_key = f"scoring:{active_dataset_name}:{active_model_version}"
+                _queue = SqliteTaskQueue()
+                _existing_job = _queue.get_by_idempotency_key(_idem_key)
+                if _existing_job is not None:
+                    st.info(
+                        f"♻️ Job chấm điểm này đã tồn tại (trạng thái **{_existing_job.status.value}**). "
+                        "Khóa chống trùng (idempotency key) chặn việc chạy và ghi trùng kết quả."
+                    )
+                else:
+                    with st.spinner("Đang đưa job vào hàng đợi và xử lý bằng CatBoost..."):
+                        _job = TaskJob.create(
+                            job_type=JobType.SCORING,
+                            idempotency_key=_idem_key,
+                            payload={
+                                "dataset_path": str(_ds_path) if _ds_path else None,
+                                "bundle_path": str(get_bundle_path()),
+                                "scoring_run_id": _run_id,
+                            },
+                        )
+                        _queue.enqueue(_job)
+                        _done = JobWorker(_queue).process_one()
+                    if _done is not None and _done.status.value == "SUCCESS":
+                        st.success(
+                            f"✅ Scoring Job hoàn tất: đã lưu {_done.result.get('total_stored_in_db', 0):,} dự đoán "
+                            f"(mới: {_done.result.get('inserted_new', 0):,})."
+                        )
+                    elif _done is not None:
+                        st.error(f"❌ Scoring Job {_done.status.value}: {_done.error_reason}")
+                st.session_state["scoring_run_id"] = _run_id
 
         with sc_col2:
             st.markdown(
                 f"""
-                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px;">
-                    <div style="font-size:0.8rem; color:#64748b; font-weight:700;">METRIC MODEL GỐC:</div>
-                    <div style="font-size:1.1rem; color:#0f172a; font-weight:800; margin-top:4px;">ROC-AUC: 84.8%</div>
+                <div style="background:rgba(148,163,184,0.12); border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:12px;">
+                    <div style="font-size:0.8rem; color:#64748b; font-weight:700;">CHẤT LƯỢNG MÔ HÌNH:</div>
+                    <div style="font-size:1.1rem; color:inherit; font-weight:800; margin-top:4px;">ROC-AUC: 84.8%</div>
                     <div style="font-size:0.85rem; color:#059669; font-weight:600;">PR-AUC (AP): 66.5%</div>
-                    <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Validated on Test Set (Seed 42)</div>
+                    <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Đo trên tập kiểm thử khi huấn luyện (seed 42)</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
         st.markdown("##### 📋 Mẫu Xác Suất Dự Báo (Probabilities Batch):")
-        st.dataframe(predictions_df.head(6), use_container_width=True)
+        st.dataframe(predictions_df.head(6), width="stretch")
 
     with step3_exp:
         st.markdown("#### 3️⃣ Phân Phối Xác Suất Rời Mạng & Giải Thích TreeSHAP")
@@ -695,7 +742,7 @@ with tab_e2e:
                     plot_bgcolor="rgba(0,0,0,0)",
                     xaxis=dict(title="Tầm Quan Trọng Tương Đối (%)", gridcolor="#f1f5f9"),
                 )
-                st.plotly_chart(fig_shap_bar, use_container_width=True)
+                st.plotly_chart(fig_shap_bar, width="stretch")
             else:
                 st.info("Biểu đồ SHAP yêu cầu Model Bundle CatBoost thật để phân tích trọng số.")
             st.markdown('</div>', unsafe_allow_html=True)
@@ -714,7 +761,7 @@ with tab_e2e:
                     if local_shap_df is not None and not local_shap_df.empty:
                         st.dataframe(
                             local_shap_df.head(6)[["feature", "value", "impact", "shap_value"]].style.format({"shap_value": "{:+.3f}"}),
-                            use_container_width=True,
+                            width="stretch",
                             height=220,
                         )
                 except Exception:
@@ -722,8 +769,13 @@ with tab_e2e:
             st.markdown('</div>', unsafe_allow_html=True)
 
     with step4_exp:
-        st.markdown("#### 4️⃣ Nhập Ngân Sách & Mô Phỏng Can Thiệp (Task 1: Budget Knapsack)")
+        st.markdown("#### 4️⃣ Nhập Ngân Sách & Mô Phỏng Can Thiệp")
         st.caption("Thuật toán Tham lam tỷ số sinh lời chi phí phân bổ tối ưu từng USD ngân sách.")
+        st.info(
+            "ℹ️ Gói được chọn ở đây có thể **khác** gói ΔEV cao nhất ở tab *Hồ sơ Khách hàng 360°*. "
+            "Khi ngân sách bị giới hạn, thuật toán ưu tiên gói có **ΔEV trên mỗi USD** cao nhất (thường là gói rẻ hơn như A2) "
+            "để phục vụ được nhiều khách hơn. Đây là heuristic tham lam (xấp xỉ), không đảm bảo tối ưu tuyệt đối."
+        )
 
         st.markdown(
             f"""
@@ -767,17 +819,17 @@ with tab_e2e:
                     "net_value": "${:,.2f}",
                     "efficiency_ratio": "{:.2f}",
                 }),
-                use_container_width=True,
+                width="stretch",
                 height=260,
             )
 
     with step5_exp:
-        st.markdown("#### 5️⃣ Lưu & Xuất Chiến Dịch Mô Phỏng (Task 2: Campaign Management)")
+        st.markdown("#### 5️⃣ Lưu & Xuất Chiến Dịch Mô Phỏng")
         st.caption("Đóng băng kết quả vào cơ sở dữ liệu bất biến và tải về danh sách thực thi CSV.")
 
         camp_save_col1, camp_save_col2 = st.columns(2)
         with camp_save_col1:
-            e2e_camp_name = st.text_input("Tên chiến dịch mô phỏng:", value=f"Chiến Dịch Ngân Sách ${e2e_budget:,} - {active_model_version[:15]}", key="e2e_camp_name_input")
+            e2e_camp_name = st.text_input("Tên chiến dịch mô phỏng:", value=f"Chiến dịch ngân sách ${e2e_budget:,} - {pd.Timestamp.now().strftime('%d/%m/%Y')}", key="e2e_camp_name_input")
         with camp_save_col2:
             e2e_camp_ds_ref = st.text_input("Dataset Reference (Linh hoạt):", value=active_dataset_name, key="e2e_camp_ds_ref")
 
@@ -951,7 +1003,7 @@ with tab1:
                 )
             ],
         )
-        st.plotly_chart(fig_donut, use_container_width=True)
+        st.plotly_chart(fig_donut, width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_chart_right:
@@ -996,7 +1048,7 @@ with tab1:
             xaxis=dict(title="Giá trị tài chính ($)", gridcolor="#f1f5f9"),
             yaxis=dict(autorange="reversed", tickfont=dict(size=12, family="Plus Jakarta Sans")),
         )
-        st.plotly_chart(fig_cashflow, use_container_width=True)
+        st.plotly_chart(fig_cashflow, width="stretch")
         st.caption("💡 Lợi ích gộp bảo vệ được sau khi trừ chi phí CSKH và voucher sẽ đem lại khoản **Lợi nhuận ròng (ΔEV) dương**.")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1038,7 +1090,7 @@ with tab1:
             yaxis=dict(gridcolor="#f1f5f9"),
             xaxis=dict(tickangle=0),
         )
-        st.plotly_chart(fig_grouped, use_container_width=True)
+        st.plotly_chart(fig_grouped, width="stretch")
 
     with col_table:
         table_display = summary_df[[
@@ -1057,7 +1109,7 @@ with tab1:
                 "Lợi Ích Gộp": "${:,.2f}",
                 "Lợi Nhuận Ròng (ΔEV)": "${:,.2f}",
             }),
-            use_container_width=True,
+            width="stretch",
             height=280,
         )
 
@@ -1196,7 +1248,7 @@ with tab2:
             yaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="#f1f5f9"),
             xaxis=dict(title="Loại hợp đồng", tickangle=0),
         )
-        st.plotly_chart(fig_contract, use_container_width=True)
+        st.plotly_chart(fig_contract, width="stretch")
         st.caption("💡 **Insight:** Hợp đồng Month-to-month có tỷ lệ churn lên tới ~43%, cao gấp gần **15 lần** so với hợp đồng 2 năm (~2.8%). Đây là lý do chính sách A3 nhắm thẳng vào nhóm này.")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1222,7 +1274,7 @@ with tab2:
             yaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="#f1f5f9"),
             xaxis=dict(title="Dịch vụ Internet", tickangle=0),
         )
-        st.plotly_chart(fig_internet, use_container_width=True)
+        st.plotly_chart(fig_internet, width="stretch")
         st.caption("💡 **Insight:** Mạng Fiber optic tốc độ cao nhưng tỷ lệ churn tới ~42% (cao hơn DSL gấp đôi) do giá cước cao và thường thiếu gói dịch vụ hỗ trợ kỹ thuật đi kèm.")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1251,7 +1303,7 @@ with tab2:
             yaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="#f1f5f9"),
             xaxis=dict(title="Có dịch vụ Tech Support không", tickangle=0),
         )
-        st.plotly_chart(fig_tech, use_container_width=True)
+        st.plotly_chart(fig_tech, width="stretch")
         st.caption("💡 **Insight:** Khách hàng không có hỗ trợ kỹ thuật có tỷ lệ rời mạng ~41.6%, trong khi khách có dịch vụ này chỉ rời mạng ~15.2%. Đây là căn cứ thiết kế gói A1.")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1283,7 +1335,7 @@ with tab2:
             plot_bgcolor="rgba(0,0,0,0)",
             xaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="#f1f5f9"),
         )
-        st.plotly_chart(fig_pay, use_container_width=True)
+        st.plotly_chart(fig_pay, width="stretch")
         st.caption("💡 **Insight:** Thanh toán bằng Electronic check rời mạng tới ~45.3%, trong khi thanh toán tự động chỉ ~16-17%. Đây là căn cứ thiết kế gói A2.")
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1365,7 +1417,7 @@ with tab3:
             "benefit": "${:.2f}",
             "net_value": "${:+.2f}",
         }),
-        use_container_width=True,
+        width="stretch",
         height=260,
     )
 
@@ -1459,7 +1511,7 @@ with tab3:
                     dict(text="Vạch xanh: Sau can thiệp", x=0.5, y=-0.15, showarrow=False, font=dict(size=11, color="#3b82f6"))
                 ]
             )
-            st.plotly_chart(fig_gauge, use_container_width=True)
+            st.plotly_chart(fig_gauge, width="stretch")
 
             # Chi tiết thông tin dịch vụ với visual badges
             contract_badge = '<span class="badge-rose">Month-to-month</span>' if cust_info['Contract'] == 'Month-to-month' else f'<span class="badge-emerald">{cust_info["Contract"]}</span>'
@@ -1585,7 +1637,7 @@ with tab3:
                 insidetextanchor="middle",
                 textfont=dict(size=12, color="white", family="Plus Jakarta Sans", weight="bold"),
             )
-            st.plotly_chart(fig_drivers, use_container_width=True)
+            st.plotly_chart(fig_drivers, width="stretch")
             st.markdown('</div>', unsafe_allow_html=True)
 
         # HÀNG 2: SO SÁNH GIÁ TRỊ RÒNG (ΔEV) & LUẬN CỨ RA QUYẾT ĐỊNH (2 CỘT RỘNG RÃI, THOÁNG MẮT)
@@ -1616,7 +1668,7 @@ with tab3:
                 yaxis=dict(title="Lợi nhuận ròng ΔEV ($)", gridcolor="#f1f5f9"),
                 xaxis=dict(title="Mã hành động", tickangle=0),
             )
-            st.plotly_chart(fig_action_comp, use_container_width=True)
+            st.plotly_chart(fig_action_comp, width="stretch")
 
             # Bảng con so sánh các phương án (Index bắt đầu từ 0)
             cust_eval_display = cust_eval[[
@@ -1637,7 +1689,7 @@ with tab3:
                     "Giá trị ròng ΔEV": "${:+.2f}",
                     "Hòa vốn p*": "{:.1%}",
                 }),
-                use_container_width=True,
+                width="stretch",
                 height=170,
             )
             st.markdown('</div>', unsafe_allow_html=True)
@@ -1661,7 +1713,7 @@ with tab3:
                     unsafe_allow_html=True,
                 )
                 st.write("")
-                if st.button("🚀 Phê Duyệt & Ghi Nhận Gói Can Thiệp", key="btn_apply", use_container_width=True):
+                if st.button("🚀 Phê Duyệt & Ghi Nhận Gói Can Thiệp", key="btn_apply", width="stretch"):
                     st.success(f"✅ Đã ghi nhận áp dụng gói {best_code} ({cust_rec['action_name']}) cho khách hàng {selected_cust_id}. Chi phí dự kiến: ${cust_rec['cost']:.2f}, Lợi nhuận ròng kỳ vọng: +${best_ev:.2f}!")
             else:
                 st.info("Phương án tối ưu là **A0 (Không can thiệp)** vì mọi phương án có chi phí đều mang lại lợi nhuận ròng âm (ΔEV ≤ 0). Giữ nguyên trạng thái để tối ưu hóa ngân sách.")
@@ -1725,7 +1777,7 @@ with tab4:
             xaxis=dict(title="Biên Lợi Nhuận (m)", tickangle=0),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
-        st.plotly_chart(fig_sens, use_container_width=True)
+        st.plotly_chart(fig_sens, width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with sens_col2:
@@ -1758,7 +1810,7 @@ with tab4:
             xaxis=dict(title="Biên Lợi Nhuận (m)", tickangle=0),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
-        st.plotly_chart(fig_stacked, use_container_width=True)
+        st.plotly_chart(fig_stacked, width="stretch")
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Bảng chi tiết độ nhạy
@@ -1779,7 +1831,7 @@ with tab4:
             "Lợi Ích Gộp": "${:,.2f}",
             "Lợi Nhuận Ròng (ΔEV)": "${:,.2f}",
         }),
-        use_container_width=True,
+        width="stretch",
     )
 
     st.markdown("---")
@@ -1873,7 +1925,7 @@ with tab4:
                 xaxis=dict(title="Gói can thiệp", tickangle=0),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             )
-            st.plotly_chart(fig_sim, use_container_width=True)
+            st.plotly_chart(fig_sim, width="stretch")
         else:
             st.info("Hạn mức ngân sách quá nhỏ để thực hiện bất kỳ hành động can thiệp nào.")
 
@@ -1962,7 +2014,7 @@ with tab5:
                             "benefit": "${:,.2f}",
                             "net_value": "${:,.2f}",
                         }),
-                        use_container_width=True,
+                        width="stretch",
                         height=280,
                     )
                 else:
@@ -1989,7 +2041,7 @@ with tab5:
 
         c_col1, c_col2 = st.columns(2)
         with c_col1:
-            new_camp_name = st.text_input("Tên chiến dịch:", value=f"Chiến Dịch Giữ Chân {cur_model_version[:15]} - Q4")
+            new_camp_name = st.text_input("Tên chiến dịch:", value=f"Chiến dịch giữ chân - {pd.Timestamp.now().strftime('%d/%m/%Y')}")
             new_camp_budget = st.number_input("Hạn mức ngân sách ($):", min_value=0.0, value=15000.0, step=1000.0)
         with c_col2:
             st.text_input("Dataset Reference (Linh hoạt):", value=active_dataset_name, help="Mã định danh hoặc tên tập dữ liệu áp dụng cho chiến dịch này.")
@@ -2036,7 +2088,7 @@ with tab5:
             st.rerun()
 
     # --- THEO DÕI HÀNG ĐỢI TASK QUEUE & CHỐNG TRÙNG LẶP (TASK 4) ---
-    with st.expander("⚙️ Giám Sát Hạ Tầng Task Queue & Khóa Chống Trùng (Task 4: Retry & Idempotency)"):
+    with st.expander("⚙️ Giám Sát Hạ Tầng Task Queue & Khóa Chống Trùng (Retry & Idempotency)"):
         st.caption("Truy vết trạng thái các tác vụ ngầm (Background Jobs), chính sách Retry có giới hạn và cơ chế Idempotent.")
         from churn_retention.adapters.task_queue.queue import SqliteTaskQueue
         queue = SqliteTaskQueue()
@@ -2054,6 +2106,6 @@ with tab5:
                 }
                 for j in jobs
             ])
-            st.dataframe(jobs_df, use_container_width=True)
+            st.dataframe(jobs_df, width="stretch")
         else:
             st.info("Hiện chưa có tác vụ nền nào trong hàng đợi.")
