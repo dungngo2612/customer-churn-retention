@@ -26,6 +26,16 @@ from churn_retention.modules.retention.use_cases import (
     recommend,
     sensitivity_by_margin,
 )
+from churn_retention.modules.retention.budget import select_actions_under_budget
+from churn_retention.modules.campaigns import (
+    Campaign,
+    CampaignStatus,
+    create_campaign,
+    get_campaign,
+    list_campaigns,
+    export_campaign_csv,
+    export_campaign_dataframe,
+)
 
 # Cấu hình giao diện Streamlit
 st.set_page_config(
@@ -521,11 +531,12 @@ st.markdown(
 )
 
 # --- TABS ĐIỀU HƯỚNG (4 TẦNG HỆ THỐNG) ---
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 Tổng quan Kinh tế (Overview)",
     "🔍 Khám Phá Dữ Liệu & Hành Vi Churn (EDA)",
     "👤 Hồ Sơ Khách Hàng 360° & Đề Xuất Can Thiệp",
     "🎛️ Phân Tích Độ Nhạy & Mô Phỏng Ngân Sách",
+    "📋 Quản Lý Chiến Dịch (Campaigns)",
 ])
 
 # ==============================================================================
@@ -1582,3 +1593,159 @@ with tab4:
             st.info("Hạn mức ngân sách quá nhỏ để thực hiện bất kỳ hành động can thiệp nào.")
 
         st.markdown('</div>', unsafe_allow_html=True)
+
+# ==============================================================================
+# TAB 5: QUẢN LÝ CHIẾN DỊCH (CAMPAIGN MANAGEMENT - TASK 2)
+# ==============================================================================
+with tab5:
+    st.markdown("### 📋 Quản Lý Chiến Dịch Mô Phỏng Giữ Chân Khách Hàng")
+    st.caption("Lưu trữ, theo dõi và xuất danh sách các chiến dịch can thiệp theo ngân sách với nguyên tắc bất biến (Immutability).")
+
+    # Banner giải thích nguyên tắc bất biến
+    st.markdown(
+        """
+        <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 16px 20px; color: #fff; margin-bottom: 20px; border-left: 4px solid #6366f1;">
+            <div style="font-weight: 700; font-size: 1rem; color: #a5b4fc; margin-bottom: 4px;">🔒 NGUYÊN TẮC BẤT BIẾN & TRUY VẾT DỮ LIỆU:</div>
+            <div style="font-size: 0.88rem; color: #cbd5e1; line-height: 1.5;">
+                Mỗi chiến dịch được gắn chặt với 3 tham chiếu bất biến: <strong>Dataset ID</strong>, <strong>Model Version</strong>, và <strong>Scoring Run ID</strong>. 
+                Khi đổi sang mô hình mới hoặc tập dữ liệu mới, hệ thống sẽ tạo một chiến dịch mới độc lập và bảo toàn 100% kết quả lịch sử của chiến dịch cũ, không bao giờ ghi đè.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    all_campaigns = list_campaigns()
+
+    camp_sub1, camp_sub2 = st.tabs(["📂 Danh Sách Chiến Dịch Đã Lưu", "➕ Tạo Chiến Dịch Mới Từ Mô Phỏng"])
+
+    with camp_sub1:
+        if not all_campaigns:
+            st.info("ℹ️ Hiện chưa có chiến dịch nào được lưu. Bạn có thể chuyển sang tab **'➕ Tạo Chiến Dịch Mới Từ Mô Phỏng'** để khởi tạo chiến dịch đầu tiên.")
+        else:
+            camp_options = {c.campaign_id: f"{c.name} [{c.status.value}] — ${c.budget:,.0f} — {c.created_at[:19]}" for c in all_campaigns}
+            selected_camp_id = st.selectbox(
+                "Chọn chiến dịch để xem chi tiết & xuất báo cáo:",
+                options=list(camp_options.keys()),
+                format_func=lambda x: camp_options[x],
+            )
+
+            if selected_camp_id:
+                selected_camp = get_campaign(selected_camp_id)
+                summary_data = selected_camp.results.get("summary", {})
+
+                # Metadata Cards
+                meta_col1, meta_col2, meta_col3, meta_col4 = st.columns(4)
+                with meta_col1:
+                    st.metric("Tên chiến dịch", selected_camp.name)
+                    st.caption(f"ID: `{selected_camp.campaign_id[:8]}...`")
+                with meta_col2:
+                    st.metric("Dataset Reference", selected_camp.dataset_id)
+                    st.caption(f"Created: {selected_camp.created_at[:10]}")
+                with meta_col3:
+                    st.metric("Model Version", selected_camp.model_version)
+                    st.caption(f"Scoring Run: `{selected_camp.scoring_run_id}`")
+                with meta_col4:
+                    badge_color = "#10b981" if selected_camp.status == CampaignStatus.EXPORTED else "#3b82f6"
+                    st.metric("Trạng Thái", selected_camp.status.value)
+                    st.markdown(f'<span style="background:{badge_color}22; color:{badge_color}; border:1px solid {badge_color}; padding:2px 8px; border-radius:12px; font-size:0.78rem; font-weight:700;">{selected_camp.status.value}</span>', unsafe_allow_html=True)
+
+                st.markdown("---")
+
+                # 4 KPI cards của chiến dịch
+                kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
+                with kpi_col1:
+                    st.metric("Hạn Mức Ngân Sách ($)", f"${selected_camp.budget:,.2f}")
+                with kpi_col2:
+                    spent_val = summary_data.get("total_cost", 0.0)
+                    st.metric("Chi Phí Thực Tiêu ($)", f"${spent_val:,.2f}")
+                with kpi_col3:
+                    benefit_val = summary_data.get("total_benefit", 0.0)
+                    st.metric("Lợi Ích Kỳ Vọng ($)", f"${benefit_val:,.2f}")
+                with kpi_col4:
+                    net_val = summary_data.get("total_net_value", 0.0)
+                    st.metric("Lợi Nhuận Ròng (ΔEV)", f"+${net_val:,.2f}")
+
+                st.markdown("#### 👥 Danh Sách Khách Hàng Được Chọn Can Thiệp")
+                camp_df = export_campaign_dataframe(selected_camp.campaign_id)
+                interv_df = camp_df[camp_df["action_code"] != "A0"] if not camp_df.empty and "action_code" in camp_df.columns else camp_df
+
+                if not interv_df.empty:
+                    st.dataframe(
+                        interv_df.style.format({
+                            "cost": "${:,.2f}",
+                            "benefit": "${:,.2f}",
+                            "net_value": "${:,.2f}",
+                        }),
+                        use_container_width=True,
+                        height=280,
+                    )
+                else:
+                    st.info("Chiến dịch này không có khách hàng nào được phân bổ can thiệp tốn phí (Toàn bộ là A0).")
+
+                # Nút xuất CSV (Step 3 của Task 2)
+                csv_data = export_campaign_csv(selected_camp.campaign_id, only_interventions=True)
+                st.download_button(
+                    label="📥 Xuất File CSV Danh Sách Được Chọn (customer_id, hành động, chi phí, lợi ích)",
+                    data=csv_data,
+                    file_name=f"campaign_{selected_camp.name.replace(' ', '_')}_{selected_camp.campaign_id[:8]}.csv",
+                    mime="text/csv",
+                    type="primary",
+                    help="Xuất danh sách khách hàng được chọn can thiệp và tự động chuyển trạng thái sang EXPORTED.",
+                )
+
+    with camp_sub2:
+        st.markdown("#### ➕ Tạo Bản Ghi Chiến Dịch Mới")
+        st.caption("Khởi tạo chiến dịch lưu trữ từ mô phỏng ngân sách hiện tại.")
+
+        cur_model_version = "catboost-20261018T130222-seed42" if "CatBoost" in predictor_info else "fake-v1"
+        cur_dataset_id = "telco_churn.csv"
+        cur_scoring_run_id = f"scoring-run-{cur_model_version}"
+
+        c_col1, c_col2 = st.columns(2)
+        with c_col1:
+            new_camp_name = st.text_input("Tên chiến dịch:", value=f"Chiến Dịch Giữ Chân {cur_model_version[:15]} - Q4")
+            new_camp_budget = st.number_input("Hạn mức ngân sách ($):", min_value=0.0, value=15000.0, step=1000.0)
+        with c_col2:
+            st.text_input("Dataset Reference (bất biến):", value=cur_dataset_id, disabled=True)
+            st.text_input("Model Version (bất biến):", value=cur_model_version, disabled=True)
+
+        if st.button("🚀 Khởi Tạo & Chạy Phân Bổ Chiến Dịch Mới", type="primary"):
+            # Chạy thuật toán phân bổ ngân sách
+            alloc_df = select_actions_under_budget(
+                customers=customers_df,
+                predictions=predictions_df,
+                budget=new_camp_budget,
+                actions=current_actions,
+                margin=base_margin,
+                horizon_months=horizon,
+            )
+            interv_alloc = alloc_df[alloc_df["action_code"] != "A0"]
+
+            camp_results = {
+                "summary": {
+                    "total_cost": float(interv_alloc["cost"].sum()) if not interv_alloc.empty else 0.0,
+                    "total_benefit": float(interv_alloc["benefit"].sum()) if not interv_alloc.empty else 0.0,
+                    "total_net_value": float(interv_alloc["net_value"].sum()) if not interv_alloc.empty else 0.0,
+                    "n_intervened": len(interv_alloc),
+                    "n_total": len(alloc_df),
+                },
+                "allocations": alloc_df.to_dict("records"),
+            }
+
+            created_camp = create_campaign(
+                name=new_camp_name,
+                dataset_id=cur_dataset_id,
+                model_version=cur_model_version,
+                scoring_run_id=cur_scoring_run_id,
+                budget=new_camp_budget,
+                assumptions={
+                    "margin": base_margin,
+                    "horizon_months": horizon,
+                    "actions": [a.code for a in current_actions],
+                },
+                results=camp_results,
+                status=CampaignStatus.SIMULATED,
+            )
+            st.success(f"🎉 Đã tạo thành công chiến dịch **'{created_camp.name}'** (ID: `{created_camp.campaign_id}`)!")
+            st.rerun()
