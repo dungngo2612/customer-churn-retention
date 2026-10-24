@@ -3,22 +3,24 @@
 from __future__ import annotations
 
 import io
-from typing import Any, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 import pandas as pd
 
-from churn_retention.adapters.database.campaigns.repository import (
-    CampaignRepository,
-    SqliteCampaignRepository,
-)
 from churn_retention.modules.campaigns.models import Campaign, CampaignStatus
+
+if TYPE_CHECKING:
+    from churn_retention.adapters.database.campaigns.repository import CampaignRepository
 
 
 class CampaignNotFoundError(KeyError):
     """Chiến dịch không tồn tại trong hệ thống."""
 
 
-def get_default_repository() -> CampaignRepository:
+def get_default_repository() -> Any:
     """Khởi tạo kho lưu trữ chiến dịch mặc định."""
+    from churn_retention.adapters.database.campaigns.repository import (
+        SqliteCampaignRepository,
+    )
     return SqliteCampaignRepository()
 
 

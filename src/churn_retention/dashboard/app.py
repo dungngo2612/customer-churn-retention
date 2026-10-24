@@ -27,6 +27,11 @@ from churn_retention.modules.retention.use_cases import (
     sensitivity_by_margin,
 )
 from churn_retention.modules.retention.budget import select_actions_under_budget
+from churn_retention.modules.datasets.validate import validate_dataset
+from churn_retention.ml.explainability.shap_explainer import (
+    get_global_feature_importances,
+    explain_single_customer_shap,
+)
 from churn_retention.modules.campaigns import (
     Campaign,
     CampaignStatus,
@@ -347,9 +352,21 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- NẠP DỮ LIỆU & CHẠY DỰ ĐOÁN (TÍCH HỢP BUNDLE PREDICTOR THẬT CỦA NGƯỜI 1 & FALLBACK AN TOÀN) ---
+# --- NẠP DỮ LIỆU & CHẠY DỰ ĐOÁN (KHÔNG DÙNG DỮ LIỆU CỨNG, BẮT LỖI RÕ NẾU THIẾU BUNDLE) ---
+def get_bundle_path():
+    bundle_dirs = [
+        ROOT_DIR / "artifacts" / "bundles",
+        ROOT_DIR / "artifacts" / "bundle",
+    ]
+    for b_dir in bundle_dirs:
+        if b_dir.exists():
+            for p in b_dir.glob("**/model.pkl"):
+                return p.parent
+    return None
+
+
 @st.cache_data
-def load_data_and_predict():
+def load_data_and_predict(is_demo_mode: bool = False):
     possible_paths = [
         ROOT_DIR / "data" / "raw" / "telco_churn.csv",
         ROOT_DIR / "data" / "telco_churn.csv",
@@ -358,43 +375,45 @@ def load_data_and_predict():
     data_path = next((p for p in possible_paths if p.exists()), None)
 
     if data_path is None:
-        st.warning("⚠️ Chưa tìm thấy file `telco_churn.csv`. Đang sử dụng dữ liệu mô phỏng.")
-        customers = pd.DataFrame({
-            "customerID": ["CUST_A", "CUST_B", "CUST_C"],
-            "MonthlyCharges": [80.0, 25.0, 65.0],
-            "Contract": ["Month-to-month", "Month-to-month", "One year"],
-            "InternetService": ["Fiber optic", "DSL", "DSL"],
-            "TechSupport": ["No", "No", "Yes"],
-            "OnlineSecurity": ["No", "No", "Yes"],
-            "PaymentMethod": ["Electronic check", "Mailed check", "Bank transfer (automatic)"],
-            "Churn": ["No", "No", "No"],
-            "tenure": [12, 5, 24],
-        })
+        if not is_demo_mode:
+            st.error("❌ Không tìm thấy file dữ liệu thật `telco_churn.csv`! Vui lòng tải dữ liệu vào data/ hoặc bật 'Chế độ Demo'.")
+            st.stop()
+        else:
+            customers = pd.DataFrame({
+                "customerID": ["DEMO_01", "DEMO_02", "DEMO_03"],
+                "MonthlyCharges": [85.0, 25.0, 65.0],
+                "Contract": ["Month-to-month", "Two year", "Month-to-month"],
+                "InternetService": ["Fiber optic", "DSL", "DSL"],
+                "TechSupport": ["No", "Yes", "No"],
+                "OnlineSecurity": ["No", "Yes", "No"],
+                "PaymentMethod": ["Electronic check", "Credit card (automatic)", "Electronic check"],
+                "Churn": ["No", "No", "No"],
+                "tenure": [6, 48, 12],
+                "TotalCharges": [510.0, 1200.0, 780.0],
+            })
+            dataset_name = "demo_sample.csv"
     else:
         customers = pd.read_csv(data_path)
+        dataset_name = data_path.name
         if "TotalCharges" in customers.columns:
             customers["TotalCharges"] = pd.to_numeric(
                 customers["TotalCharges"].astype(str).str.strip(), errors="coerce"
             ).fillna(0.0)
 
-    # 1. Kiểm tra xem có Model Bundle thật từ Người 1 trong artifacts không
-    bundle_dirs = [
-        ROOT_DIR / "artifacts" / "bundles",
-        ROOT_DIR / "artifacts" / "bundle",
-    ]
-    bundle_path = None
-    for b_dir in bundle_dirs:
-        if b_dir.exists():
-            for p in b_dir.glob("**/model.pkl"):
-                bundle_path = p.parent
-                break
-            if bundle_path:
-                break
-
+    bundle_path = get_bundle_path()
+    model_version = "fake-v1"
     predictor_info = "FakePredictor (Mô phỏng)"
     probs = None
 
-    if bundle_path and bundle_path.exists():
+    if not is_demo_mode:
+        if bundle_path is None or not bundle_path.exists():
+            st.error(
+                "❌ Không tìm thấy model bundle thật trong `artifacts/bundles/`! "
+                "Luồng chạy thật bắt buộc phải có bundle CatBoost. "
+                "Vui lòng kiểm tra model bundle hoặc bật 'Chế độ Demo' ở thanh bên nếu muốn thử nghiệm."
+            )
+            st.stop()
+
         try:
             from churn_retention.adapters.predictor.bundle_predictor import BundlePredictor
             bp = BundlePredictor()
@@ -403,27 +422,35 @@ def load_data_and_predict():
                 features=customers,
                 customer_ids=customers["customerID"].tolist()
             )
-            predictor_info = f"BundlePredictor (CatBoost - {bp.model_version})"
-        except Exception:
-            probs = None
-
-    # 2. Nếu chưa có bundle hoặc bundle chưa sẵn sàng, fallback an toàn sang FakePredictor
-    if probs is None:
+            model_version = bp.model_version
+            predictor_info = f"BundlePredictor (CatBoost - {model_version})"
+        except Exception as exc:
+            st.error(f"❌ Lỗi khi nạp hoặc chạy model bundle: {exc}")
+            st.stop()
+    else:
         fake_pred = FakePredictor(seed=42)
         probs = fake_pred.predict_batch(
             features=customers,
             customer_ids=customers["customerID"].tolist()
         )
+        model_version = fake_pred.model_version
+        predictor_info = f"FakePredictor (Chế độ Demo - {model_version})"
 
     predictions = pd.DataFrame({
         "customer_id": customers["customerID"].tolist(),
         "churn_prob": probs,
     })
 
-    return customers, predictions, predictor_info
+    return customers, predictions, predictor_info, dataset_name, model_version
 
 
-customers_df, predictions_df, predictor_info = load_data_and_predict()
+# Quản lý chế độ Demo qua session_state
+if "demo_mode" not in st.session_state:
+    st.session_state["demo_mode"] = False
+
+customers_df, predictions_df, predictor_info, active_dataset_name, active_model_version = load_data_and_predict(
+    is_demo_mode=st.session_state["demo_mode"]
+)
 
 
 # --- SIDEBAR: CẤU HÌNH THAM SỐ KINH TẾ (GIỮ NGUYÊN 100% LOGIC) ---
@@ -531,7 +558,8 @@ st.markdown(
 )
 
 # --- TABS ĐIỀU HƯỚNG (4 TẦNG HỆ THỐNG) ---
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab_e2e, tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "🚀 Luồng Trọn Vẹn (E2E Pipeline)",
     "📊 Tổng quan Kinh tế (Overview)",
     "🔍 Khám Phá Dữ Liệu & Hành Vi Churn (EDA)",
     "👤 Hồ Sơ Khách Hàng 360° & Đề Xuất Can Thiệp",
