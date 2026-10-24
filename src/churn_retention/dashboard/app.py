@@ -740,7 +740,7 @@ with tab_e2e:
                     margin=dict(l=10, r=10, t=10, b=10),
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
-                    xaxis=dict(title="Tầm Quan Trọng Tương Đối (%)", gridcolor="#f1f5f9"),
+                    xaxis=dict(title="Tầm Quan Trọng Tương Đối (%)", gridcolor="rgba(148,163,184,0.25)"),
                 )
                 st.plotly_chart(fig_shap_bar, width="stretch")
             else:
@@ -1045,7 +1045,7 @@ with tab1:
             margin=dict(l=10, r=20, t=10, b=10),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            xaxis=dict(title="Giá trị tài chính ($)", gridcolor="#f1f5f9"),
+            xaxis=dict(title="Giá trị tài chính ($)", gridcolor="rgba(148,163,184,0.25)"),
             yaxis=dict(autorange="reversed", tickfont=dict(size=12, family="Plus Jakarta Sans")),
         )
         st.plotly_chart(fig_cashflow, width="stretch")
@@ -1087,7 +1087,7 @@ with tab1:
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            yaxis=dict(gridcolor="#f1f5f9"),
+            yaxis=dict(gridcolor="rgba(148,163,184,0.25)"),
             xaxis=dict(tickangle=0),
         )
         st.plotly_chart(fig_grouped, width="stretch")
@@ -1214,7 +1214,7 @@ with tab2:
                     <div class="card-icon-wrap" style="background:#ecfdf5; color:#059669;">⏳</div>
                 </div>
                 <div class="card-value">{avg_tenure:.1f} <span style="font-size:1.1rem;font-weight:600;">th</span></div>
-                <div class="card-footer"><span>Khoảng ~2.7 năm trung bình</span></div>
+                <div class="card-footer"><span>Khoảng ~{avg_tenure / 12:.1f} năm trung bình</span></div>
             </div>
             """, unsafe_allow_html=True
         )
@@ -1245,11 +1245,14 @@ with tab2:
             margin=dict(l=10, r=10, t=10, b=10),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            yaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="#f1f5f9"),
+            yaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="rgba(148,163,184,0.25)"),
             xaxis=dict(title="Loại hợp đồng", tickangle=0),
         )
         st.plotly_chart(fig_contract, width="stretch")
-        st.caption("💡 **Insight:** Hợp đồng Month-to-month có tỷ lệ churn lên tới ~43%, cao gấp gần **15 lần** so với hợp đồng 2 năm (~2.8%). Đây là lý do chính sách A3 nhắm thẳng vào nhóm này.")
+        _cr = dict(zip(contract_churn["Contract"], contract_churn["ChurnRate"]))
+        _m2m, _two = _cr.get("Month-to-month"), _cr.get("Two year")
+        if _m2m is not None and _two:
+            st.caption(f"💡 **Insight:** Hợp đồng Month-to-month có tỷ lệ churn {_m2m:.1f}%, cao gấp **{_m2m / _two:.1f} lần** so với hợp đồng 2 năm ({_two:.1f}%). Đây là lý do chính sách A3 nhắm thẳng vào nhóm này.")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with eda_row1_c2:
@@ -1271,11 +1274,14 @@ with tab2:
             margin=dict(l=10, r=10, t=10, b=10),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            yaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="#f1f5f9"),
+            yaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="rgba(148,163,184,0.25)"),
             xaxis=dict(title="Dịch vụ Internet", tickangle=0),
         )
         st.plotly_chart(fig_internet, width="stretch")
-        st.caption("💡 **Insight:** Mạng Fiber optic tốc độ cao nhưng tỷ lệ churn tới ~42% (cao hơn DSL gấp đôi) do giá cước cao và thường thiếu gói dịch vụ hỗ trợ kỹ thuật đi kèm.")
+        _ir = dict(zip(internet_churn["InternetService"], internet_churn["ChurnRate"]))
+        _fiber, _dsl = _ir.get("Fiber optic"), _ir.get("DSL")
+        if _fiber is not None and _dsl:
+            st.caption(f"💡 **Insight:** Mạng Fiber optic có tỷ lệ churn {_fiber:.1f}%, gấp **{_fiber / _dsl:.1f} lần** DSL ({_dsl:.1f}%). Giả thuyết: giá cước cao và thường thiếu gói hỗ trợ kỹ thuật đi kèm (cần kiểm chứng thêm).")
         st.markdown('</div>', unsafe_allow_html=True)
 
     # 3. Phân tích Dịch vụ đi kèm & Phương thức thanh toán
@@ -1300,11 +1306,14 @@ with tab2:
             margin=dict(l=10, r=10, t=10, b=10),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            yaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="#f1f5f9"),
+            yaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="rgba(148,163,184,0.25)"),
             xaxis=dict(title="Có dịch vụ Tech Support không", tickangle=0),
         )
         st.plotly_chart(fig_tech, width="stretch")
-        st.caption("💡 **Insight:** Khách hàng không có hỗ trợ kỹ thuật có tỷ lệ rời mạng ~41.6%, trong khi khách có dịch vụ này chỉ rời mạng ~15.2%. Đây là căn cứ thiết kế gói A1.")
+        _tr = dict(zip(tech_churn["TechSupport"], tech_churn["ChurnRate"]))
+        _no_ts, _yes_ts = _tr.get("No"), _tr.get("Yes")
+        if _no_ts is not None and _yes_ts is not None:
+            st.caption(f"💡 **Insight:** Khách không có hỗ trợ kỹ thuật rời mạng {_no_ts:.1f}%, trong khi khách có dịch vụ này chỉ {_yes_ts:.1f}%. Đây là căn cứ thiết kế gói A1.")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with eda_row2_c2:
@@ -1333,10 +1342,14 @@ with tab2:
             margin=dict(l=10, r=10, t=10, b=10),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            xaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="#f1f5f9"),
+            xaxis=dict(title="Tỷ lệ rời mạng (%)", gridcolor="rgba(148,163,184,0.25)"),
         )
         st.plotly_chart(fig_pay, width="stretch")
-        st.caption("💡 **Insight:** Thanh toán bằng Electronic check rời mạng tới ~45.3%, trong khi thanh toán tự động chỉ ~16-17%. Đây là căn cứ thiết kế gói A2.")
+        _pr = dict(zip(pay_churn["PaymentMethod"], pay_churn["ChurnRate"]))
+        _echeck = _pr.get("Electronic check")
+        _auto = [v for k, v in _pr.items() if "automatic" in str(k)]
+        if _echeck is not None and _auto:
+            st.caption(f"💡 **Insight:** Thanh toán bằng Electronic check rời mạng {_echeck:.1f}%, trong khi thanh toán tự động chỉ {min(_auto):.1f}–{max(_auto):.1f}%. Đây là căn cứ thiết kế gói A2.")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ==============================================================================
@@ -1628,7 +1641,7 @@ with tab3:
                 margin=dict(l=10, r=20, t=10, b=10),
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)",
-                xaxis=dict(showgrid=True, gridcolor="#f1f5f9", tickangle=0),
+                xaxis=dict(showgrid=True, gridcolor="rgba(148,163,184,0.25)", tickangle=0),
                 yaxis=dict(autorange="reversed"),
             )
             fig_drivers.update_traces(
@@ -1665,7 +1678,7 @@ with tab3:
                 margin=dict(l=10, r=10, t=10, b=10),
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)",
-                yaxis=dict(title="Lợi nhuận ròng ΔEV ($)", gridcolor="#f1f5f9"),
+                yaxis=dict(title="Lợi nhuận ròng ΔEV ($)", gridcolor="rgba(148,163,184,0.25)"),
                 xaxis=dict(title="Mã hành động", tickangle=0),
             )
             st.plotly_chart(fig_action_comp, width="stretch")
@@ -1773,7 +1786,7 @@ with tab4:
             margin=dict(l=10, r=10, t=10, b=10),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            yaxis=dict(title="Giá trị ($)", gridcolor="#f1f5f9"),
+            yaxis=dict(title="Giá trị ($)", gridcolor="rgba(148,163,184,0.25)"),
             xaxis=dict(title="Biên Lợi Nhuận (m)", tickangle=0),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
@@ -1806,7 +1819,7 @@ with tab4:
             margin=dict(l=10, r=10, t=10, b=10),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            yaxis=dict(title="Số lượng khách can thiệp", gridcolor="#f1f5f9"),
+            yaxis=dict(title="Số lượng khách can thiệp", gridcolor="rgba(148,163,184,0.25)"),
             xaxis=dict(title="Biên Lợi Nhuận (m)", tickangle=0),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
@@ -1852,7 +1865,7 @@ with tab4:
             "Hạn mức ngân sách tối đa ($):",
             min_value=2000,
             max_value=max(int(current_total_cost) + 5000, 40000),
-            value=min(15000, int(current_total_cost)),
+            value=max(2000, min(int(st.session_state.get("e2e_budget_slider", 15000)), max(int(current_total_cost) + 5000, 40000))),
             step=1000,
             help="Hệ thống sẽ ưu tiên khách hàng có ROI = ΔEV / Cost cao nhất cho đến khi hết ngân sách này.",
         )
@@ -1921,7 +1934,7 @@ with tab4:
                 margin=dict(l=10, r=10, t=10, b=10),
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)",
-                yaxis=dict(title="Giá trị ($)", gridcolor="#f1f5f9"),
+                yaxis=dict(title="Giá trị ($)", gridcolor="rgba(148,163,184,0.25)"),
                 xaxis=dict(title="Gói can thiệp", tickangle=0),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             )
@@ -2042,7 +2055,7 @@ with tab5:
         c_col1, c_col2 = st.columns(2)
         with c_col1:
             new_camp_name = st.text_input("Tên chiến dịch:", value=f"Chiến dịch giữ chân - {pd.Timestamp.now().strftime('%d/%m/%Y')}")
-            new_camp_budget = st.number_input("Hạn mức ngân sách ($):", min_value=0.0, value=15000.0, step=1000.0)
+            new_camp_budget = st.number_input("Hạn mức ngân sách ($):", min_value=0.0, value=float(st.session_state.get("e2e_budget_slider", 15000)), step=1000.0)
         with c_col2:
             st.text_input("Dataset Reference (Linh hoạt):", value=active_dataset_name, help="Mã định danh hoặc tên tập dữ liệu áp dụng cho chiến dịch này.")
             st.text_input("Model Version (bất biến):", value=cur_model_version, disabled=True)
