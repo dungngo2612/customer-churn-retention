@@ -1,0 +1,12 @@
+train_path: data/processed/train.csv
+val_path: data/processed/val.csv
+seed: 42
+n_splits: 5
+max_trials: 12
+time_budget_seconds: 300
+# Expanded in this order; logistic remains the team's primary model.
+# Model defaults and feature definitions come from sibling train_config.yaml.
+candidates:
+  - logistic
+  - catboost_default
+  - catboost_grid
