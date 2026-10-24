@@ -2,14 +2,29 @@ seed: 42
 
 features:
   numeric_cols:
-    - num_1
-    - num_2
-    - num_3
-    - num_4
+    - SeniorCitizen
+    - tenure
+    - MonthlyCharges
+    - TotalCharges
   categorical_cols:
-    - contract_type
-  drop_cols: []
-  target_col: churn
+    - gender
+    - Partner
+    - Dependents
+    - PhoneService
+    - MultipleLines
+    - InternetService
+    - OnlineSecurity
+    - OnlineBackup
+    - DeviceProtection
+    - TechSupport
+    - StreamingTV
+    - StreamingMovies
+    - Contract
+    - PaperlessBilling
+    - PaymentMethod
+  drop_cols:
+    - customerID
+  target_col: Churn
   positive_label: "Yes"
 
 models:
