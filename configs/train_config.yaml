@@ -1,0 +1,26 @@
+seed: 42
+
+features:
+  numeric_cols:
+    - num_1
+    - num_2
+    - num_3
+    - num_4
+  categorical_cols:
+    - contract_type
+  drop_cols: []
+  target_col: churn
+  positive_label: "Yes"
+
+models:
+  logistic:
+    C: 1.0
+    max_iter: 1000
+
+  catboost:
+    iterations: 200
+    depth: 6
+    learning_rate: 0.05
+
+mlflow:
+  experiment_name: churn-retention

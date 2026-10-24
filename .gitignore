@@ -31,3 +31,8 @@ dist/
 *.pickle
 *.cbm
 *.onnx
+
+# MLflow tracking
+mlruns/
+mlflow.db
+catboost_info/
