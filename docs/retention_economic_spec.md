@@ -58,44 +58,25 @@ Với mỗi hành động $k$ có tỷ lệ khách hàng đồng ý $u_k \in [0,
 
 > **Nguyên tắc kế toán chống trừ trùng chi phí (Anti-Double-Counting Rule):**
 > 1. $V_i$ phản ánh giá trị đóng góp tiềm năng trước can thiệp và luôn được giữ cố định trên cước gốc `MonthlyCharges`.
-> 2. Toàn bộ giá trị ưu đãi (voucher, chiết khấu hóa đơn) và chi phí vận hành chỉ được hạch toán một lần duy nhất vào tham số chi phí kỳ vọng $C_k$. Tuyệt đối không khấu trừ ưu đãi vào cước phí khi tính $V_i$.
-> 3. Mỗi khách hàng chỉ nhận tối đa 01 hành động tối ưu nhất (single best action), không cộng dồn lợi ích của nhiều hành động trên cùng một thuê bao.
 
 ---
 
-## 4. Retention Action Matrix & Eligibility Rules
+## 4. Retention Action Catalog
 
-Hệ thống thiết lập 1 phương án cơ sở và 3 hành động giữ chân. Mọi điều kiện áp dụng đều được ánh xạ trực tiếp từ các cột hiện có trong tập dữ liệu:
+Hệ thống định nghĩa 4 gói chính sách chuẩn hóa:
 
-| Mã | Hành động | Điều kiện áp dụng (Eligibility) | Cấu trúc Chi phí ($c_{\text{contact}} + u \cdot c_{\text{offer}}$) | Giả định $u_k, e_k$ | Mức giảm hiệu quả $r_k$ | Chi phí kỳ vọng $C_k$ |
-| :--- | :--- | :--- | :---: | :---: | :---: | :---: |
-| **A0** | Không can thiệp | Mọi khách hàng đang hoạt động (`Churn == "No"`, `tenure > 0`) | $0 + 0$ | $u_0 = 0\%$<br>$e_0 = 0\%$ | **$0.0\%$** | **$\$0.00$** |
-| **A1** | Hỗ trợ Kỹ thuật & Bảo mật chủ động | `InternetService != "No"`<br>$\wedge$ (`TechSupport == "No"` $\vee$ `OnlineSecurity == "No"`) | $2 + 0.40 \times 15$ | $u_1 = 40\%$<br>$e_1 = 25\%$ | **$10.0\%$** | **$\$8.00$** |
-| **A2** | Tư vấn Hợp đồng & Auto-Pay | `Contract == "Month-to-month"`<br>$\vee$ `PaymentMethod` $\in$ `{"Electronic check", "Mailed check"}` | $2 + 0.35 \times 20$ | $u_2 = 35\%$<br>$e_2 = 40\%$ | **$14.0\%$** | **$\$9.00$** |
-| **A3** | Ưu đãi Giảm cước Cam kết Dài hạn | `Contract == "Month-to-month"`<br>$\wedge$ `MonthlyCharges >= 50.0` | $3 + 0.40 \times 40$ | $u_3 = 40\%$<br>$e_3 = 50\%$ | **$20.0\%$** | **$\$19.00$** |
+| Mã | Tên hành động | $c_{\text{contact}}$ | $c_{\text{offer}}$ | $u_k$ | $e_k$ | $C_k$ | $r_k$ | Điều kiện hợp lệ ($\mathcal{A}_i$) |
+| :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **A0** | Không can thiệp (Baseline) | $0.00 | $0.00 | 0.00 | 0.00 | **$0.00** | **0.00%** | Luôn áp dụng cho mọi khách hàng |
+| **A1** | Hỗ trợ Kỹ thuật & Bảo mật | $2.00 | $15.00 | 0.40 | 0.25 | **$8.00** | **10.00%** | Có Internet $\wedge$ (`TechSupport=No` $\vee$ `OnlineSecurity=No`) |
+| **A2** | Tư vấn Hợp đồng & Auto-pay | $2.00 | $20.00 | 0.35 | 0.40 | **$9.00** | **14.00%** | `Contract=Month-to-month` $\vee$ Thanh toán thủ công |
+| **A3** | Ưu đãi Cam kết Dài hạn | $3.00 | $40.00 | 0.40 | 0.50 | **$19.00** | **20.00%** | `Contract=Month-to-month` $\wedge$ `MonthlyCharges >= 50.0` |
 
 ---
 
-## 5. Software Architecture & Data Contracts
+## 5. System Interfaces & Input/Output Schema
 
-Mô-đun được triển khai trong `churn_retention.modules.retention.use_cases` theo kiến trúc xử lý theo lô (Vectorized Batch DataFrame Operations), đảm bảo hiệu năng cao khi tính toán kinh tế trên toàn bộ danh sách khách hàng:
-
-```text
-[Customers DataFrame] (N=7043)
-        │
-        ▼ (Lọc: Churn == 'No' & tenure > 0)
-[Active Customers] (N=5163) ────┐
-                                ├─► [use_cases.evaluate_actions()] ──► [Long-form Options DF]
-[Predictions DataFrame] ────────┘    (Vectorized condition mask)                │
- (customer_id, churn_prob)                                                      ▼
-                                                                     [use_cases.recommend()]
-                                                                      (Argmax ΔEV > 0, tie: min Cost)
-                                                                                │
-                                                                                ▼
-                                                                     [Ranked Strategy Output]
-```
-
-### 5.1. Input Contract Requirements
+### 5.1. Input Schema
 * **Customers Schema (`pd.DataFrame`):**
   - `customerID` (str, unique, non-null)
   - `MonthlyCharges` (float, $\ge 0$)
@@ -152,3 +133,43 @@ Phân tích độ nhạy chạy trên mẫu dữ liệu thực tế chỉ ra:
 1. **Bản chất của điểm số rủi ro ($p_i$):** $p_i$ thu được từ mô hình phân loại nhị phân trên dữ liệu cắt ngang lịch sử (Cross-sectional Churn Status), không phải mô hình phân tích thời gian sống (Survival Analysis). Do đó, $p_i$ đóng vai trò là chỉ số xếp hạng rủi ro (Risk Scoring Proxy), chưa phải xác suất chính xác theo thời gian thực trong 12 tháng kế tiếp.
 2. **Giả định can thiệp phi nhân quả (Non-causal Assumption):** Các thông số hiệu quả giảm churn ($r_k$) và tỷ lệ tham gia ($u_k$) là các giả định mô phỏng kịch bản (Scenario Parameters). Do bộ dữ liệu không có nhóm đối chứng ngẫu nhiên (RCT), hệ thống không khẳng định mối quan hệ nhân quả. Việc áp dụng thực tế bắt buộc phải qua thử nghiệm A/B Testing để hiệu chỉnh tham số.
 3. **Cước phí cố định:** Mô hình giả định mức cước hàng tháng không đổi trong kỳ hạn 12 tháng và bỏ qua tỷ lệ chiết khấu dòng tiền (Discount Rate).
+
+---
+
+## 8. Budget-Constrained Action Optimization (Task R2.1)
+
+### 8.1. Mô hình Toán học: Multiple-Choice Knapsack Problem (MCKP)
+Khi doanh nghiệp bị giới hạn bởi ngân sách cố định $B$ (USD), bài toán phân bổ can thiệp trở thành:
+
+$$\max_{\{x_{i,k}\}} \sum_{i=1}^N \sum_{k \in \mathcal{A}_i} x_{i,k} \Delta EV_{i,k}$$
+
+thỏa mãn 2 ràng buộc:
+1. **Ràng buộc ngân sách:** $\sum_{i=1}^N \sum_{k \in \mathcal{A}_i} x_{i,k} C_k \le B$
+2. **Ràng buộc tính đơn nhất:** $\sum_{k \in \mathcal{A}_i} x_{i,k} \le 1, \quad \forall i \in \{1, \dots, N\}$ (Mỗi khách hàng nhận tối đa một hành động).
+3. **Biến quyết định nhị phân:** $x_{i,k} \in \{0, 1\}$.
+
+### 8.2. Tính chất Xấp xỉ của Thuật toán Tham lam (Heuristic Approximation)
+> [!IMPORTANT]
+> **Tuyên bố về Tính chất Xấp xỉ (Approximation Notice):**
+> Bài toán MCKP là bài toán NP-hard. Thuật toán Tham lam dựa trên tỷ số sinh lời chi phí $\frac{\Delta EV}{C}$ (Benefit-Cost Ratio Heuristic) được triển khai trong `modules/retention/budget.py` là **PHƯƠNG ÁN XẤP XỈ (heuristic approximation)** nhằm đảm bảo thời gian tính toán thực thi tức thời $O(N \log N)$ trên hàng chục nghìn khách hàng.
+
+### 8.3. Quy tắc Thuật toán Tham lam
+1. Tính toán $\Delta EV_{i,k} = B_{i,k} - C_k$ cho mọi cặp hợp lệ.
+2. Lọc bỏ các cặp có $\Delta EV_{i,k} \le 0$ (chỉ giữ ứng viên có lãi).
+3. Sắp xếp các cặp ứng viên:
+   - Cặp có $C_k = 0$ và $\Delta EV > 0$: Ưu tiên chọn ngay lập tức (không chia cho 0).
+   - Cặp có $C_k > 0$: Sắp xếp giảm dần theo tỷ số hiệu suất $\frac{\Delta EV_{i,k}}{C_k}$.
+4. Duyệt tuần tự:
+   - Nếu khách hàng $i$ chưa được gán và $\sum C + C_k \le B$: gán hành động $k$ cho khách $i$.
+   - Ngược lại: bỏ qua.
+5. Khách hàng chưa được gán: gán về phương án cơ sở $A0$ ($C=0, \Delta EV=0$).
+
+### 8.4. Đối chiếu Nghiệm Toàn cục và Khoảng cách Tối ưu (Optimality Gap)
+Trên tập dữ liệu nhỏ ($5 - 10$ khách hàng), hệ thống hỗ trợ hàm `solve_optimal_budget_brute_force` để duyệt vét cạn toàn bộ không gian tổ hợp và hàm `compare_greedy_vs_optimal` để đo khoảng cách tối ưu:
+
+$$\text{Optimality Gap} = \frac{\Delta EV_{\text{optimal}} - \Delta EV_{\text{greedy}}}{\Delta EV_{\text{optimal}}}$$
+
+Kết quả thực nghiệm trên tập mẫu kiểm thử cho thấy:
+- Với ngân sách nhỏ hoặc vừa ($B=15$ USD): Thuật toán Tham lam đạt nghiệm tối ưu toàn cục ($\text{Optimality Gap} = 0\%$).
+- Với ngân sách trung bình ($B=50$ USD): $\text{Optimality Gap} \approx 7.69\%$.
+- Tổng chi phí thực tế ở mọi trường hợp luôn nghiêm ngặt thỏa mãn $\sum C \le B$.

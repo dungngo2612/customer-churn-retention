@@ -308,3 +308,69 @@ def sensitivity_by_margin(customers: pd.DataFrame, predictions: pd.DataFrame,
         row.update({f"n_{c}": int(counts.get(c, 0)) for c in codes})
         rows.append(row)
     return pd.DataFrame(rows)
+
+
+def select_actions_under_budget(
+    customers: pd.DataFrame,
+    predictions: pd.DataFrame,
+    budget: float,
+    actions: Sequence[ActionConfig] | None = None,
+    margin: float = 0.50,
+    horizon_months: int = 12,
+) -> pd.DataFrame:
+    """Tối ưu phân bổ hành động giữ chân dưới ràng buộc ngân sách B (Greedy Heuristic)."""
+    from churn_retention.modules.retention.budget import (
+        select_actions_under_budget as _select,
+    )
+    return _select(
+        customers=customers,
+        predictions=predictions,
+        budget=budget,
+        actions=actions,
+        margin=margin,
+        horizon_months=horizon_months,
+    )
+
+
+def solve_optimal_budget_brute_force(
+    customers: pd.DataFrame,
+    predictions: pd.DataFrame,
+    budget: float,
+    actions: Sequence[ActionConfig] | None = None,
+    margin: float = 0.50,
+    horizon_months: int = 12,
+) -> tuple[pd.DataFrame, float]:
+    """Tìm nghiệm tối ưu toàn cục bằng duyệt vét cạn (cho tập mẫu <= 10 khách)."""
+    from churn_retention.modules.retention.budget import (
+        solve_optimal_budget_brute_force as _solve,
+    )
+    return _solve(
+        customers=customers,
+        predictions=predictions,
+        budget=budget,
+        actions=actions,
+        margin=margin,
+        horizon_months=horizon_months,
+    )
+
+
+def compare_greedy_vs_optimal(
+    customers: pd.DataFrame,
+    predictions: pd.DataFrame,
+    budget: float,
+    actions: Sequence[ActionConfig] | None = None,
+    margin: float = 0.50,
+    horizon_months: int = 12,
+) -> dict:
+    """Đối chiếu giải pháp Tham lam với Nghiệm tối ưu toàn cục (Brute-force)."""
+    from churn_retention.modules.retention.budget import (
+        compare_greedy_vs_optimal as _compare,
+    )
+    return _compare(
+        customers=customers,
+        predictions=predictions,
+        budget=budget,
+        actions=actions,
+        margin=margin,
+        horizon_months=horizon_months,
+    )
