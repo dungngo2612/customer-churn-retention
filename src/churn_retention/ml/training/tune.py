@@ -1,12 +1,16 @@
 """Train-only CV experiments using the existing training pipelines."""
 
-from dataclasses import dataclass
+import multiprocessing as mp
+from collections.abc import Callable
+from dataclasses import dataclass, field, replace
 from itertools import product
 from math import isfinite
+from multiprocessing.connection import Connection
 from pathlib import Path
-from time import perf_counter
+from time import monotonic, perf_counter
 from typing import Any
 
+import mlflow
 import numpy as np
 import pandas as pd
 from sklearn.base import clone  # type: ignore[import-untyped]
@@ -21,6 +25,10 @@ from sklearn.metrics import (  # type: ignore[import-untyped]
 )
 from sklearn.model_selection import StratifiedKFold  # type: ignore[import-untyped]
 
+from churn_retention.adapters.model_registry.mlflow_adapter import (
+    flatten_params,
+    get_tracking_uri,
+)
 from churn_retention.ml.training.baseline import train_logistic
 from churn_retention.ml.training.catboost_model import train_catboost
 from churn_retention.workflows.train_model import (
@@ -262,3 +270,219 @@ def evaluate_cv(
         for metric in folds[0]
         for stat, reducer in (("mean", np.mean), ("std", np.std))
     }
+
+
+@dataclass
+class TrialResult:
+    candidate: Candidate
+    run_id: str
+    cv: dict[str, float] = field(default_factory=dict)
+    val: dict[str, float] = field(default_factory=dict)
+    seconds: float = 0.0
+    status: str = "completed"
+
+
+@dataclass
+class ExperimentReport:
+    config: TuneConfig
+    trials: list[TrialResult]
+    smoke: bool
+    seconds: float
+    stop_reason: str
+
+
+def _worker(
+    connection: Connection, function: Callable[..., Any], args: tuple[Any, ...]
+) -> None:
+    try:
+        connection.send((True, function(*args)))
+    except Exception as exc:
+        connection.send((False, f"{type(exc).__name__}: {exc}"))
+        raise
+    finally:
+        connection.close()
+
+
+def _within_budget(
+    function: Callable[..., Any], args: tuple[Any, ...], deadline: float
+) -> Any:
+    """Terminate even a native model fit when the shared deadline expires.
+
+    Spawn avoids inheriting fitted models or the parent's MLflow run. Tracking
+    and report finalization may finish after the computation budget expires.
+    """
+    if monotonic() >= deadline:
+        raise TimeoutError("Experiment time budget exhausted")
+    context = mp.get_context("spawn")
+    receiver, sender = context.Pipe(duplex=False)
+    process = context.Process(target=_worker, args=(sender, function, args))
+    process.start()
+    sender.close()
+    try:
+        if not receiver.poll(max(0.0, deadline - monotonic())):
+            raise TimeoutError("Experiment time budget exhausted")
+        try:
+            success, value = receiver.recv()
+        except EOFError as exc:
+            raise RuntimeError("Training worker exited without a result") from exc
+        if not success:
+            raise RuntimeError(value)
+        return value
+    finally:
+        receiver.close()
+        if process.is_alive():
+            process.terminate()
+        process.join(timeout=1)
+        if process.is_alive():
+            process.kill()
+            process.join()
+        process.close()
+
+
+def _cv_job(
+    X: pd.DataFrame,
+    y: pd.Series,
+    candidate: Candidate,
+    config: TuneConfig,
+    templates: dict[tuple[str, bool], Any],
+) -> tuple[dict[str, float], dict[tuple[str, bool], Any]]:
+    return evaluate_cv(X, y, candidate, config, templates), templates
+
+
+def _validation_job(
+    X_train: pd.DataFrame,
+    y_train: pd.Series,
+    X_val: pd.DataFrame,
+    y_val: pd.Series,
+    candidate: Candidate,
+    config: TuneConfig,
+    templates: dict[tuple[str, bool], Any],
+) -> dict[str, float]:
+    started = perf_counter()
+    pipeline = _fit_candidate(X_train, y_train, candidate, config, templates)
+    fit_seconds = perf_counter() - started
+    # One prediction/evaluation per shortlisted candidate, always at threshold 0.5.
+    probabilities = pipeline.predict_proba(X_val)[:, 1]
+    return {
+        **{f"val_{key}": value for key, value in _score(y_val, probabilities).items()},
+        "val_fit_seconds": fit_seconds,
+    }
+
+
+def run_experiments(config: TuneConfig, *, smoke: bool = False) -> ExperimentReport:
+    """Rank by train CV AP; evaluate up to three candidates on val exactly once.
+
+    Ranking never uses validation metrics and does not change the team's primary
+    model (logistic). Partial CV trials are logged but excluded from ranking.
+    """
+    if smoke:
+        config = replace(
+            config,
+            n_splits=2,
+            max_trials=min(config.max_trials, 2),
+            candidates=config.candidates[:2],
+        )
+    started = monotonic()
+    deadline = started + config.time_budget_seconds
+    train_frame = pd.read_csv(config.train_path, nrows=500 if smoke else None)
+    X_train, y_train = _prepare(train_frame, config.training)
+    mlflow.set_tracking_uri(get_tracking_uri())
+    experiment = config.training.get("mlflow", {}).get(
+        "experiment_name", "churn-retention"
+    )
+    mlflow.set_experiment(f"{experiment}-experiments{'-smoke' if smoke else ''}")
+    templates: dict[tuple[str, bool], Any] = {}
+    trials: list[TrialResult] = []
+    stop_reason = "configured_trials_completed"
+    for candidate in config.candidates[: config.max_trials]:
+        if monotonic() >= deadline:
+            stop_reason = "time_budget_exhausted"
+            break
+        with mlflow.start_run(run_name=candidate.name) as run:
+            trial = TrialResult(candidate=candidate, run_id=run.info.run_id)
+            trials.append(trial)
+            mlflow.log_params(
+                {
+                    **flatten_params({candidate.model: candidate.params}),
+                    "model": candidate.model,
+                    "class_weight": candidate.class_weight,
+                    "seed": config.seed,
+                    "n_splits": config.n_splits,
+                    "max_trials": config.max_trials,
+                    "time_budget_seconds": config.time_budget_seconds,
+                    "train_rows": len(X_train),
+                    "metric_threshold": 0.5,
+                    "threshold_name": "fixed_0.5",
+                    "smoke": smoke,
+                }
+            )
+            mlflow.set_tags(
+                {"team_primary_model": "logistic", "ranking_metric": "cv_ap_mean"}
+            )
+            mlflow.log_artifact(str(config.source), artifact_path="config")
+            mlflow.log_artifact(
+                str(config.source.with_name("train_config.yaml")),
+                artifact_path="config",
+            )
+            trial_started = monotonic()
+            try:
+                trial.cv, templates = _within_budget(
+                    _cv_job, (X_train, y_train, candidate, config, templates), deadline
+                )
+            except TimeoutError:
+                trial.status = stop_reason = "time_budget_exhausted"
+            trial.seconds = monotonic() - trial_started
+            mlflow.log_metrics({**trial.cv, "trial_seconds": trial.seconds})
+            mlflow.set_tag("trial_status", trial.status)
+        if trial.status != "completed":
+            break
+
+    ranked = sorted(
+        (trial for trial in trials if trial.cv),
+        key=lambda trial: -trial.cv["cv_ap_mean"],
+    )
+    shortlist = ranked[:3]
+    if shortlist and monotonic() < deadline:
+        # Val is loaded only after CV ranking, and is never passed to evaluate_cv.
+        val_frame = pd.read_csv(config.val_path)
+        target = config.training["features"]["target_col"]
+        X_val, y_val = _prepare(
+            val_frame, config.training, train_frame[target].unique().tolist()
+        )
+        for trial in shortlist:
+            if monotonic() >= deadline:
+                stop_reason = "time_budget_exhausted"
+                break
+            with mlflow.start_run(run_id=trial.run_id):
+                mlflow.set_tag("selected_for_validation", "true")
+                val_started = monotonic()
+                try:
+                    trial.val = _within_budget(
+                        _validation_job,
+                        (
+                            X_train,
+                            y_train,
+                            X_val,
+                            y_val,
+                            trial.candidate,
+                            config,
+                            templates,
+                        ),
+                        deadline,
+                    )
+                except TimeoutError:
+                    trial.status = stop_reason = "time_budget_exhausted"
+                trial.seconds += monotonic() - val_started
+                mlflow.log_metrics({**trial.val, "trial_seconds": trial.seconds})
+                mlflow.set_tag("trial_status", trial.status)
+            if trial.status != "completed":
+                break
+    elif shortlist:
+        stop_reason = "time_budget_exhausted"
+    return ExperimentReport(
+        config=config,
+        trials=trials,
+        smoke=smoke,
+        seconds=monotonic() - started,
+        stop_reason=stop_reason,
+    )
