@@ -180,7 +180,8 @@ def load_bundle(path: str | Path) -> LoadedBundle:
             f"metadata missing required key 'model_version' in bundle {bundle_dir}"
         )
     if not isinstance(metadata["model_version"], str):
-        raise ValueError(
+        # Invalid bundle metadata has always raised ValueError for callers.
+        raise ValueError(  # noqa: TRY004
             f"metadata['model_version'] must be str in bundle {bundle_dir}"
         )
     if "model_type" not in metadata:

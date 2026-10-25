@@ -74,5 +74,6 @@ if st.button("Chấm điểm", type="primary"):
             pd.errors.ParserError,
         ) as error:
             st.error(f"Không đọc được dataset hoặc model bundle: {error}")
-        except Exception as error:
+        # Keep unexpected failures in the existing user-visible error message.
+        except Exception as error:  # noqa: BLE001
             st.error(f"Chấm điểm thất bại: {error}")

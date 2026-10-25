@@ -364,7 +364,7 @@ def test_load_bundle_warns_on_version_mismatch(tmp_path: Path) -> None:
 
     with pytest.warns(UserWarning, match="model_version.*v1-mismatch.*v2-dirname"):
         loaded = load_bundle(bundle_dir)
-        assert loaded.model_version == "v1-mismatch"
+    assert loaded.model_version == "v1-mismatch"
 
 
 def test_predict_proba_empty_dataframe(tmp_path: Path) -> None:

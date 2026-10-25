@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """CLI entrypoint for training churn prediction models."""
 
 import argparse
@@ -84,7 +83,8 @@ def main():
 
         return 0
 
-    except Exception as e:
+    # Preserve the CLI's error message, traceback and exit status for all errors.
+    except Exception as e:  # noqa: BLE001
         print(f"Error: {e}", file=sys.stderr)
         import traceback
 
