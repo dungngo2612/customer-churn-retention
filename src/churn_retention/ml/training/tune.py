@@ -3,6 +3,7 @@
 import json
 import multiprocessing as mp
 from collections.abc import Callable
+from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from itertools import product
 from math import isfinite
@@ -193,6 +194,27 @@ def _prepare(
     return prepare_features_and_target(frame, *args)
 
 
+def _fresh_pipeline(pipeline: Any) -> Any:
+    """Clone preprocessing and rebuild the model from constructor parameters.
+
+    CatBoost copies cat_features in its constructor, which fails sklearn's strict
+    whole-pipeline clone check in some versions. Reconstructing that final step
+    copies only constructor parameters, never fitted trees or class weights.
+    The original pipeline structure and preprocessing are retained unchanged.
+    """
+    parameters = pipeline.get_params(deep=False)
+    parameters["steps"] = [
+        (
+            name,
+            type(step)(**deepcopy(step.get_params(deep=False)))
+            if name == "model"
+            else clone(step),
+        )
+        for name, step in pipeline.steps
+    ]
+    return type(pipeline)(**parameters)
+
+
 def _fit_candidate(
     X: pd.DataFrame,
     y: pd.Series,
@@ -202,14 +224,14 @@ def _fit_candidate(
 ) -> Any:
     """Reuse existing trainers, then clone their unfitted pipeline structure.
 
-    Each template is cloned from a genuine fold fit; clone discards ALL fitted
-    state, including preprocessing and computed class weights. Default CatBoost
+    Each template is derived from a genuine fold fit; _fresh_pipeline discards ALL
+    fitted state, including preprocessing and computed class weights. Default CatBoost
     runs precede the grid, so l2_leaf_reg can be set before fitting a clone without
     modifying train_catboost or performing an extra warm-up fit.
     """
     key = (candidate.model, candidate.class_weight)
     if key in templates:
-        pipeline = clone(templates[key])
+        pipeline = _fresh_pipeline(templates[key])
         pipeline.set_params(
             **{f"model__{name}": value for name, value in candidate.params.items()}
         )
@@ -225,7 +247,7 @@ def _fit_candidate(
     }
     trainer = train_logistic if candidate.model == "logistic" else train_catboost
     pipeline = trainer(X, y, model_config, config.seed, candidate.class_weight)
-    templates[key] = clone(pipeline)
+    templates[key] = _fresh_pipeline(pipeline)
     return pipeline
 
 
