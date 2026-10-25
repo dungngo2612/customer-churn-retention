@@ -1,9 +1,11 @@
 import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+# scikit-learn ships neither stubs nor a py.typed marker for these imports.
+from sklearn.compose import ColumnTransformer  # type: ignore[import-untyped]
+from sklearn.impute import SimpleImputer  # type: ignore[import-untyped]
+from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
+from sklearn.pipeline import Pipeline  # type: ignore[import-untyped]
+from sklearn.preprocessing import OneHotEncoder, StandardScaler  # type: ignore[import-untyped]
 
 
 def train_logistic(

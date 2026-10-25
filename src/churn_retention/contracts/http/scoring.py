@@ -1,6 +1,11 @@
 from typing import Literal
 
-from pydantic import AwareDatetime, BaseModel, ValidationError, field_validator, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    field_validator,
+    model_validator,
+)
 
 
 class Prediction(BaseModel):

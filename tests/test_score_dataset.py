@@ -1,8 +1,8 @@
 import subprocess
 import sys
-from datetime import datetime, timezone
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Sequence
 
 import pandas as pd
 import pytest
@@ -12,7 +12,10 @@ from churn_retention.modules.scoring.repository import (
     InMemoryScoringRunRepository,
     ScoringRunRepository,
 )
-from churn_retention.modules.scoring.use_cases import DatasetNotFoundError, score_dataset
+from churn_retention.modules.scoring.use_cases import (
+    DatasetNotFoundError,
+    score_dataset,
+)
 
 
 @pytest.fixture
@@ -32,7 +35,7 @@ def test_score_dataset_keys_predictions_and_preserves_order(
     original = demo_dataset.copy(deep=True)
     predictor = FakePredictor(seed=17)
     predictor.load("demo-artifact-unused")
-    scored_at = datetime(2026, 10, 17, tzinfo=timezone.utc)
+    scored_at = datetime(2026, 10, 17, tzinfo=UTC)
 
     def loader(dataset_id: str) -> pd.DataFrame:
         assert dataset_id == "demo-dataset"
@@ -80,7 +83,7 @@ def test_score_dataset_rejects_invalid_customer_keys(
             lambda dataset_id: dataset,
             FakePredictor(),
             lambda: "demo-run",
-            lambda: datetime.now(timezone.utc),
+            lambda: datetime.now(UTC),
         )
 
 
@@ -100,7 +103,7 @@ def test_score_dataset_rejects_wrong_probability_count(
             lambda dataset_id: demo_dataset,
             predictor,
             lambda: "demo-run",
-            lambda: datetime.now(timezone.utc),
+            lambda: datetime.now(UTC),
         )
 
 
@@ -114,7 +117,7 @@ def test_score_dataset_missing_dataset() -> None:
             loader,
             FakePredictor(),
             lambda: "demo-run",
-            lambda: datetime.now(timezone.utc),
+            lambda: datetime.now(UTC),
         )
 
 
@@ -124,7 +127,7 @@ def test_score_dataset_empty_dataset() -> None:
         lambda dataset_id: pd.DataFrame(columns=["customer_id", "demo_usage"]),
         FakePredictor(),
         lambda: "demo-run",
-        lambda: datetime.now(timezone.utc),
+        lambda: datetime.now(UTC),
     )
 
     assert batch.predictions == []
@@ -137,7 +140,7 @@ def test_scoring_run_repository_round_trip(demo_dataset: pd.DataFrame) -> None:
         lambda dataset_id: demo_dataset,
         FakePredictor(),
         lambda: "demo-run",
-        lambda: datetime.now(timezone.utc),
+        lambda: datetime.now(UTC),
     )
     repository.save(batch)
 

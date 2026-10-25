@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Script to prepare train and validation splits from raw Telco Churn data."""
 
 import argparse

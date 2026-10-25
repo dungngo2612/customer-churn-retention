@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pandas as pd
@@ -12,7 +12,6 @@ from churn_retention.modules.scoring.use_cases import (
     InvalidDatasetError,
     score_dataset,
 )
-
 
 st.set_page_config(page_title="Chấm điểm churn", page_icon="📊")
 st.title("Chấm điểm churn")
@@ -42,7 +41,7 @@ if st.button("Chấm điểm", type="primary"):
                 lambda path: pd.read_csv(path),
                 predictor,
                 lambda: str(uuid4()),
-                lambda: datetime.now(timezone.utc),
+                lambda: datetime.now(UTC),
             )
 
             repository = InMemoryScoringRunRepository()
@@ -69,7 +68,12 @@ if st.button("Chấm điểm", type="primary"):
             st.error(f"Không tìm thấy dataset: {error}")
         except InvalidDatasetError as error:
             st.error(f"Dataset không hợp lệ: {error}")
-        except (FileNotFoundError, pd.errors.EmptyDataError, pd.errors.ParserError) as error:
+        except (
+            FileNotFoundError,
+            pd.errors.EmptyDataError,
+            pd.errors.ParserError,
+        ) as error:
             st.error(f"Không đọc được dataset hoặc model bundle: {error}")
-        except Exception as error:
+        # Keep unexpected failures in the existing user-visible error message.
+        except Exception as error:  # noqa: BLE001
             st.error(f"Chấm điểm thất bại: {error}")

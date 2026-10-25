@@ -10,19 +10,29 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
-from sklearn.pipeline import Pipeline
+
+# scikit-learn ships neither stubs nor a py.typed marker for this import.
+from sklearn.pipeline import Pipeline  # type: ignore[import-untyped]
 
 
 def get_git_info() -> dict[str, Any]:
     """Get git commit hash and dirty status."""
     try:
-        commit = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
-        ).decode().strip()
+        commit = (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
+            )
+            .decode()
+            .strip()
+        )
 
-        status = subprocess.check_output(
-            ["git", "status", "--porcelain"], stderr=subprocess.DEVNULL
-        ).decode().strip()
+        status = (
+            subprocess.check_output(
+                ["git", "status", "--porcelain"], stderr=subprocess.DEVNULL
+            )
+            .decode()
+            .strip()
+        )
 
         dirty = len(status) > 0
 
@@ -37,7 +47,9 @@ def get_git_info() -> dict[str, Any]:
 def get_library_versions() -> dict[str, str]:
     """Get versions of key dependencies."""
     libraries = ["scikit-learn", "catboost", "pandas", "numpy"]
-    versions = {"python": importlib.metadata.version("customer-churn-retention").split("+")[0]}
+    versions = {
+        "python": importlib.metadata.version("customer-churn-retention").split("+")[0]
+    }
 
     for lib in libraries:
         try:
@@ -47,7 +59,10 @@ def get_library_versions() -> dict[str, str]:
 
     # Get python version
     import sys
-    versions["python"] = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
+    versions["python"] = (
+        f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    )
 
     return versions
 
@@ -59,18 +74,22 @@ def create_feature_schema(
     schema = []
 
     for col in numeric_cols:
-        schema.append({
-            "name": col,
-            "kind": "numeric",
-            "dtype": df[col].dtype.name,
-        })
+        schema.append(
+            {
+                "name": col,
+                "kind": "numeric",
+                "dtype": df[col].dtype.name,
+            }
+        )
 
     for col in categorical_cols:
-        schema.append({
-            "name": col,
-            "kind": "categorical",
-            "dtype": df[col].dtype.name,
-        })
+        schema.append(
+            {
+                "name": col,
+                "kind": "categorical",
+                "dtype": df[col].dtype.name,
+            }
+        )
 
     return schema
 
@@ -159,24 +178,37 @@ def load_bundle(path: str | Path) -> LoadedBundle:
 
     # R05: validate metadata has required keys and correct types
     if "model_version" not in metadata:
-        raise ValueError(f"metadata missing required key 'model_version' in bundle {bundle_dir}")
+        raise ValueError(
+            f"metadata missing required key 'model_version' in bundle {bundle_dir}"
+        )
     if not isinstance(metadata["model_version"], str):
-        raise ValueError(f"metadata['model_version'] must be str in bundle {bundle_dir}")
+        # Invalid bundle metadata has always raised ValueError for callers.
+        raise ValueError(  # noqa: TRY004
+            f"metadata['model_version'] must be str in bundle {bundle_dir}"
+        )
     if "model_type" not in metadata:
-        raise ValueError(f"metadata missing required key 'model_type' in bundle {bundle_dir}")
+        raise ValueError(
+            f"metadata missing required key 'model_type' in bundle {bundle_dir}"
+        )
 
     # R05: validate feature_schema structure
     for i, column in enumerate(feature_schema):
         if "name" not in column:
-            raise ValueError(f"feature_schema[{i}] missing 'name' in bundle {bundle_dir}")
+            raise ValueError(
+                f"feature_schema[{i}] missing 'name' in bundle {bundle_dir}"
+            )
         if "kind" not in column:
-            raise ValueError(f"feature_schema[{i}] missing 'kind' in bundle {bundle_dir}")
+            raise ValueError(
+                f"feature_schema[{i}] missing 'kind' in bundle {bundle_dir}"
+            )
         if column["kind"] not in ("numeric", "categorical"):
             raise ValueError(
                 f"feature_schema[{i}]['kind'] must be 'numeric' or 'categorical' in bundle {bundle_dir}"
             )
         if "dtype" not in column:
-            raise ValueError(f"feature_schema[{i}] missing 'dtype' in bundle {bundle_dir}")
+            raise ValueError(
+                f"feature_schema[{i}] missing 'dtype' in bundle {bundle_dir}"
+            )
 
     # R05: warn if model_version differs from directory name
     dir_name = bundle_dir.name
