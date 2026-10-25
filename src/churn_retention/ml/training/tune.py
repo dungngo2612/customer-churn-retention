@@ -1,5 +1,6 @@
 """Train-only CV experiments using the existing training pipelines."""
 
+import json
 import multiprocessing as mp
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
@@ -486,3 +487,112 @@ def run_experiments(config: TuneConfig, *, smoke: bool = False) -> ExperimentRep
         seconds=monotonic() - started,
         stop_reason=stop_reason,
     )
+
+
+def write_report(report: ExperimentReport, path: Path) -> None:
+    """Write measured results, including explicit smoke and budget limitations."""
+    config = report.config
+    mode = (
+        "Smoke only: 2 folds, first 500 train rows, at most 2 candidates. "
+        "The full model comparison has not been run."
+        if report.smoke
+        else "Full experiment with the configured trial and time limits."
+    )
+    lines = [
+        "# ML experiments",
+        "",
+        mode,
+        "",
+        (
+            "The team's primary model is logistic regression. Candidates are ranked "
+            "by mean train CV AP; these results do not automatically change that decision."
+        ),
+        "",
+        (
+            f"Limits: max_trials={config.max_trials}, "
+            f"time_budget_seconds={config.time_budget_seconds:g}, seed={config.seed}, "
+            f"threshold=0.5 (churn when probability >= 0.5), folds={config.n_splits}."
+        ),
+        "",
+        (
+            "All candidates use identical shuffled stratified folds. Each fold uses "
+            "a fresh pipeline with preprocessing and class weights fitted only on its "
+            "training rows. The grid clones the existing CatBoost pipeline and sets "
+            "l2_leaf_reg before fitting. Defaults come from configs/train_config.yaml."
+        ),
+        "",
+        (
+            "The top three completed CV candidates are refitted on all available train "
+            "rows and evaluated once on val, if budget remains. In smoke mode, train "
+            "means the first 500 rows. No test dataset is read. Std uses ddof=0."
+        ),
+        "",
+        (
+            "| Candidate | Configuration | CV AP mean±std | CV ROC-AUC mean±std | "
+            "Brier mean±std | Log loss mean±std | Val AP | Time |"
+        ),
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for trial in sorted(
+        report.trials, key=lambda row: -row.cv.get("cv_ap_mean", float("-inf"))
+    ):
+
+        def summary(metric: str, values: dict[str, float] = trial.cv) -> str:
+            if not values:
+                return "—"
+            return f"{values[f'cv_{metric}_mean']:.4f}±{values[f'cv_{metric}_std']:.4f}"
+
+        settings = json.dumps(
+            {**trial.candidate.params, "class_weight": trial.candidate.class_weight},
+            sort_keys=True,
+        )
+        val_ap = f"{trial.val['val_ap']:.4f}" if trial.val else "—"
+        timing = f"{trial.seconds:.2f}s; fit/fold {summary('fit_seconds')}s"
+        lines.append(
+            f"| {trial.candidate.name} | `{settings}` | {summary('ap')} | "
+            f"{summary('roc_auc')} | {summary('brier')} | {summary('log_loss')} | "
+            f"{val_ap} | {timing} |"
+        )
+    lines.extend(
+        [
+            "",
+            (
+                f"Stop reason: {report.stop_reason}; elapsed: {report.seconds:.2f}s. "
+                "The shared computation deadline terminates active workers. Tracking "
+                "and report finalization may finish after that deadline. Time includes "
+                "worker startup; fit/fold measures training only."
+            ),
+            "",
+            (
+                "MLflow records CV mean/std for AP, ROC-AUC, Brier, log loss, precision, "
+                "recall, F1@0.5 and fit time; shortlisted runs also record val metrics. "
+                "A dash means validation was not performed or CV did not finish."
+            ),
+            "",
+        ]
+    )
+    for trial in report.trials:
+        lines.append(
+            f"- `{trial.candidate.name}`: run `{trial.run_id}`, {trial.status}."
+        )
+    lines.extend(
+        [
+            "",
+            "Run the full experiment from the repository root:",
+            "",
+            "```sh",
+            (
+                "PYTHONPATH=src python3 -m churn_retention.entrypoints.cli tune "
+                "--config configs/training.yaml"
+            ),
+            "```",
+            "",
+            (
+                "Append `--smoke` for a quick check. The command replaces this report; "
+                "MLflow retains previous runs. Both CSV paths must already point to "
+                "prepared train/val files; this command does not create dataset splits."
+            ),
+        ]
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
