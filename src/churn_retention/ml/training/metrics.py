@@ -3,7 +3,9 @@ TEMPORARY - This module will be replaced by ml/evaluation module.
 """
 
 import numpy as np
-from sklearn.metrics import (
+
+# scikit-learn ships neither stubs nor a py.typed marker for these imports.
+from sklearn.metrics import (  # type: ignore[import-untyped]
     average_precision_score,
     brier_score_loss,
     f1_score,

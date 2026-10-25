@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +21,7 @@ def test_prediction_valid():
         scoring_run_id="run1",
         churn_probability=0.5,
         model_version="v1",
-        scored_at=datetime.now(timezone.utc),
+        scored_at=datetime.now(UTC),
     )
     assert p.churn_probability == 0.5
 
@@ -33,7 +33,7 @@ def test_prediction_probability_at_bounds():
         scoring_run_id="run1",
         churn_probability=0.0,
         model_version="v1",
-        scored_at=datetime.now(timezone.utc),
+        scored_at=datetime.now(UTC),
     )
     assert p0.churn_probability == 0.0
 
@@ -43,7 +43,7 @@ def test_prediction_probability_at_bounds():
         scoring_run_id="run1",
         churn_probability=1.0,
         model_version="v1",
-        scored_at=datetime.now(timezone.utc),
+        scored_at=datetime.now(UTC),
     )
     assert p1.churn_probability == 1.0
 
@@ -56,7 +56,7 @@ def test_prediction_probability_below_zero():
             scoring_run_id="run1",
             churn_probability=-0.1,
             model_version="v1",
-            scored_at=datetime.now(timezone.utc),
+            scored_at=datetime.now(UTC),
         )
     assert "churn_probability must be between 0 and 1" in str(exc_info.value)
 
@@ -69,7 +69,7 @@ def test_prediction_probability_above_one():
             scoring_run_id="run1",
             churn_probability=1.01,
             model_version="v1",
-            scored_at=datetime.now(timezone.utc),
+            scored_at=datetime.now(UTC),
         )
     assert "churn_probability must be between 0 and 1" in str(exc_info.value)
 
@@ -82,7 +82,7 @@ def test_prediction_missing_field():
             scoring_run_id="run1",
             churn_probability=0.5,
             # missing model_version
-            scored_at=datetime.now(timezone.utc),
+            scored_at=datetime.now(UTC),
         )
 
 
@@ -97,7 +97,7 @@ def test_prediction_batch_valid():
                 scoring_run_id="run1",
                 churn_probability=0.3,
                 model_version="v1",
-                scored_at=datetime.now(timezone.utc),
+                scored_at=datetime.now(UTC),
             ),
             Prediction(
                 customer_id="C002",
@@ -105,9 +105,9 @@ def test_prediction_batch_valid():
                 scoring_run_id="run1",
                 churn_probability=0.7,
                 model_version="v1",
-                scored_at=datetime.now(timezone.utc),
+                scored_at=datetime.now(UTC),
             ),
-        ]
+        ],
     )
     assert len(batch.predictions) == 2
     assert batch.scoring_run_id == "run1"
@@ -181,7 +181,7 @@ def test_explanation_list_valid():
                 explained_output="log_odds",
                 calibration_applied="original",
             ),
-        ]
+        ],
     )
     assert len(el.explanations) == 2
     assert el.customer_id == "C001"
@@ -214,9 +214,7 @@ def demo_explanation_payload() -> dict[str, Any]:
     }
 
 
-@pytest.mark.parametrize(
-    "scored_at", [datetime(2026, 10, 17), "2026-10-17T00:00:00"]
-)
+@pytest.mark.parametrize("scored_at", [datetime(2026, 10, 17), "2026-10-17T00:00:00"])
 def test_prediction_rejects_missing_timezone(
     scored_at: datetime | str, demo_prediction_payload: dict[str, Any]
 ) -> None:
@@ -335,7 +333,7 @@ def test_prediction_batch_validates_scoring_run_id_consistency():
                     scoring_run_id="run1",  # matches wrapper
                     churn_probability=0.3,
                     model_version="v1",
-                    scored_at=datetime.now(timezone.utc),
+                    scored_at=datetime.now(UTC),
                 ),
                 Prediction(
                     customer_id="C002",
@@ -343,9 +341,9 @@ def test_prediction_batch_validates_scoring_run_id_consistency():
                     scoring_run_id="run2",  # MISMATCH
                     churn_probability=0.7,
                     model_version="v1",
-                    scored_at=datetime.now(timezone.utc),
+                    scored_at=datetime.now(UTC),
                 ),
-            ]
+            ],
         )
 
     assert "scoring_run_id" in str(exc_info.value)
@@ -365,7 +363,7 @@ def test_prediction_batch_validates_model_version_consistency():
                     scoring_run_id="run1",
                     churn_probability=0.3,
                     model_version="v1",  # matches wrapper
-                    scored_at=datetime.now(timezone.utc),
+                    scored_at=datetime.now(UTC),
                 ),
                 Prediction(
                     customer_id="C002",
@@ -373,9 +371,9 @@ def test_prediction_batch_validates_model_version_consistency():
                     scoring_run_id="run1",
                     churn_probability=0.7,
                     model_version="v2",  # MISMATCH
-                    scored_at=datetime.now(timezone.utc),
+                    scored_at=datetime.now(UTC),
                 ),
-            ]
+            ],
         )
 
     assert "model_version" in str(exc_info.value)
@@ -409,7 +407,7 @@ def test_explanation_list_validates_customer_id_consistency():
                     explained_output="log_odds",
                     calibration_applied="original",
                 ),
-            ]
+            ],
         )
 
     assert "customer_id" in str(exc_info.value)
@@ -443,7 +441,7 @@ def test_explanation_list_validates_model_version_consistency():
                     explained_output="log_odds",
                     calibration_applied="original",
                 ),
-            ]
+            ],
         )
 
     assert "model_version" in str(exc_info.value)

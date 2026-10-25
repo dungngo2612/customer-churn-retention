@@ -1,7 +1,9 @@
 import pandas as pd
-from catboost import CatBoostClassifier
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.pipeline import Pipeline
+
+# CatBoost and scikit-learn ship neither stubs nor py.typed markers for these imports.
+from catboost import CatBoostClassifier  # type: ignore[import-untyped]
+from sklearn.base import BaseEstimator, TransformerMixin  # type: ignore[import-untyped]
+from sklearn.pipeline import Pipeline  # type: ignore[import-untyped]
 
 
 class CatBoostPreprocessor(BaseEstimator, TransformerMixin):
@@ -10,7 +12,9 @@ class CatBoostPreprocessor(BaseEstimator, TransformerMixin):
     Numeric features are left as-is (CatBoost handles NaN natively).
     """
 
-    def __init__(self, categorical_features: list[str], feature_cols: list[str]) -> None:
+    def __init__(
+        self, categorical_features: list[str], feature_cols: list[str]
+    ) -> None:
         self.categorical_features = categorical_features
         self.feature_cols = feature_cols
 
@@ -68,8 +72,7 @@ def train_catboost(
 
     # Build preprocessor (now selects columns in transform)
     preprocessor = CatBoostPreprocessor(
-        categorical_features=categorical_features,
-        feature_cols=feature_cols
+        categorical_features=categorical_features, feature_cols=feature_cols
     )
 
     # R08: Use column names (not indices) for cat_features

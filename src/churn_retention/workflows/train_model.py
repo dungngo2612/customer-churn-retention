@@ -1,8 +1,8 @@
 import warnings
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -57,7 +57,8 @@ def validate_dataframe(
             memberships.setdefault(column, []).append(group)
     overlaps = [
         f"{column!r}: {', '.join(names)}"
-        for column, names in sorted(memberships.items()) if len(names) > 1
+        for column, names in sorted(memberships.items())
+        if len(names) > 1
     ]
     if overlaps:
         raise ValueError(f"Overlapping column groups: {'; '.join(overlaps)}")
@@ -98,7 +99,9 @@ def validate_dataframe(
 
     target_values = df[target_col].unique()
     if allowed_labels is not None:
-        unknown = df.loc[~df[target_col].isin(allowed_labels), target_col].unique().tolist()
+        unknown = (
+            df.loc[~df[target_col].isin(allowed_labels), target_col].unique().tolist()
+        )
         if unknown:
             raise ValueError(f"Unknown target labels in '{target_col}': {unknown}")
     elif len(target_values) > 2:
@@ -215,7 +218,12 @@ def train_model(
     print(f"Loading validation data from {val_path}...")
     val_df = pd.read_csv(val_path)
     validate_dataframe(
-        val_df, numeric_cols, categorical_cols, target_col, positive_label, drop_cols,
+        val_df,
+        numeric_cols,
+        categorical_cols,
+        target_col,
+        positive_label,
+        drop_cols,
         allowed_labels=train_df[target_col].unique().tolist(),
     )
     X_val, y_val = prepare_features_and_target(
@@ -225,6 +233,7 @@ def train_model(
     # Train model
     print(f"Training {model_type} model (class_weight={class_weight}, seed={seed})...")
     import time
+
     start_time = time.time()
 
     if model_type == "logistic":
@@ -238,14 +247,16 @@ def train_model(
     # Compute validation metrics
     print("Computing validation metrics...")
     y_val_prob = pipeline.predict_proba(X_val)[:, 1]
-    metrics = compute_metrics(y_val.values, y_val_prob)
+    # prepare_features_and_target encodes CSV labels with astype(int).
+    y_val_values = cast(np.ndarray, y_val.values)
+    metrics = compute_metrics(y_val_values, y_val_prob)
 
     print("Validation metrics:")
     for k, v in metrics.items():
         print(f"  {k}: {v:.4f}")
 
     # Create model version and bundle directory
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
     model_version = f"{model_type}-{timestamp}-seed{seed}"
     bundle_dir = out_dir / model_version
 
@@ -258,7 +269,7 @@ def train_model(
     git_info = get_git_info()
     library_versions = get_library_versions()
 
-    created_at = datetime.now(timezone.utc).isoformat()
+    created_at = datetime.now(UTC).isoformat()
 
     metadata = {
         "model_version": model_version,

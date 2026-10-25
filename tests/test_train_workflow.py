@@ -139,10 +139,12 @@ def test_validate_dataframe_missing_column():
 
 def test_validate_dataframe_non_numeric_values():
     """Test that non-numeric values in numeric column raises error."""
-    df = pd.DataFrame({
-        "num_1": ["1", "2", "invalid"],
-        "churn": ["Yes", "No", "Yes"],
-    })
+    df = pd.DataFrame(
+        {
+            "num_1": ["1", "2", "invalid"],
+            "churn": ["Yes", "No", "Yes"],
+        }
+    )
 
     with pytest.raises(ValueError) as exc_info:
         validate_dataframe(
@@ -199,11 +201,13 @@ def test_prepare_features_and_target(synthetic_train_val_data):
 
 def test_create_feature_schema():
     """Test feature schema creation."""
-    df = pd.DataFrame({
-        "num_1": [1.0, 2.0, 3.0],
-        "num_2": [4.0, 5.0, 6.0],
-        "cat_1": ["a", "b", "c"],
-    })
+    df = pd.DataFrame(
+        {
+            "num_1": [1.0, 2.0, 3.0],
+            "num_2": [4.0, 5.0, 6.0],
+            "cat_1": ["a", "b", "c"],
+        }
+    )
 
     schema = create_feature_schema(
         df, numeric_cols=["num_1", "num_2"], categorical_cols=["cat_1"]
@@ -404,12 +408,12 @@ def test_train_model_feature_schema_correct_order(
 
 def test_mlflow_logging(synthetic_train_val_data, config_file, tmp_path):
     """Test that MLflow logging works correctly."""
-    
+
     train_path, val_path = synthetic_train_val_data
     out_dir = tmp_path / "bundles"
-    
+
     mlflow_uri = os.environ["MLFLOW_TRACKING_URI"]
-    
+
     result = train_model(
         config_path=config_file,
         model_type="logistic",
@@ -419,35 +423,36 @@ def test_mlflow_logging(synthetic_train_val_data, config_file, tmp_path):
         val_path=val_path,
         out_dir=out_dir,
     )
-    
+
     # Verify run_id returned
     assert "run_id" in result
     assert result["run_id"] is not None
-    
+
     # Load MLflow run to verify logging
     import mlflow
+
     mlflow.set_tracking_uri(mlflow_uri)
-    
+
     run = mlflow.get_run(result["run_id"])
-    
+
     # Check params
     assert run.data.params["model_type"] == "logistic"
     assert run.data.params["seed"] == "99"
     assert run.data.params["class_weight"] == "True"
     assert "logistic.C" in run.data.params
-    
+
     # Check metrics have val_ prefix
     assert "val_average_precision" in run.data.metrics
     assert "val_roc_auc" in run.data.metrics
     assert "val_precision" in run.data.metrics
     assert "val_recall" in run.data.metrics
     assert "val_f1" in run.data.metrics
-    
+
     # Check tag
     assert "model_version" in run.data.tags
     assert "logistic-" in run.data.tags["model_version"]
     assert "-seed99" in run.data.tags["model_version"]
-    
+
     # Check artifacts
     client = mlflow.tracking.MlflowClient(mlflow_uri)
     artifacts = client.list_artifacts(result["run_id"])
@@ -458,12 +463,20 @@ def test_mlflow_logging(synthetic_train_val_data, config_file, tmp_path):
 
 
 def test_metadata_has_root_created_at(
-    synthetic_train_val_data, config_file, tmp_path,
+    synthetic_train_val_data,
+    config_file,
+    tmp_path,
 ) -> None:
     """R12: metadata must have created_at at root level, same as training.created_at."""
     train_path, val_path = synthetic_train_val_data
     result = train_model(
-        config_file, "logistic", False, 42, train_path, val_path, tmp_path / "bundles",
+        config_file,
+        "logistic",
+        False,
+        42,
+        train_path,
+        val_path,
+        tmp_path / "bundles",
     )
     with open(result["bundle_dir"] / "metadata.json") as f:
         metadata = json.load(f)
@@ -473,12 +486,20 @@ def test_metadata_has_root_created_at(
 
 
 def test_metadata_has_metric_threshold(
-    synthetic_train_val_data, config_file, tmp_path,
+    synthetic_train_val_data,
+    config_file,
+    tmp_path,
 ) -> None:
     """R13: metadata must record metric_threshold (0.5) with a note."""
     train_path, val_path = synthetic_train_val_data
     result = train_model(
-        config_file, "logistic", False, 42, train_path, val_path, tmp_path / "bundles",
+        config_file,
+        "logistic",
+        False,
+        42,
+        train_path,
+        val_path,
+        tmp_path / "bundles",
     )
     with open(result["bundle_dir"] / "metadata.json") as f:
         metadata = json.load(f)
@@ -488,7 +509,9 @@ def test_metadata_has_metric_threshold(
 
 
 def test_mlflow_logs_effective_config_and_threshold(
-    synthetic_train_val_data, config_file, tmp_path,
+    synthetic_train_val_data,
+    config_file,
+    tmp_path,
 ) -> None:
     """R06+R13: MLflow must log effective_config.yaml artifact and metric_threshold param."""
     import mlflow
@@ -496,7 +519,13 @@ def test_mlflow_logs_effective_config_and_threshold(
     train_path, val_path = synthetic_train_val_data
     mlflow_uri = os.environ["MLFLOW_TRACKING_URI"]
     result = train_model(
-        config_file, "logistic", False, 99, train_path, val_path, tmp_path / "bundles",
+        config_file,
+        "logistic",
+        False,
+        99,
+        train_path,
+        val_path,
+        tmp_path / "bundles",
     )
     mlflow.set_tracking_uri(mlflow_uri)
     run = mlflow.get_run(result["run_id"])
@@ -506,6 +535,7 @@ def test_mlflow_logs_effective_config_and_threshold(
 
     assert "effective_config" in artifact_paths, "effective_config artifact missing"
     assert run.data.params["metric_threshold"] == "0.5"
+
 
 def test_workflow_keeps_mlflow_storage_in_tmp_path(
     synthetic_train_val_data: tuple[Path, Path], config_file: Path, tmp_path: Path
@@ -535,8 +565,11 @@ def test_workflow_keeps_mlflow_storage_in_tmp_path(
     ],
 )
 def test_validate_rejects_overlapping_groups(
-    numeric: list[str], categorical: list[str], dropped: list[str],
-    column: str, groups: tuple[str, str],
+    numeric: list[str],
+    categorical: list[str],
+    dropped: list[str],
+    column: str,
+    groups: tuple[str, str],
 ) -> None:
     demo = pd.DataFrame({"demo_x": [1.0, 2.0], "demo_target": [0, 1]})
     with pytest.raises(ValueError) as error:
@@ -546,7 +579,9 @@ def test_validate_rejects_overlapping_groups(
 
 
 def test_workflow_rejects_unknown_validation_labels(
-    synthetic_train_val_data: tuple[Path, Path], config_file: Path, tmp_path: Path,
+    synthetic_train_val_data: tuple[Path, Path],
+    config_file: Path,
+    tmp_path: Path,
 ) -> None:
     train_path, val_path = synthetic_train_val_data
     validation = pd.read_csv(val_path)
@@ -554,7 +589,13 @@ def test_workflow_rejects_unknown_validation_labels(
     validation.to_csv(val_path, index=False)
     with pytest.raises(ValueError, match="Unknown target labels.*demo-unknown"):
         train_model(
-            config_file, "logistic", False, 42, train_path, val_path, tmp_path / "bundles"
+            config_file,
+            "logistic",
+            False,
+            42,
+            train_path,
+            val_path,
+            tmp_path / "bundles",
         )
     assert not (tmp_path / "bundles").exists()
 
@@ -562,6 +603,11 @@ def test_workflow_rejects_unknown_validation_labels(
 def test_validate_accepts_known_single_label() -> None:
     demo = pd.DataFrame({"demo_x": [1.0], "demo_target": ["demo-stayed"]})
     validate_dataframe(
-        demo, ["demo_x"], [], "demo_target", "demo-left", [],
+        demo,
+        ["demo_x"],
+        [],
+        "demo_target",
+        "demo-left",
+        [],
         allowed_labels=["demo-left", "demo-stayed"],
     )
