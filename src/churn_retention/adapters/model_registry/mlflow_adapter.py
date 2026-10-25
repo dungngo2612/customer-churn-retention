@@ -71,7 +71,7 @@ def flatten_params(params: dict[str, Any], parent_key: str = "") -> dict[str, An
     Example:
         {"models": {"logistic": {"C": 1.0}}} -> {"models.logistic.C": 1.0}
     """
-    items = []
+    items: list[tuple[str, Any]] = []
     for k, v in params.items():
         new_key = f"{parent_key}.{k}" if parent_key else k
         if isinstance(v, dict):

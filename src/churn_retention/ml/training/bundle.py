@@ -10,7 +10,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
-from sklearn.pipeline import Pipeline
+
+# scikit-learn ships neither stubs nor a py.typed marker for this import.
+from sklearn.pipeline import Pipeline  # type: ignore[import-untyped]
 
 
 def get_git_info() -> dict[str, Any]:

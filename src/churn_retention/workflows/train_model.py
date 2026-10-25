@@ -2,8 +2,9 @@ import warnings
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
+import numpy as np
 import pandas as pd
 import yaml
 
@@ -246,7 +247,9 @@ def train_model(
     # Compute validation metrics
     print("Computing validation metrics...")
     y_val_prob = pipeline.predict_proba(X_val)[:, 1]
-    metrics = compute_metrics(y_val.values, y_val_prob)
+    # prepare_features_and_target encodes CSV labels with astype(int).
+    y_val_values = cast(np.ndarray, y_val.values)
+    metrics = compute_metrics(y_val_values, y_val_prob)
 
     print("Validation metrics:")
     for k, v in metrics.items():

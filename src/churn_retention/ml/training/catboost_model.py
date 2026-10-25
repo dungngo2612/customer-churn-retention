@@ -1,7 +1,9 @@
 import pandas as pd
-from catboost import CatBoostClassifier
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.pipeline import Pipeline
+
+# CatBoost and scikit-learn ship neither stubs nor py.typed markers for these imports.
+from catboost import CatBoostClassifier  # type: ignore[import-untyped]
+from sklearn.base import BaseEstimator, TransformerMixin  # type: ignore[import-untyped]
+from sklearn.pipeline import Pipeline  # type: ignore[import-untyped]
 
 
 class CatBoostPreprocessor(BaseEstimator, TransformerMixin):
