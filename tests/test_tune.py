@@ -9,10 +9,12 @@ import pandas as pd
 import pytest
 import yaml
 from sklearn.base import BaseEstimator
+from sklearn.impute import SimpleImputer
 from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-from churn_retention.ml.training import tune
+from churn_retention.ml.training import baseline, tune
 
 
 def _synthetic(tmp_path: Path) -> tuple[pd.DataFrame, pd.Series, tune.TuneConfig]:
@@ -136,3 +138,59 @@ def test_fold_fit_never_sees_held_out_rows(
         assert score_ids == set(X.iloc[score_rows].index)
         assert not fit_ids & score_ids
     assert tune._score([0, 1], [0.49, 0.5])["recall"] == 1.0
+
+
+def test_real_preprocessing_fit_never_sees_held_out_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    X, y, config = _synthetic(tmp_path)
+    X.loc[[1000, 1007, 1014, 1021], "value"] = np.nan
+    X.loc[[1002, 1011, 1035], "segment"] = np.nan
+    fits: list[tuple[str, set[int]]] = []
+    pipelines: list[Pipeline] = []
+
+    class RecordingImputer(SimpleImputer):
+        def fit(self, X: pd.DataFrame, y: Any = None) -> "RecordingImputer":
+            assert not hasattr(self, "statistics_"), "Imputer must be fresh per fold"
+            fits.append((self.strategy, set(X.index)))
+            return super().fit(X, y)
+
+    original_fit = tune._fit_candidate
+
+    def capture_pipeline(*args: Any, **kwargs: Any) -> Pipeline:
+        pipeline = original_fit(*args, **kwargs)
+        pipelines.append(pipeline)
+        return pipeline
+
+    # Keep the real trainer and all transformations. Only observe imputer.fit;
+    # inherited transform/fit_transform still execute the real sklearn behavior.
+    monkeypatch.setattr(baseline, "SimpleImputer", RecordingImputer)
+    monkeypatch.setattr(tune, "_fit_candidate", capture_pipeline)
+    tune.evaluate_cv(X, y, config.candidates[0], config)
+    expected = list(
+        StratifiedKFold(
+            n_splits=config.n_splits, shuffle=True, random_state=config.seed
+        ).split(X, y)
+    )
+    expected_fits = [
+        (strategy, set(X.iloc[fit_rows].index), set(X.iloc[val_rows].index))
+        for fit_rows, val_rows in expected
+        for strategy in ("median", "constant")
+    ]
+    for (strategy, seen), (expected_strategy, train_ids, val_ids) in zip(
+        fits, expected_fits, strict=True
+    ):
+        assert seen.isdisjoint(val_ids), "Preprocessing saw held-out rows"
+        assert seen == train_ids
+        assert strategy == expected_strategy
+    assert len(fits) == 2 * config.n_splits
+    for pipeline, (fit_rows, _) in zip(pipelines, expected, strict=True):
+        preprocessor = pipeline.named_steps["preprocessor"]
+        numeric = preprocessor.named_transformers_["num"]
+        categorical = preprocessor.named_transformers_["cat"]
+        assert isinstance(numeric.named_steps["imputer"], RecordingImputer)
+        assert isinstance(numeric.named_steps["scaler"], StandardScaler)
+        assert isinstance(categorical.named_steps["onehot"], OneHotEncoder)
+        assert numeric.named_steps["imputer"].statistics_[0] == pytest.approx(
+            X.iloc[fit_rows]["value"].median()
+        )
