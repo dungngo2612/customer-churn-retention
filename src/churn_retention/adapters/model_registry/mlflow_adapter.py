@@ -54,7 +54,9 @@ def log_training_run(
 
         # Log effective config as artifact
         if effective_config_path is not None:
-            mlflow.log_artifact(str(effective_config_path), artifact_path="effective_config")
+            mlflow.log_artifact(
+                str(effective_config_path), artifact_path="effective_config"
+            )
 
         # Log bundle directory
         mlflow.log_artifacts(str(bundle_dir), artifact_path="bundle")

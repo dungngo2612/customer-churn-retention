@@ -179,7 +179,9 @@ def test_bundle_predictor_rejects_length_mismatch(
     predictor: Predictor = BundlePredictor()
     predictor.load(str(bundle_dir))
 
-    with pytest.raises(ValueError, match="Length mismatch: 1 customer_ids vs 8 features"):
+    with pytest.raises(
+        ValueError, match="Length mismatch: 1 customer_ids vs 8 features"
+    ):
         predictor.predict_batch(features, ["demo-customer"])
 
 
@@ -338,7 +340,9 @@ def test_load_bundle_validates_metadata_and_schema(tmp_path: Path) -> None:
     bundle_dir7 = tmp_path / "invalid_kind_value"
     bad_schema3 = [{"name": "x", "kind": "invalid_kind", "dtype": "float64"}]
     save_bundle(pipeline, bundle_dir7, bad_schema3, metadata)
-    with pytest.raises(ValueError, match="kind.*numeric.*categorical.*" + str(bundle_dir7)):
+    with pytest.raises(
+        ValueError, match="kind.*numeric.*categorical.*" + str(bundle_dir7)
+    ):
         load_bundle(bundle_dir7)
 
 
@@ -372,9 +376,7 @@ def test_predict_proba_empty_dataframe(tmp_path: Path) -> None:
     from churn_retention.ml.training.baseline import train_logistic
     from churn_retention.ml.training.catboost_model import train_catboost
 
-    features = pd.DataFrame(
-        {"x": [1.0, 2.0, 3.0, 4.0], "cat": ["a", "b", "a", "b"]}
-    )
+    features = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "cat": ["a", "b", "a", "b"]})
     target = pd.Series([0, 1, 0, 1])
     cfg = {
         "numeric_features": ["x"],
@@ -383,7 +385,10 @@ def test_predict_proba_empty_dataframe(tmp_path: Path) -> None:
         "catboost": {"iterations": 10, "depth": 2, "learning_rate": 0.1},
     }
 
-    for model_type, trainer in [("logistic", train_logistic), ("catboost", train_catboost)]:
+    for model_type, trainer in [
+        ("logistic", train_logistic),
+        ("catboost", train_catboost),
+    ]:
         pipeline = trainer(features, target, cfg, seed=42, class_weight=False)
         schema = create_feature_schema(features, ["x"], ["cat"])
         metadata = {"model_version": f"{model_type}-empty", "model_type": model_type}

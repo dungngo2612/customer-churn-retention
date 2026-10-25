@@ -12,7 +12,10 @@ from churn_retention.modules.scoring.repository import (
     InMemoryScoringRunRepository,
     ScoringRunRepository,
 )
-from churn_retention.modules.scoring.use_cases import DatasetNotFoundError, score_dataset
+from churn_retention.modules.scoring.use_cases import (
+    DatasetNotFoundError,
+    score_dataset,
+)
 
 
 @pytest.fixture

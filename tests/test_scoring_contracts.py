@@ -107,7 +107,7 @@ def test_prediction_batch_valid():
                 model_version="v1",
                 scored_at=datetime.now(timezone.utc),
             ),
-        ]
+        ],
     )
     assert len(batch.predictions) == 2
     assert batch.scoring_run_id == "run1"
@@ -181,7 +181,7 @@ def test_explanation_list_valid():
                 explained_output="log_odds",
                 calibration_applied="original",
             ),
-        ]
+        ],
     )
     assert len(el.explanations) == 2
     assert el.customer_id == "C001"
@@ -214,9 +214,7 @@ def demo_explanation_payload() -> dict[str, Any]:
     }
 
 
-@pytest.mark.parametrize(
-    "scored_at", [datetime(2026, 10, 17), "2026-10-17T00:00:00"]
-)
+@pytest.mark.parametrize("scored_at", [datetime(2026, 10, 17), "2026-10-17T00:00:00"])
 def test_prediction_rejects_missing_timezone(
     scored_at: datetime | str, demo_prediction_payload: dict[str, Any]
 ) -> None:
@@ -345,7 +343,7 @@ def test_prediction_batch_validates_scoring_run_id_consistency():
                     model_version="v1",
                     scored_at=datetime.now(timezone.utc),
                 ),
-            ]
+            ],
         )
 
     assert "scoring_run_id" in str(exc_info.value)
@@ -375,7 +373,7 @@ def test_prediction_batch_validates_model_version_consistency():
                     model_version="v2",  # MISMATCH
                     scored_at=datetime.now(timezone.utc),
                 ),
-            ]
+            ],
         )
 
     assert "model_version" in str(exc_info.value)
@@ -409,7 +407,7 @@ def test_explanation_list_validates_customer_id_consistency():
                     explained_output="log_odds",
                     calibration_applied="original",
                 ),
-            ]
+            ],
         )
 
     assert "customer_id" in str(exc_info.value)
@@ -443,7 +441,7 @@ def test_explanation_list_validates_model_version_consistency():
                     explained_output="log_odds",
                     calibration_applied="original",
                 ),
-            ]
+            ],
         )
 
     assert "model_version" in str(exc_info.value)

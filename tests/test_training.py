@@ -308,11 +308,13 @@ def test_catboost_column_order_invariance():
     invariant to input column order. Extra columns are ignored.
     """
     # Train with columns in config order
-    X_train = pd.DataFrame({
-        "num_a": [1.0, 2.0, 3.0, 4.0],
-        "num_b": [5.0, 6.0, 7.0, 8.0],
-        "cat_x": ["p", "q", "p", "q"],
-    })
+    X_train = pd.DataFrame(
+        {
+            "num_a": [1.0, 2.0, 3.0, 4.0],
+            "num_b": [5.0, 6.0, 7.0, 8.0],
+            "cat_x": ["p", "q", "p", "q"],
+        }
+    )
     y_train = pd.Series([0, 1, 0, 1])
     cfg = {
         "numeric_features": ["num_a", "num_b"],
@@ -322,16 +324,20 @@ def test_catboost_column_order_invariance():
     pipeline = train_catboost(X_train, y_train, cfg, seed=42, class_weight=False)
 
     # Test with same data, different column order
-    X_test_ordered = pd.DataFrame({
-        "num_a": [1.5, 3.5],
-        "num_b": [5.5, 7.5],
-        "cat_x": ["p", "q"],
-    })
-    X_test_shuffled = pd.DataFrame({
-        "cat_x": ["p", "q"],
-        "num_b": [5.5, 7.5],
-        "num_a": [1.5, 3.5],
-    })
+    X_test_ordered = pd.DataFrame(
+        {
+            "num_a": [1.5, 3.5],
+            "num_b": [5.5, 7.5],
+            "cat_x": ["p", "q"],
+        }
+    )
+    X_test_shuffled = pd.DataFrame(
+        {
+            "cat_x": ["p", "q"],
+            "num_b": [5.5, 7.5],
+            "num_a": [1.5, 3.5],
+        }
+    )
 
     y_prob_ordered = pipeline.predict_proba(X_test_ordered)[:, 1]
     y_prob_shuffled = pipeline.predict_proba(X_test_shuffled)[:, 1]
@@ -341,11 +347,13 @@ def test_catboost_column_order_invariance():
 
 def test_catboost_ignores_extra_columns():
     """R08: CatBoost must ignore extra columns not in config."""
-    X_train = pd.DataFrame({
-        "num_a": [1.0, 2.0, 3.0, 4.0],
-        "cat_x": ["p", "q", "p", "q"],
-        "extra_col": ["ignored", "ignored", "ignored", "ignored"],
-    })
+    X_train = pd.DataFrame(
+        {
+            "num_a": [1.0, 2.0, 3.0, 4.0],
+            "cat_x": ["p", "q", "p", "q"],
+            "extra_col": ["ignored", "ignored", "ignored", "ignored"],
+        }
+    )
     y_train = pd.Series([0, 1, 0, 1])
     cfg = {
         "numeric_features": ["num_a"],
@@ -354,15 +362,19 @@ def test_catboost_ignores_extra_columns():
     }
     pipeline = train_catboost(X_train, y_train, cfg, seed=42, class_weight=False)
 
-    X_test_with_extra = pd.DataFrame({
-        "num_a": [1.5, 3.5],
-        "cat_x": ["p", "q"],
-        "extra_col": ["also_ignored", "also_ignored"],
-    })
-    X_test_without_extra = pd.DataFrame({
-        "num_a": [1.5, 3.5],
-        "cat_x": ["p", "q"],
-    })
+    X_test_with_extra = pd.DataFrame(
+        {
+            "num_a": [1.5, 3.5],
+            "cat_x": ["p", "q"],
+            "extra_col": ["also_ignored", "also_ignored"],
+        }
+    )
+    X_test_without_extra = pd.DataFrame(
+        {
+            "num_a": [1.5, 3.5],
+            "cat_x": ["p", "q"],
+        }
+    )
 
     y_prob_with = pipeline.predict_proba(X_test_with_extra)[:, 1]
     y_prob_without = pipeline.predict_proba(X_test_without_extra)[:, 1]
@@ -377,11 +389,13 @@ def test_catboost_probabilities_unchanged_after_refactor():
     This test records the expected probabilities from the CURRENT (pre-fix) code
     and ensures the fix doesn't change the actual predictions.
     """
-    X_train = pd.DataFrame({
-        "x1": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
-        "x2": [10.0, 20.0, 30.0, 40.0, 50.0, 60.0],
-        "cat": ["a", "b", "a", "b", "a", "b"],
-    })
+    X_train = pd.DataFrame(
+        {
+            "x1": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            "x2": [10.0, 20.0, 30.0, 40.0, 50.0, 60.0],
+            "cat": ["a", "b", "a", "b", "a", "b"],
+        }
+    )
     y_train = pd.Series([0, 1, 0, 1, 0, 1])
     cfg = {
         "numeric_features": ["x1", "x2"],
@@ -391,11 +405,13 @@ def test_catboost_probabilities_unchanged_after_refactor():
 
     pipeline = train_catboost(X_train, y_train, cfg, seed=99, class_weight=False)
 
-    X_test = pd.DataFrame({
-        "x1": [1.5, 4.5],
-        "x2": [15.0, 45.0],
-        "cat": ["a", "b"],
-    })
+    X_test = pd.DataFrame(
+        {
+            "x1": [1.5, 4.5],
+            "x2": [15.0, 45.0],
+            "cat": ["a", "b"],
+        }
+    )
 
     y_prob = pipeline.predict_proba(X_test)[:, 1]
 

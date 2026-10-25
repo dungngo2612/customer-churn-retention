@@ -57,7 +57,8 @@ def validate_dataframe(
             memberships.setdefault(column, []).append(group)
     overlaps = [
         f"{column!r}: {', '.join(names)}"
-        for column, names in sorted(memberships.items()) if len(names) > 1
+        for column, names in sorted(memberships.items())
+        if len(names) > 1
     ]
     if overlaps:
         raise ValueError(f"Overlapping column groups: {'; '.join(overlaps)}")
@@ -98,7 +99,9 @@ def validate_dataframe(
 
     target_values = df[target_col].unique()
     if allowed_labels is not None:
-        unknown = df.loc[~df[target_col].isin(allowed_labels), target_col].unique().tolist()
+        unknown = (
+            df.loc[~df[target_col].isin(allowed_labels), target_col].unique().tolist()
+        )
         if unknown:
             raise ValueError(f"Unknown target labels in '{target_col}': {unknown}")
     elif len(target_values) > 2:
@@ -215,7 +218,12 @@ def train_model(
     print(f"Loading validation data from {val_path}...")
     val_df = pd.read_csv(val_path)
     validate_dataframe(
-        val_df, numeric_cols, categorical_cols, target_col, positive_label, drop_cols,
+        val_df,
+        numeric_cols,
+        categorical_cols,
+        target_col,
+        positive_label,
+        drop_cols,
         allowed_labels=train_df[target_col].unique().tolist(),
     )
     X_val, y_val = prepare_features_and_target(
@@ -225,6 +233,7 @@ def train_model(
     # Train model
     print(f"Training {model_type} model (class_weight={class_weight}, seed={seed})...")
     import time
+
     start_time = time.time()
 
     if model_type == "logistic":

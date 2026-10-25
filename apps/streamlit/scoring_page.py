@@ -69,7 +69,11 @@ if st.button("Chấm điểm", type="primary"):
             st.error(f"Không tìm thấy dataset: {error}")
         except InvalidDatasetError as error:
             st.error(f"Dataset không hợp lệ: {error}")
-        except (FileNotFoundError, pd.errors.EmptyDataError, pd.errors.ParserError) as error:
+        except (
+            FileNotFoundError,
+            pd.errors.EmptyDataError,
+            pd.errors.ParserError,
+        ) as error:
             st.error(f"Không đọc được dataset hoặc model bundle: {error}")
         except Exception as error:
             st.error(f"Chấm điểm thất bại: {error}")
