@@ -3,7 +3,6 @@ from typing import Literal
 from pydantic import (
     AwareDatetime,
     BaseModel,
-    ValidationError,
     field_validator,
     model_validator,
 )

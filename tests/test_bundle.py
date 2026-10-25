@@ -197,8 +197,6 @@ def test_bundle_predictor_empty_batch(
 
 def test_save_bundle_refuses_overwrite_existing(tmp_path: Path) -> None:
     """R03: saving a bundle twice to the same path must fail; first bundle unchanged."""
-    from unittest.mock import patch
-    from datetime import datetime, timezone
 
     from churn_retention.ml.training.baseline import train_logistic
 

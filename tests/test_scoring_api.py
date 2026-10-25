@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from itertools import count
 
 import pandas as pd
@@ -39,7 +39,7 @@ def scoring_client() -> Iterator[TestClient]:
             predictor=predictor,
             repository=InMemoryScoringRunRepository(),
             run_id_factory=lambda: f"demo-run-{next(run_ids):03d}",
-            clock=lambda: datetime(2026, 10, 17, tzinfo=timezone.utc),
+            clock=lambda: datetime(2026, 10, 17, tzinfo=UTC),
         )
     )
     with TestClient(app) as client:
@@ -71,7 +71,7 @@ def test_create_scoring_run_schema_customers_and_order(
         assert prediction.dataset_id == "demo-dataset"
         assert prediction.model_version == batch.model_version
         assert prediction.scoring_run_id == batch.scoring_run_id
-        assert prediction.scored_at == datetime(2026, 10, 17, tzinfo=timezone.utc)
+        assert prediction.scored_at == datetime(2026, 10, 17, tzinfo=UTC)
 
 
 def test_get_scoring_runs_preserves_each_saved_batch(
@@ -121,7 +121,7 @@ def test_invalid_dataset_null_customer_id_returns_422() -> None:
             predictor=predictor,
             repository=InMemoryScoringRunRepository(),
             run_id_factory=lambda: "run-1",
-            clock=lambda: datetime(2026, 10, 17, tzinfo=timezone.utc),
+            clock=lambda: datetime(2026, 10, 17, tzinfo=UTC),
         )
     )
     with TestClient(app) as client:
@@ -150,7 +150,7 @@ def test_invalid_dataset_duplicate_customer_id_returns_422() -> None:
             predictor=predictor,
             repository=InMemoryScoringRunRepository(),
             run_id_factory=lambda: "run-1",
-            clock=lambda: datetime(2026, 10, 17, tzinfo=timezone.utc),
+            clock=lambda: datetime(2026, 10, 17, tzinfo=UTC),
         )
     )
     with TestClient(app) as client:
@@ -176,7 +176,7 @@ def test_file_not_found_still_returns_404() -> None:
             predictor=predictor,
             repository=InMemoryScoringRunRepository(),
             run_id_factory=lambda: "run-1",
-            clock=lambda: datetime(2026, 10, 17, tzinfo=timezone.utc),
+            clock=lambda: datetime(2026, 10, 17, tzinfo=UTC),
         )
     )
     with TestClient(app) as client:

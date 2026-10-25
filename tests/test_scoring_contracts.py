@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +21,7 @@ def test_prediction_valid():
         scoring_run_id="run1",
         churn_probability=0.5,
         model_version="v1",
-        scored_at=datetime.now(timezone.utc),
+        scored_at=datetime.now(UTC),
     )
     assert p.churn_probability == 0.5
 
@@ -33,7 +33,7 @@ def test_prediction_probability_at_bounds():
         scoring_run_id="run1",
         churn_probability=0.0,
         model_version="v1",
-        scored_at=datetime.now(timezone.utc),
+        scored_at=datetime.now(UTC),
     )
     assert p0.churn_probability == 0.0
 
@@ -43,7 +43,7 @@ def test_prediction_probability_at_bounds():
         scoring_run_id="run1",
         churn_probability=1.0,
         model_version="v1",
-        scored_at=datetime.now(timezone.utc),
+        scored_at=datetime.now(UTC),
     )
     assert p1.churn_probability == 1.0
 
@@ -56,7 +56,7 @@ def test_prediction_probability_below_zero():
             scoring_run_id="run1",
             churn_probability=-0.1,
             model_version="v1",
-            scored_at=datetime.now(timezone.utc),
+            scored_at=datetime.now(UTC),
         )
     assert "churn_probability must be between 0 and 1" in str(exc_info.value)
 
@@ -69,7 +69,7 @@ def test_prediction_probability_above_one():
             scoring_run_id="run1",
             churn_probability=1.01,
             model_version="v1",
-            scored_at=datetime.now(timezone.utc),
+            scored_at=datetime.now(UTC),
         )
     assert "churn_probability must be between 0 and 1" in str(exc_info.value)
 
@@ -82,7 +82,7 @@ def test_prediction_missing_field():
             scoring_run_id="run1",
             churn_probability=0.5,
             # missing model_version
-            scored_at=datetime.now(timezone.utc),
+            scored_at=datetime.now(UTC),
         )
 
 
@@ -97,7 +97,7 @@ def test_prediction_batch_valid():
                 scoring_run_id="run1",
                 churn_probability=0.3,
                 model_version="v1",
-                scored_at=datetime.now(timezone.utc),
+                scored_at=datetime.now(UTC),
             ),
             Prediction(
                 customer_id="C002",
@@ -105,7 +105,7 @@ def test_prediction_batch_valid():
                 scoring_run_id="run1",
                 churn_probability=0.7,
                 model_version="v1",
-                scored_at=datetime.now(timezone.utc),
+                scored_at=datetime.now(UTC),
             ),
         ],
     )
@@ -333,7 +333,7 @@ def test_prediction_batch_validates_scoring_run_id_consistency():
                     scoring_run_id="run1",  # matches wrapper
                     churn_probability=0.3,
                     model_version="v1",
-                    scored_at=datetime.now(timezone.utc),
+                    scored_at=datetime.now(UTC),
                 ),
                 Prediction(
                     customer_id="C002",
@@ -341,7 +341,7 @@ def test_prediction_batch_validates_scoring_run_id_consistency():
                     scoring_run_id="run2",  # MISMATCH
                     churn_probability=0.7,
                     model_version="v1",
-                    scored_at=datetime.now(timezone.utc),
+                    scored_at=datetime.now(UTC),
                 ),
             ],
         )
@@ -363,7 +363,7 @@ def test_prediction_batch_validates_model_version_consistency():
                     scoring_run_id="run1",
                     churn_probability=0.3,
                     model_version="v1",  # matches wrapper
-                    scored_at=datetime.now(timezone.utc),
+                    scored_at=datetime.now(UTC),
                 ),
                 Prediction(
                     customer_id="C002",
@@ -371,7 +371,7 @@ def test_prediction_batch_validates_model_version_consistency():
                     scoring_run_id="run1",
                     churn_probability=0.7,
                     model_version="v2",  # MISMATCH
-                    scored_at=datetime.now(timezone.utc),
+                    scored_at=datetime.now(UTC),
                 ),
             ],
         )

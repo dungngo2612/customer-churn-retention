@@ -1,10 +1,9 @@
 import warnings
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import pandas as pd
 import yaml
 
@@ -254,7 +253,7 @@ def train_model(
         print(f"  {k}: {v:.4f}")
 
     # Create model version and bundle directory
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
     model_version = f"{model_type}-{timestamp}-seed{seed}"
     bundle_dir = out_dir / model_version
 
@@ -267,7 +266,7 @@ def train_model(
     git_info = get_git_info()
     library_versions = get_library_versions()
 
-    created_at = datetime.now(timezone.utc).isoformat()
+    created_at = datetime.now(UTC).isoformat()
 
     metadata = {
         "model_version": model_version,

@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pandas as pd
@@ -12,7 +12,6 @@ from churn_retention.modules.scoring.use_cases import (
     InvalidDatasetError,
     score_dataset,
 )
-
 
 st.set_page_config(page_title="Chấm điểm churn", page_icon="📊")
 st.title("Chấm điểm churn")
@@ -42,7 +41,7 @@ if st.button("Chấm điểm", type="primary"):
                 lambda path: pd.read_csv(path),
                 predictor,
                 lambda: str(uuid4()),
-                lambda: datetime.now(timezone.utc),
+                lambda: datetime.now(UTC),
             )
 
             repository = InMemoryScoringRunRepository()
