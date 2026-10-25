@@ -6,21 +6,25 @@ The team's primary model is logistic regression. Candidates are ranked by mean t
 
 Limits: max_trials=2, time_budget_seconds=300, seed=42, threshold=0.5 (churn when probability >= 0.5), folds=2.
 
+Trials: trials_completed=2, trials_planned=2. Completed counts candidates with all CV folds finished, even if val is skipped.
+
+Thời gian đọc CSV và MLflow không nằm trong ngân sách thời gian.
+
 All candidates use identical shuffled stratified folds. Each fold uses a fresh pipeline with preprocessing and class weights fitted only on its training rows. The grid clones the existing CatBoost pipeline and sets l2_leaf_reg before fitting. Defaults come from configs/train_config.yaml.
 
 The top three completed CV candidates are refitted on all available train rows and evaluated once on val, if budget remains. In smoke mode, train means the first 500 rows. No test dataset is read. Std uses ddof=0.
 
 | Candidate | Configuration | CV AP mean±std | CV ROC-AUC mean±std | Brier mean±std | Log loss mean±std | Val AP | Time |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| logistic-balanced | `{"C": 1.0, "class_weight": true, "max_iter": 1000}` | 0.5171±0.0156 | 0.7799±0.0138 | 0.1838±0.0065 | 0.5658±0.0451 | 0.6155 | 12.13s; fit/fold 0.0539±0.0073s |
-| logistic-unweighted | `{"C": 1.0, "class_weight": false, "max_iter": 1000}` | 0.5146±0.0205 | 0.7802±0.0173 | 0.1548±0.0033 | 0.4958±0.0368 | 0.6270 | 13.14s; fit/fold 0.0960±0.0504s |
+| logistic-balanced | `{"C": 1.0, "class_weight": true, "max_iter": 1000}` | 0.5171±0.0156 | 0.7799±0.0138 | 0.1838±0.0065 | 0.5658±0.0451 | 0.6155 | 15.64s; fit/fold 0.0743±0.0107s |
+| logistic-unweighted | `{"C": 1.0, "class_weight": false, "max_iter": 1000}` | 0.5146±0.0205 | 0.7802±0.0173 | 0.1548±0.0033 | 0.4958±0.0368 | 0.6270 | 13.67s; fit/fold 0.0554±0.0078s |
 
-Stop reason: configured_trials_completed; elapsed: 27.87s. The shared computation deadline terminates active workers. Tracking and report finalization may finish after that deadline. Time includes worker startup; fit/fold measures training only.
+Stop reason: configured_trials_completed; elapsed: 31.67s. The shared worker budget terminates active workers when exhausted. Elapsed wall time also includes CSV, MLflow and setup overhead. Trial time includes worker startup; fit/fold measures training only.
 
-MLflow records CV mean/std for AP, ROC-AUC, Brier, log loss, precision, recall, F1@0.5 and fit time; shortlisted runs also record val metrics. A dash means validation was not performed or CV did not finish.
+MLflow records CV mean/std for AP, ROC-AUC, Brier, log loss, precision, recall, F1@0.5 and fit time; shortlisted runs also record val metrics. Each run also records trials_completed, trials_planned and val_status. A dash means CV did not finish; skipped val includes its reason.
 
-- `logistic-unweighted`: run `6b21f89aeec044dcbf62786919cd3bd8`, completed.
-- `logistic-balanced`: run `236fab11edc74c6f86eda41232442e41`, completed.
+- `logistic-unweighted`: run `af5fb04b99f84c94bbbc99c50406d185`, completed; val: đã đánh giá.
+- `logistic-balanced`: run `5d633aacdd7446eaa8eb03159580ecb6`, completed; val: đã đánh giá.
 
 Run the full experiment from the repository root:
 

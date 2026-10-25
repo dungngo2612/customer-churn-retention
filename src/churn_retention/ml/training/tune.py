@@ -303,6 +303,7 @@ class TrialResult:
     val: dict[str, float] = field(default_factory=dict)
     seconds: float = 0.0
     status: str = "completed"
+    val_status: str = "val: chưa đánh giá"
 
 
 @dataclass
@@ -312,6 +313,15 @@ class ExperimentReport:
     smoke: bool
     seconds: float
     stop_reason: str
+
+    @property
+    def trials_completed(self) -> int:
+        """Count complete CV results, independently of validation availability."""
+        return sum(bool(trial.cv) for trial in self.trials)
+
+    @property
+    def trials_planned(self) -> int:
+        return min(self.config.max_trials, len(self.config.candidates))
 
 
 def _worker(
@@ -406,7 +416,8 @@ def run_experiments(config: TuneConfig, *, smoke: bool = False) -> ExperimentRep
             candidates=config.candidates[:2],
         )
     started = monotonic()
-    deadline = started + config.time_budget_seconds
+    # Only worker time consumes the budget; CSV reads and MLflow are excluded.
+    remaining_seconds = config.time_budget_seconds
     train_frame = pd.read_csv(config.train_path, nrows=500 if smoke else None)
     X_train, y_train = _prepare(train_frame, config.training)
     mlflow.set_tracking_uri(get_tracking_uri())
@@ -418,7 +429,7 @@ def run_experiments(config: TuneConfig, *, smoke: bool = False) -> ExperimentRep
     trials: list[TrialResult] = []
     stop_reason = "configured_trials_completed"
     for candidate in config.candidates[: config.max_trials]:
-        if monotonic() >= deadline:
+        if remaining_seconds <= 0:
             stop_reason = "time_budget_exhausted"
             break
         with mlflow.start_run(run_name=candidate.name) as run:
@@ -440,7 +451,11 @@ def run_experiments(config: TuneConfig, *, smoke: bool = False) -> ExperimentRep
                 }
             )
             mlflow.set_tags(
-                {"team_primary_model": "logistic", "ranking_metric": "cv_ap_mean"}
+                {
+                    "team_primary_model": "logistic",
+                    "ranking_metric": "cv_ap_mean",
+                    "time_budget_scope": "cv_and_validation_workers",
+                }
             )
             mlflow.log_artifact(str(config.source), artifact_path="config")
             mlflow.log_artifact(
@@ -450,11 +465,15 @@ def run_experiments(config: TuneConfig, *, smoke: bool = False) -> ExperimentRep
             trial_started = monotonic()
             try:
                 trial.cv, templates = _within_budget(
-                    _cv_job, (X_train, y_train, candidate, config, templates), deadline
+                    _cv_job,
+                    (X_train, y_train, candidate, config, templates),
+                    trial_started + remaining_seconds,
                 )
             except TimeoutError:
                 trial.status = stop_reason = "time_budget_exhausted"
+                remaining_seconds = 0.0
             trial.seconds = monotonic() - trial_started
+            remaining_seconds = max(0.0, remaining_seconds - trial.seconds)
             mlflow.log_metrics({**trial.cv, "trial_seconds": trial.seconds})
             mlflow.set_tag("trial_status", trial.status)
         if trial.status != "completed":
@@ -465,7 +484,7 @@ def run_experiments(config: TuneConfig, *, smoke: bool = False) -> ExperimentRep
         key=lambda trial: -trial.cv["cv_ap_mean"],
     )
     shortlist = ranked[:3]
-    if shortlist and monotonic() < deadline:
+    if shortlist and remaining_seconds > 0:
         # Val is loaded only after CV ranking, and is never passed to evaluate_cv.
         val_frame = pd.read_csv(config.val_path)
         target = config.training["features"]["target_col"]
@@ -473,7 +492,7 @@ def run_experiments(config: TuneConfig, *, smoke: bool = False) -> ExperimentRep
             val_frame, config.training, train_frame[target].unique().tolist()
         )
         for trial in shortlist:
-            if monotonic() >= deadline:
+            if remaining_seconds <= 0:
                 stop_reason = "time_budget_exhausted"
                 break
             with mlflow.start_run(run_id=trial.run_id):
@@ -491,24 +510,53 @@ def run_experiments(config: TuneConfig, *, smoke: bool = False) -> ExperimentRep
                             config,
                             templates,
                         ),
-                        deadline,
+                        val_started + remaining_seconds,
                     )
                 except TimeoutError:
                     trial.status = stop_reason = "time_budget_exhausted"
-                trial.seconds += monotonic() - val_started
+                    remaining_seconds = 0.0
+                val_seconds = monotonic() - val_started
+                remaining_seconds = max(0.0, remaining_seconds - val_seconds)
+                trial.seconds += val_seconds
                 mlflow.log_metrics({**trial.val, "trial_seconds": trial.seconds})
                 mlflow.set_tag("trial_status", trial.status)
             if trial.status != "completed":
                 break
     elif shortlist:
         stop_reason = "time_budget_exhausted"
-    return ExperimentReport(
+    report = ExperimentReport(
         config=config,
         trials=trials,
         smoke=smoke,
         seconds=monotonic() - started,
         stop_reason=stop_reason,
     )
+    shortlisted_ids = {trial.run_id for trial in shortlist}
+    for trial in trials:
+        if trial.val:
+            trial.val_status = "val: đã đánh giá"
+        elif trial.run_id in shortlisted_ids or not trial.cv:
+            trial.val_status = "val: bỏ qua do hết ngân sách thời gian"
+        else:
+            trial.val_status = "val: không thuộc top 3"
+        # Resume each candidate's existing run so all runs have final counts.
+        with mlflow.start_run(run_id=trial.run_id):
+            mlflow.log_metrics(
+                {
+                    "trials_completed": report.trials_completed,
+                    "trials_planned": report.trials_planned,
+                }
+            )
+            mlflow.set_tags(
+                {
+                    "val_status": trial.val_status,
+                    "selected_for_validation": str(
+                        trial.run_id in shortlisted_ids
+                    ).lower(),
+                }
+            )
+    report.seconds = monotonic() - started
+    return report
 
 
 def write_report(report: ExperimentReport, path: Path) -> None:
@@ -535,6 +583,14 @@ def write_report(report: ExperimentReport, path: Path) -> None:
             f"time_budget_seconds={config.time_budget_seconds:g}, seed={config.seed}, "
             f"threshold=0.5 (churn when probability >= 0.5), folds={config.n_splits}."
         ),
+        "",
+        (
+            f"Trials: trials_completed={report.trials_completed}, "
+            f"trials_planned={report.trials_planned}. Completed counts candidates "
+            "with all CV folds finished, even if val is skipped."
+        ),
+        "",
+        "Thời gian đọc CSV và MLflow không nằm trong ngân sách thời gian.",
         "",
         (
             "All candidates use identical shuffled stratified folds. Each fold uses "
@@ -568,7 +624,7 @@ def write_report(report: ExperimentReport, path: Path) -> None:
             {**trial.candidate.params, "class_weight": trial.candidate.class_weight},
             sort_keys=True,
         )
-        val_ap = f"{trial.val['val_ap']:.4f}" if trial.val else "—"
+        val_ap = f"{trial.val['val_ap']:.4f}" if trial.val else trial.val_status
         timing = f"{trial.seconds:.2f}s; fit/fold {summary('fit_seconds')}s"
         lines.append(
             f"| {trial.candidate.name} | `{settings}` | {summary('ap')} | "
@@ -580,22 +636,24 @@ def write_report(report: ExperimentReport, path: Path) -> None:
             "",
             (
                 f"Stop reason: {report.stop_reason}; elapsed: {report.seconds:.2f}s. "
-                "The shared computation deadline terminates active workers. Tracking "
-                "and report finalization may finish after that deadline. Time includes "
-                "worker startup; fit/fold measures training only."
+                "The shared worker budget terminates active workers when exhausted. "
+                "Elapsed wall time also includes CSV, MLflow and setup overhead. "
+                "Trial time includes worker startup; fit/fold measures training only."
             ),
             "",
             (
                 "MLflow records CV mean/std for AP, ROC-AUC, Brier, log loss, precision, "
                 "recall, F1@0.5 and fit time; shortlisted runs also record val metrics. "
-                "A dash means validation was not performed or CV did not finish."
+                "Each run also records trials_completed, trials_planned and val_status. "
+                "A dash means CV did not finish; skipped val includes its reason."
             ),
             "",
         ]
     )
     for trial in report.trials:
         lines.append(
-            f"- `{trial.candidate.name}`: run `{trial.run_id}`, {trial.status}."
+            f"- `{trial.candidate.name}`: run `{trial.run_id}`, "
+            f"{trial.status}; {trial.val_status}."
         )
     lines.extend(
         [
