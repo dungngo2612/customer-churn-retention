@@ -496,8 +496,118 @@ with st.sidebar:
         c3_e = st.slider("A3: Mức giảm churn (e)", 0.1, 1.0, 0.50, 0.05, key="c3_e")
 
     st.markdown("---")
-    st.markdown("### 🤖 Nguồn Dự Đoán Churn")
-    st.caption(f"Trạng thái: **{predictor_info}**")
+
+    st.markdown("---")
+    st.markdown("### 🤖 Dữ Liệu & Mô Hình AI")
+    bundle_ready = "CatBoost" in predictor_info
+    st.caption(f"• Dữ liệu: **`{active_dataset_name}`** ({len(customers_df):,} khách)")
+    st.caption(f"• Mô hình: **{'CatBoost Bundle (ROC-AUC 84.8%)' if bundle_ready else predictor_info}**")
+
+    with st.expander("📂 Đổi file CSV / Công cụ hệ thống", expanded=False):
+        uploaded_file = st.file_uploader(
+            "Tải lên file CSV khách hàng mới (cùng cấu trúc Telco):",
+            type=["csv"],
+            key="sidebar_csv_uploader",
+        )
+        if uploaded_file is not None:
+            try:
+                _up_df = pd.read_csv(uploaded_file)
+                if "TotalCharges" in _up_df.columns:
+                    _up_df["TotalCharges"] = pd.to_numeric(
+                        _up_df["TotalCharges"].astype(str).str.strip(), errors="coerce"
+                    ).fillna(0.0)
+                _val_rep = validate_dataset(_up_df)
+                if _val_rep.is_valid:
+                    customers_df = _up_df
+                    active_dataset_name = uploaded_file.name
+                    _bpath = get_bundle_path()
+                    if not st.session_state["demo_mode"] and _bpath and _bpath.exists():
+                        from churn_retention.adapters.predictor.bundle_predictor import BundlePredictor
+                        _bp_up = BundlePredictor()
+                        _bp_up.load(str(_bpath))
+                        _probs_up = _bp_up.predict_batch(
+                            features=customers_df.drop(columns=[c for c in ("customerID", "Churn") if c in customers_df.columns]),
+                            customer_ids=customers_df["customerID"].tolist(),
+                        )
+                    else:
+                        _probs_up = FakePredictor(seed=42).predict_batch(
+                            features=customers_df,
+                            customer_ids=customers_df["customerID"].tolist(),
+                        )
+                    predictions_df = pd.DataFrame({
+                        "customer_id": customers_df["customerID"].tolist(),
+                        "churn_prob": _probs_up,
+                    })
+                    st.success(f"✅ Đã áp dụng `{uploaded_file.name}` ({len(customers_df):,} khách hàng) cho toàn bộ hệ thống!")
+                else:
+                    st.error(f"❌ File có {len(_val_rep.errors)} lỗi cấu trúc Schema:")
+                    st.dataframe(
+                        pd.DataFrame([{"Dòng": e.row or "Bảng", "Cột": e.column, "Lỗi": e.reason} for e in _val_rep.errors]),
+                        width="stretch",
+                    )
+            except Exception as _e:
+                st.error(f"Lỗi đọc file CSV: {_e}")
+        else:
+            _def_val = validate_dataset(customers_df)
+            if _def_val.is_valid:
+                st.success(f"✅ Kiểm định Schema: {_def_val.total_rows:,} dòng hợp lệ 100%.")
+
+        st.markdown("---")
+        st.caption("**Hàng đợi tác vụ (Task Queue & Idempotency):**")
+        if st.button("🚀 Chạy & Ghi Nhận Scoring Job", key="btn_run_scoring", width="stretch", disabled=not bundle_ready):
+            from churn_retention.adapters.task_queue.queue import SqliteTaskQueue
+            from churn_retention.contracts.jobs.models import JobType, TaskJob
+            from churn_retention.entrypoints.worker.worker import JobWorker
+
+            _ds_path = next(
+                (p for p in [
+                    ROOT_DIR / "data" / "raw" / "telco_churn.csv",
+                    ROOT_DIR / "data" / "telco_churn.csv",
+                    ROOT_DIR / "telco_churn.csv",
+                ] if p.exists()),
+                None,
+            )
+            _run_id = f"run-batch-{active_model_version[:10]}"
+            _idem_key = f"scoring:{active_dataset_name}:{active_model_version}"
+            _queue = SqliteTaskQueue()
+            _existing_job = _queue.get_by_idempotency_key(_idem_key)
+            if _existing_job is not None:
+                st.info(
+                    f"♻️ Job chấm điểm này đã tồn tại (trạng thái **{_existing_job.status.value}**). "
+                    "Khóa chống trùng (idempotency key) chặn việc chạy và ghi trùng kết quả."
+                )
+            else:
+                with st.spinner("Đang xử lý qua hàng đợi bằng CatBoost..."):
+                    _job = TaskJob.create(
+                        job_type=JobType.SCORING,
+                        idempotency_key=_idem_key,
+                        payload={
+                            "dataset_path": str(_ds_path) if _ds_path else None,
+                            "bundle_path": str(get_bundle_path()),
+                            "scoring_run_id": _run_id,
+                        },
+                    )
+                    _queue.enqueue(_job)
+                    _done = JobWorker(_queue).process_one()
+                if _done is not None and _done.status.value == "SUCCESS":
+                    st.success(
+                        f"✅ Scoring Job hoàn tất: đã lưu {_done.result.get('total_stored_in_db', 0):,} dự đoán "
+                        f"(mới: {_done.result.get('inserted_new', 0):,})."
+                    )
+                elif _done is not None:
+                    st.error(f"❌ Scoring Job {_done.status.value}: {_done.error_reason}")
+            st.session_state["scoring_run_id"] = _run_id
+
+        from churn_retention.adapters.task_queue.queue import SqliteTaskQueue
+        _q_list = SqliteTaskQueue().list_jobs(limit=5)
+        if _q_list:
+            st.dataframe(
+                pd.DataFrame([
+                    {"Job": j.job_id[:6], "Trạng thái": j.status.value, "Retry": f"{j.retry_count}/{j.max_retries}"}
+                    for j in _q_list
+                ]),
+                width="stretch",
+            )
 
 # Dựng lại danh mục hành động theo tham số người dùng nhập
 current_actions = (
@@ -520,7 +630,21 @@ current_actions = (
     ),
 )
 
+# Nạp sẵn đối tượng BundlePredictor để phục vụ giải thích TreeSHAP nhanh chóng
+@st.cache_resource
+def get_cached_bundle_predictor():
+    bpath = get_bundle_path()
+    if bpath and bpath.exists():
+        try:
+            from churn_retention.adapters.predictor.bundle_predictor import BundlePredictor
+            bp_obj = BundlePredictor()
+            bp_obj.load(str(bpath))
+            return bp_obj
+        except Exception:
+            return None
+    return None
 
+cached_bp = get_cached_bundle_predictor()
 
 # --- CHẠY KHUYẾN NGHỊ VÀ TỔNG HỢP ---
 recommendations = recommend(
@@ -542,14 +666,14 @@ st.markdown(
             <span>🎯</span> Hệ Thống Tối Ưu Hóa Chiến Lược Giữ Chân Khách Hàng
         </div>
         <div class="hero-desc">
-            Khoa học Dịch vụ & Hỗ trợ Ra quyết định: Cá nhân hóa gói can thiệp giữ chân dựa trên Proxy CLV và tối đa hóa Lợi nhuận Ròng Kỳ vọng (ΔEV).
+            Khoa học Dịch vụ & Hỗ trợ Ra quyết định: Cá nhân hóa gói can thiệp giữ chân dựa trên Proxy CLV, giải thích mô hình TreeSHAP và tối đa hóa Lợi nhuận Ròng Kỳ vọng (ΔEV).
         </div>
         <div class="pill-group">
-            <span class="status-pill">📊 Biên lợi nhuận m = {base_margin:.0%}</span>
-            <span class="status-pill">⏱️ Kỳ hạn đánh giá H = {horizon} tháng</span>
-            <span class="status-pill">👥 Tệp khách hàng nạp: {len(customers_df):,}</span>
+            <span class="status-pill">📂 Dữ liệu: {active_dataset_name} ({len(customers_df):,} khách)</span>
+            <span class="status-pill">🤖 Model: CatBoost (ROC-AUC 84.8%)</span>
+            <span class="status-pill">📊 Biên lợi nhuận m = {base_margin:.0%} | H = {horizon} tháng</span>
             <span class="status-pill" style="background: rgba(16, 185, 129, 0.25); border-color: rgba(16, 185, 129, 0.4);">
-                ✅ Hệ thống tối ưu hoạt động
+                ✅ Đã kiểm định Schema & Sẵn sàng
             </span>
         </div>
     </div>
@@ -557,328 +681,15 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- TABS ĐIỀU HƯỚNG (6 TẦNG HỆ THỐNG) ---
-tab_e2e, tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "🚀 Luồng Trọn Vẹn (E2E Pipeline)",
-    "📊 Tổng quan Kinh tế (Overview)",
-    "🔍 Khám Phá Dữ Liệu & Hành Vi Churn (EDA)",
+# --- TABS ĐIỀU HƯỚNG (4 TAB MẠCH LẠC, TRƠN TRU) ---
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📊 Tổng Quan Kinh Tế (Overview)",
+    "🔍 Hành Vi Rời Mạng & Giải Thích AI (EDA & SHAP)",
     "👤 Hồ Sơ Khách Hàng 360° & Đề Xuất Can Thiệp",
-    "🎛️ Phân Tích Độ Nhạy & Mô Phỏng Ngân Sách",
-    "📋 Quản Lý Chiến Dịch (Campaigns)",
+    "🎛️ Tối Ưu Ngân Sách & Quản Lý Chiến Dịch",
 ])
 
-# ==============================================================================
-# TAB E2E: LUỒNG THAO TÁC TRỌN VẸN (TASK 3: GHÉP LUỒNG DỮ LIỆU THẬT)
-# ==============================================================================
-with tab_e2e:
-    st.markdown("### 🚀 Luồng Ứng Dụng Khép Kín Bằng Dữ Liệu Thật (End-to-End Pipeline)")
-    st.caption("Trải nghiệm đầy đủ chuỗi giá trị: **Upload Dataset ➔ Scoring Job ➔ Phân Tích Xác Suất & SHAP ➔ Nhập Ngân Sách ➔ Mô Phỏng ➔ Lưu & Xuất Chiến Dịch** mà không cần sửa file thủ công.")
 
-    # Status Pills
-    bundle_ready = "CatBoost" in predictor_info
-    model_status_badge = '<span class="status-pill status-ready">● Model Sẵn Sàng (CatBoost Bundle)</span>' if bundle_ready else '<span class="status-pill" style="color:#f59e0b; border-color:#f59e0b;">● Chế độ Demo</span>'
-    st.markdown(
-        f"""
-        <div style="background: #0f172a; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
-            <div><span style="color:#94a3b8; font-size:0.8rem;">DATASET HIỆN HÀNH:</span><br><strong style="color:#fff;">{active_dataset_name} ({len(customers_df):,} khách)</strong></div>
-            <div><span style="color:#94a3b8; font-size:0.8rem;">MODEL VERSION:</span><br><strong style="color:#fff;">{active_model_version}</strong></div>
-            <div><span style="color:#94a3b8; font-size:0.8rem;">TRẠNG THÁI SCORING:</span><br>{model_status_badge}</div>
-            <div><span style="color:#94a3b8; font-size:0.8rem;">QUY ƯỚC KINH TẾ:</span><br><span style="background:rgba(99,102,241,0.2); color:#a5b4fc; border:1px solid #6366f1; padding:2px 8px; border-radius:10px; font-size:0.78rem; font-weight:700;">Giả Định Kinh Tế (m={base_margin:.0%}, H={horizon}m)</span></div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # 5 BƯỚC THAO TÁC LIÊN HOÀN
-    step1_exp, step2_exp, step3_exp, step4_exp, step5_exp = st.tabs([
-        "1️⃣ Upload & Kiểm Tra Dataset",
-        "2️⃣ Chạy Scoring Job (Inference)",
-        "3️⃣ Xem Xác Suất & TreeSHAP",
-        "4️⃣ Nhập Ngân Sách & Mô Phỏng",
-        "5️⃣ Lưu & Xuất Chiến Dịch",
-    ])
-
-    with step1_exp:
-        st.markdown("#### 1️⃣ Quản Lý & Tải Lên Tập Dữ Liệu Khách Hàng")
-        st.caption("Kiểm tra toàn diện dữ liệu theo hợp đồng schema trước khi đưa vào mô hình học máy.")
-
-        uploaded_file = st.file_uploader(
-            "Tải lên file CSV khách hàng mới (hoặc dùng mặc định `telco_churn.csv`):",
-            type=["csv"],
-            key="e2e_file_uploader",
-        )
-
-        if uploaded_file is not None:
-            try:
-                uploaded_df = pd.read_csv(uploaded_file)
-                val_report = validate_dataset(uploaded_df)
-                if val_report.is_valid:
-                    st.success(f"✅ File `{uploaded_file.name}` hợp lệ 100%! Tổng số: **{val_report.total_rows:,}** dòng dữ liệu.")
-                    st.dataframe(uploaded_df.head(5), width="stretch")
-                else:
-                    st.error(f"❌ File `{uploaded_file.name}` có {len(val_report.errors)} lỗi dữ liệu:")
-                    err_df = pd.DataFrame([{"Dòng": e.row or "Toàn bảng", "Cột": e.column, "Chi tiết lỗi": e.reason} for e in val_report.errors])
-                    st.dataframe(err_df, width="stretch")
-            except Exception as e:
-                st.error(f"Lỗi đọc file CSV: {e}")
-        else:
-            st.info(f"📂 Đang dùng tập dữ liệu mặc định: **`{active_dataset_name}`** ({len(customers_df):,} bản ghi).")
-            try:
-                _default_val = validate_dataset(customers_df)
-                if _default_val.is_valid:
-                    st.success(f"✅ Kiểm tra schema: {_default_val.total_rows:,} dòng, 0 lỗi (ô `TotalCharges` trống đã được chuẩn hoá về 0).")
-                else:
-                    st.warning(f"⚠️ Kiểm tra schema phát hiện {len(_default_val.errors)} vấn đề trong dữ liệu mặc định.")
-            except Exception as _exc:
-                st.warning(f"Không thể chạy kiểm tra schema cho dữ liệu mặc định: {_exc}")
-            st.dataframe(customers_df.head(4), width="stretch")
-
-    with step2_exp:
-        st.markdown("#### 2️⃣ Chạy Scoring Job Chấm Điểm Rời Mạng")
-        st.caption("Áp dụng mô hình CatBoost đã đóng gói (Bundle) để dự báo xác suất rời mạng cho từng khách hàng.")
-
-        sc_col1, sc_col2 = st.columns([1.5, 1])
-        with sc_col1:
-            st.markdown(f"• **Mô hình triển khai:** `{active_model_version}`")
-            st.markdown(f"• **Tập khách hàng đầu vào:** `{active_dataset_name}` ({len(customers_df):,} khách)")
-            st.markdown(f"• **Cơ chế Inference:** `{predictor_info}`")
-
-            if st.button("🚀 Chạy Scoring Job Trên Toàn Bộ Dữ Liệu", type="primary", key="btn_run_scoring", disabled=not bundle_ready):
-                from churn_retention.adapters.task_queue.queue import SqliteTaskQueue
-                from churn_retention.contracts.jobs.models import JobType, TaskJob
-                from churn_retention.entrypoints.worker.worker import JobWorker
-
-                _ds_path = next(
-                    (p for p in [
-                        ROOT_DIR / "data" / "raw" / "telco_churn.csv",
-                        ROOT_DIR / "data" / "telco_churn.csv",
-                        ROOT_DIR / "telco_churn.csv",
-                    ] if p.exists()),
-                    None,
-                )
-                _run_id = f"run-batch-{active_model_version[:10]}"
-                _idem_key = f"scoring:{active_dataset_name}:{active_model_version}"
-                _queue = SqliteTaskQueue()
-                _existing_job = _queue.get_by_idempotency_key(_idem_key)
-                if _existing_job is not None:
-                    st.info(
-                        f"♻️ Job chấm điểm này đã tồn tại (trạng thái **{_existing_job.status.value}**). "
-                        "Khóa chống trùng (idempotency key) chặn việc chạy và ghi trùng kết quả."
-                    )
-                else:
-                    with st.spinner("Đang đưa job vào hàng đợi và xử lý bằng CatBoost..."):
-                        _job = TaskJob.create(
-                            job_type=JobType.SCORING,
-                            idempotency_key=_idem_key,
-                            payload={
-                                "dataset_path": str(_ds_path) if _ds_path else None,
-                                "bundle_path": str(get_bundle_path()),
-                                "scoring_run_id": _run_id,
-                            },
-                        )
-                        _queue.enqueue(_job)
-                        _done = JobWorker(_queue).process_one()
-                    if _done is not None and _done.status.value == "SUCCESS":
-                        st.success(
-                            f"✅ Scoring Job hoàn tất: đã lưu {_done.result.get('total_stored_in_db', 0):,} dự đoán "
-                            f"(mới: {_done.result.get('inserted_new', 0):,})."
-                        )
-                    elif _done is not None:
-                        st.error(f"❌ Scoring Job {_done.status.value}: {_done.error_reason}")
-                st.session_state["scoring_run_id"] = _run_id
-
-        with sc_col2:
-            st.markdown(
-                f"""
-                <div style="background:rgba(148,163,184,0.12); border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:12px;">
-                    <div style="font-size:0.8rem; color:#64748b; font-weight:700;">CHẤT LƯỢNG MÔ HÌNH:</div>
-                    <div style="font-size:1.1rem; color:inherit; font-weight:800; margin-top:4px;">ROC-AUC: 84.8%</div>
-                    <div style="font-size:0.85rem; color:#059669; font-weight:600;">PR-AUC (AP): 66.5%</div>
-                    <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Đo trên tập kiểm thử khi huấn luyện (seed 42)</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        st.markdown("##### 📋 Mẫu Xác Suất Dự Báo (Probabilities Batch):")
-        st.dataframe(predictions_df.head(6), width="stretch")
-
-    with step3_exp:
-        st.markdown("#### 3️⃣ Phân Phối Xác Suất Rời Mạng & Giải Thích TreeSHAP")
-        st.caption("Minh bạch hóa mô hình hộp đen: Nhận diện các yếu tố thúc đẩy khách hàng rời bỏ theo thuật toán SHAP.")
-
-        shap_col1, shap_col2 = st.columns([1.2, 1])
-
-        # Trích xuất Global SHAP Importance nếu dùng model bundle
-        bp_bundle_path = get_bundle_path()
-        df_importances = pd.DataFrame()
-        test_bp = None
-        if bp_bundle_path and bp_bundle_path.exists():
-            try:
-                from churn_retention.adapters.predictor.bundle_predictor import BundlePredictor
-                test_bp = BundlePredictor()
-                test_bp.load(str(bp_bundle_path))
-                df_importances = get_global_feature_importances(test_bp)
-            except Exception:
-                pass
-
-        with shap_col1:
-            st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
-            st.markdown('<div class="chart-header">🌟 Top 10 Đặc Trưng Quyết Định Rủi Ro Churn (Global SHAP Importance)</div>', unsafe_allow_html=True)
-            if not df_importances.empty:
-                top10_imp = df_importances.head(10).sort_values(by="importance", ascending=True)
-                fig_shap_bar = go.Figure(go.Bar(
-                    x=top10_imp["importance"],
-                    y=top10_imp["feature"],
-                    orientation="h",
-                    marker_color="#6366f1",
-                    text=[f"{v:.1f}%" for v in top10_imp["importance"]],
-                    textposition="auto",
-                ))
-                fig_shap_bar.update_layout(
-                    height=340,
-                    margin=dict(l=10, r=10, t=10, b=10),
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    xaxis=dict(title="Tầm Quan Trọng Tương Đối (%)", gridcolor="rgba(148,163,184,0.25)"),
-                )
-                st.plotly_chart(fig_shap_bar, width="stretch")
-            else:
-                st.info("Biểu đồ SHAP yêu cầu Model Bundle CatBoost thật để phân tích trọng số.")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with shap_col2:
-            st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
-            st.markdown('<div class="chart-header">🔍 Giải Thích SHAP Cho Từng Khách Hàng (Local TreeSHAP)</div>', unsafe_allow_html=True)
-            sample_cid = st.selectbox("Chọn khách hàng để soi nguyên nhân rủi ro:", options=customers_df["customerID"].head(10).tolist(), key="e2e_shap_cid")
-            selected_row = customers_df[customers_df["customerID"] == sample_cid]
-            selected_prob = float(predictions_df.loc[predictions_df["customer_id"] == sample_cid, "churn_prob"].values[0]) if not predictions_df.empty else 0.5
-            st.metric("Xác suất rời mạng (p):", f"{selected_prob:.1%}")
-
-            if test_bp is not None:
-                try:
-                    local_shap_df = explain_single_customer_shap(test_bp, selected_row)
-                    if local_shap_df is not None and not local_shap_df.empty:
-                        st.dataframe(
-                            local_shap_df.head(6)[["feature", "value", "impact", "shap_value"]].style.format({"shap_value": "{:+.3f}"}),
-                            width="stretch",
-                            height=220,
-                        )
-                except Exception:
-                    st.info("Chưa thể tính Local SHAP cho khách hàng này.")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    with step4_exp:
-        st.markdown("#### 4️⃣ Nhập Ngân Sách & Mô Phỏng Can Thiệp")
-        st.caption("Thuật toán Tham lam tỷ số sinh lời chi phí phân bổ tối ưu từng USD ngân sách.")
-        st.info(
-            "ℹ️ Gói được chọn ở đây có thể **khác** gói ΔEV cao nhất ở tab *Hồ sơ Khách hàng 360°*. "
-            "Khi ngân sách bị giới hạn, thuật toán ưu tiên gói có **ΔEV trên mỗi USD** cao nhất (thường là gói rẻ hơn như A2) "
-            "để phục vụ được nhiều khách hơn. Đây là heuristic tham lam (xấp xỉ), không đảm bảo tối ưu tuyệt đối."
-        )
-
-        st.markdown(
-            f"""
-            <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size:0.86rem; color:#312e81;">
-                <strong>🏷️ NHÃN GIẢ ĐỊNH KINH TẾ (Economic Assumptions):</strong>
-                Biên lợi nhuận $m = {base_margin:.0%}$, Kỳ hạn $H = {horizon}$ tháng, Giá trị thay thế $V = \text{{MonthlyCharges}} \times H \times m$.
-                Chi phí can thiệp $C = c_{{\text{{contact}}}} + u \times c_{{\text{{offer}}}}$, mức giảm rủi ro $r = u \times e$.
-                Khách chỉ được can thiệp khi lợi ích ròng $\\Delta EV = B - C > 0$.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        b_col1, b_col2 = st.columns([1, 1.5])
-        with b_col1:
-            e2e_budget = st.slider("Hạn mức ngân sách B (USD):", min_value=1000, max_value=50000, value=15000, step=1000, key="e2e_budget_slider")
-            alloc_e2e = select_actions_under_budget(
-                customers=customers_df,
-                predictions=predictions_df,
-                budget=e2e_budget,
-                actions=current_actions,
-                margin=base_margin,
-                horizon_months=horizon,
-            )
-            interv_e2e = alloc_e2e[alloc_e2e["action_code"] != "A0"]
-            spent_e2e = float(interv_e2e["cost"].sum()) if not interv_e2e.empty else 0.0
-            earned_e2e = float(interv_e2e["net_value"].sum()) if not interv_e2e.empty else 0.0
-            benefit_e2e = float(interv_e2e["benefit"].sum()) if not interv_e2e.empty else 0.0
-
-            st.metric("Ngân sách thực tiêu:", f"${spent_e2e:,.2f} / ${e2e_budget:,}")
-            st.metric("Lợi nhuận ròng thu về (ΔEV):", f"+${earned_e2e:,.2f}")
-            st.metric("Số khách được can thiệp:", f"{len(interv_e2e):,} khách")
-
-        with b_col2:
-            st.markdown("##### 👥 Danh Sách Phân Bổ Tối Ưu Hàng Đầu (Xếp theo Tỷ Số Sinh Lời ΔEV / C):")
-            st.dataframe(
-                interv_e2e[["customerID", "action_code", "action_name", "churn_prob", "cost", "benefit", "net_value", "efficiency_ratio"]].head(8).style.format({
-                    "churn_prob": "{:.1%}",
-                    "cost": "${:,.2f}",
-                    "benefit": "${:,.2f}",
-                    "net_value": "${:,.2f}",
-                    "efficiency_ratio": "{:.2f}",
-                }),
-                width="stretch",
-                height=260,
-            )
-
-    with step5_exp:
-        st.markdown("#### 5️⃣ Lưu & Xuất Chiến Dịch Mô Phỏng")
-        st.caption("Đóng băng kết quả vào cơ sở dữ liệu bất biến và tải về danh sách thực thi CSV.")
-
-        camp_save_col1, camp_save_col2 = st.columns(2)
-        with camp_save_col1:
-            e2e_camp_name = st.text_input("Tên chiến dịch mô phỏng:", value=f"Chiến dịch ngân sách ${e2e_budget:,} - {pd.Timestamp.now().strftime('%d/%m/%Y')}", key="e2e_camp_name_input")
-        with camp_save_col2:
-            e2e_camp_ds_ref = st.text_input("Dataset Reference (Linh hoạt):", value=active_dataset_name, key="e2e_camp_ds_ref")
-
-        col_act1, col_act2 = st.columns(2)
-        with col_act1:
-            if st.button("💾 Lưu Chiến Dịch Bất Biến Vào DB", type="primary", key="btn_save_e2e_camp"):
-                camp_results = {
-                    "summary": {
-                        "total_cost": spent_e2e,
-                        "total_benefit": benefit_e2e,
-                        "total_net_value": earned_e2e,
-                        "n_intervened": len(interv_e2e),
-                        "n_total": len(alloc_e2e),
-                    },
-                    "allocations": alloc_e2e.to_dict("records"),
-                }
-                new_saved_camp = create_campaign(
-                    name=e2e_camp_name,
-                    dataset_id=e2e_camp_ds_ref,
-                    model_version=active_model_version,
-                    scoring_run_id=f"scoring-run-{active_model_version}",
-                    budget=float(e2e_budget),
-                    assumptions={"margin": base_margin, "horizon_months": horizon, "actions": [a.code for a in current_actions]},
-                    results=camp_results,
-                    status=CampaignStatus.SIMULATED,
-                )
-                st.session_state["last_saved_camp_id"] = new_saved_camp.campaign_id
-                st.success(f"🎉 Chiến dịch **'{new_saved_camp.name}'** đã được lưu bất biến vào DB! (Mã ID: `{new_saved_camp.campaign_id}`)")
-
-        with col_act2:
-            last_id = st.session_state.get("last_saved_camp_id")
-            if last_id:
-                csv_bytes = export_campaign_csv(last_id, only_interventions=True)
-                st.download_button(
-                    label="📥 Xuất File CSV Danh Sách Được Chọn (customer_id, hành động, chi phí, lợi ích)",
-                    data=csv_bytes,
-                    file_name=f"campaign_{last_id[:8]}_interventions.csv",
-                    mime="text/csv",
-                    type="secondary",
-                    help="Tải file CSV danh sách khách hàng được chọn can thiệp và tự động cập nhật trạng thái sang EXPORTED.",
-                    key="e2e_csv_dl_btn",
-                )
-            else:
-                st.info("👉 Vui lòng nhấn **'💾 Lưu Chiến Dịch'** trước khi xuất file CSV.")
-
-
-# ==============================================================================
-# TAB 1: TỔNG QUAN KINH TẾ (OVERVIEW)
-# ==============================================================================
 with tab1:
     # 1. Tính toán các chỉ số KPI
     n_total = len(recommendations)
@@ -1150,9 +961,7 @@ with tab1:
             mime="text/markdown",
         )
 
-# ==============================================================================
-# TAB 2: KHÁM PHÁ DỮ LIỆU & HÀNH VI CHURN (EDA PATTERNS)
-# ==============================================================================
+
 with tab2:
     st.markdown("### 🔍 Khám Phá Dữ Liệu & Quy Luật Hành Vi Khách Hàng Rời Bỏ")
     st.caption("Bức tranh dữ liệu toàn tệp viễn thông: Phát hiện các điểm nghẽn trải nghiệm và xác định chân dung nhóm khách hàng có nguy cơ rời mạng cao nhất.")
@@ -1352,9 +1161,50 @@ with tab2:
             st.caption(f"💡 **Insight:** Thanh toán bằng Electronic check rời mạng {_echeck:.1f}%, trong khi thanh toán tự động chỉ {min(_auto):.1f}–{max(_auto):.1f}%. Đây là căn cứ thiết kế gói A2.")
         st.markdown('</div>', unsafe_allow_html=True)
 
-# ==============================================================================
-# TAB 3: HỒ SƠ KHÁCH HÀNG 360° & ĐỀ XUẤT CÁ NHÂN HÓA (CUSTOMER 360)
-# ==============================================================================
+
+    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+    st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
+    st.markdown('<div class="chart-header">🌟 Giải Thích Mô Hình AI: Top 10 Đặc Trưng Quyết Định Rủi Ro Rời Mạng (Global TreeSHAP)</div>', unsafe_allow_html=True)
+
+    shap_g_col1, shap_g_col2 = st.columns([1.3, 1])
+    with shap_g_col1:
+        df_importances = get_global_feature_importances(cached_bp) if cached_bp is not None else pd.DataFrame()
+        if not df_importances.empty:
+            top10_imp = df_importances.head(10).sort_values(by="importance", ascending=True)
+            fig_shap_bar = go.Figure(go.Bar(
+                x=top10_imp["importance"],
+                y=top10_imp["feature"],
+                orientation="h",
+                marker_color="#6366f1",
+                text=[f"{v:.1f}%" for v in top10_imp["importance"]],
+                textposition="auto",
+            ))
+            fig_shap_bar.update_layout(
+                height=320,
+                margin=dict(l=10, r=10, t=10, b=10),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                xaxis=dict(title="Tầm quan trọng tương đối (%)", gridcolor="rgba(148,163,184,0.25)"),
+            )
+            st.plotly_chart(fig_shap_bar, width="stretch")
+        else:
+            st.info("Biểu đồ Global SHAP yêu cầu Model Bundle CatBoost thật.")
+
+    with shap_g_col2:
+        st.markdown(
+            """
+            <div style="background: rgba(148,163,184,0.10); border: 1px solid rgba(148,163,184,0.30); border-radius: 12px; padding: 16px 18px; font-size: 0.88rem; line-height: 1.65;">
+                <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 8px;">🔗 Sự tương thích giữa Mô hình AI (CatBoost) và Chính sách Kinh tế:</div>
+                <div style="margin-bottom: 6px;">• <b>Hợp đồng (Contract) & Thời gian gắn bó (tenure):</b> Là 2 yếu tố có trọng số SHAP lớn nhất quyết định rủi ro rời bỏ ➔ Trực tiếp dẫn tới việc thiết kế gói <b>A3 (Ưu đãi cam kết dài hạn)</b> và <b>A2 (Chuyển đổi hợp đồng)</b>.</div>
+                <div style="margin-bottom: 6px;">• <b>Dịch vụ Internet & Hỗ trợ kỹ thuật (TechSupport / OnlineSecurity):</b> Nhóm đặc trưng kỹ thuật đứng tiếp theo về mức độ ảnh hưởng ➔ Là căn cứ xây dựng gói <b>A1 (Hỗ trợ kỹ thuật & bảo mật chủ động)</b>.</div>
+                <div>• <b>Cước hàng tháng (MonthlyCharges) & Thanh toán (PaymentMethod):</b> Vừa tác động đến xác suất rời mạng ($p$), vừa quyết định Giá trị bảo vệ ($V = 	ext{MonthlyCharges} \times H \times m$).</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
 with tab3:
     st.markdown("### 📋 Danh Sách Đề Xuất & Hồ Sơ Khách Hàng 360°")
     st.caption("Khám phá chi tiết từng khách hàng, thấu hiểu nguyên nhân rời bỏ và xem căn cứ kinh tế của gói can thiệp tối ưu.")
@@ -1604,54 +1454,58 @@ with tab3:
                 )
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # HÀNG 1 - CỘT 3: YẾU TỐ TRẢI NGHIỆM GÂY RỜI BỎ (SỐ NẰM NGANG, RÕ RÀNG)
+
+        # HÀNG 1 - CỘT 3: GIẢI THÍCH LOCAL TREESHAP THẬT CHO KHÁCH HÀNG ĐƯỢC CHỌN
         with r1_col3:
             st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
-            st.markdown('<div class="chart-header">🔍 Yếu Tố Trải Nghiệm Gây Rời Bỏ</div>', unsafe_allow_html=True)
+            st.markdown('<div class="chart-header">🔍 Giải Thích AI (Local TreeSHAP Cá Nhân)</div>', unsafe_allow_html=True)
 
-            # Đánh giá các drivers dựa trên dữ liệu thực tế của khách hàng (Cầu nối logic SHAP)
-            driver_factors = []
-            if cust_info["Contract"] == "Month-to-month":
-                driver_factors.append(("Hợp đồng từng tháng (Month-to-month)", 0.38, "Nguy cơ cao: Thiếu tính ràng buộc dài hạn"))
-            if cust_info["MonthlyCharges"] >= 65:
-                driver_factors.append((f"Cước phí cao (${cust_info['MonthlyCharges']:.0f}/th)", 0.28, "Nguy cơ: Nhạy cảm về giá"))
-            if cust_info["TechSupport"] == "No":
-                driver_factors.append(("Thiếu dịch vụ Tech Support", 0.22, "Nguy cơ: Khó khăn khi gặp sự cố kỹ thuật"))
-            if cust_info["PaymentMethod"] in MANUAL_PAYMENTS:
-                driver_factors.append(("Thanh toán thủ công (Check)", 0.18, "Nguy cơ: Trải nghiệm thanh toán phiền hà"))
-            if cust_info["tenure"] <= 6:
-                driver_factors.append(("Khách hàng mới (< 6 tháng)", 0.15, "Nguy cơ: Chưa hình thành thói quen gắn bó"))
+            local_shap_df = None
+            if cached_bp is not None:
+                try:
+                    cust_single_df = customers_df[customers_df["customerID"] == selected_cust_id]
+                    local_shap_df = explain_single_customer_shap(cached_bp, cust_single_df)
+                except Exception:
+                    local_shap_df = None
 
-            if not driver_factors:
-                driver_factors.append(("Khách hàng có độ ổn định tốt", 0.05, "Tích cực"))
-
-            df_drivers = pd.DataFrame(driver_factors, columns=["factor", "impact", "desc"])
-            
-            fig_drivers = px.bar(
-                df_drivers,
-                x="impact",
-                y="factor",
-                orientation="h",
-                text=[f"+{v:.2f}" for v in df_drivers["impact"]],
-                labels={"impact": "Mức độ tác động", "factor": ""},
-                color_discrete_sequence=["#f43f5e"]
-            )
-            fig_drivers.update_layout(
-                height=260,
-                margin=dict(l=10, r=20, t=10, b=10),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                xaxis=dict(showgrid=True, gridcolor="rgba(148,163,184,0.25)", tickangle=0),
-                yaxis=dict(autorange="reversed"),
-            )
-            fig_drivers.update_traces(
-                textposition="inside",
-                textangle=0,
-                insidetextanchor="middle",
-                textfont=dict(size=12, color="white", family="Plus Jakarta Sans", weight="bold"),
-            )
-            st.plotly_chart(fig_drivers, width="stretch")
+            if local_shap_df is not None and not local_shap_df.empty:
+                top_local = local_shap_df.head(6).iloc[::-1]
+                bar_colors = ["#ef4444" if v > 0 else "#10b981" for v in top_local["shap_value"]]
+                fig_drivers = go.Figure(go.Bar(
+                    x=top_local["shap_value"],
+                    y=[f"{r.feature} ({r.value})" for r in top_local.itertuples()],
+                    orientation="h",
+                    marker_color=bar_colors,
+                    text=[f"{v:+.2f}" for v in top_local["shap_value"]],
+                    textposition="auto",
+                ))
+                fig_drivers.update_layout(
+                    height=260,
+                    margin=dict(l=10, r=20, t=10, b=10),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    xaxis=dict(title="Giá trị đóng góp TreeSHAP (+ tăng rủi ro / - giảm rủi ro)", gridcolor="rgba(148,163,184,0.25)"),
+                )
+                st.plotly_chart(fig_drivers, width="stretch")
+                st.caption("🔴 Cột đỏ đẩy rủi ro rời mạng tăng lên | 🟢 Cột xanh giúp giữ chân khách hàng.")
+            else:
+                driver_factors = []
+                if cust_info["Contract"] == "Month-to-month":
+                    driver_factors.append(("Hợp đồng từng tháng (Month-to-month)", 0.38))
+                if cust_info["MonthlyCharges"] >= 65:
+                    driver_factors.append((f"Cước phí cao (${cust_info['MonthlyCharges']:.0f}/th)", 0.28))
+                if cust_info["TechSupport"] == "No":
+                    driver_factors.append(("Thiếu dịch vụ Tech Support", 0.22))
+                if cust_info["PaymentMethod"] in MANUAL_PAYMENTS:
+                    driver_factors.append(("Thanh toán thủ công (Check)", 0.18))
+                if not driver_factors:
+                    driver_factors.append(("Khách hàng có độ ổn định tốt", 0.05))
+                df_drivers = pd.DataFrame(driver_factors, columns=["factor", "impact"])
+                fig_drivers = px.bar(df_drivers, x="impact", y="factor", orientation="h", color_discrete_sequence=["#f43f5e"])
+                fig_drivers.update_layout(height=260, margin=dict(l=10, r=20, t=10, b=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+                st.plotly_chart(fig_drivers, width="stretch")
             st.markdown('</div>', unsafe_allow_html=True)
+
 
         # HÀNG 2: SO SÁNH GIÁ TRỊ RÒNG (ΔEV) & LUẬN CỨ RA QUYẾT ĐỊNH (2 CỘT RỘNG RÃI, THOÁNG MẮT)
         r2_col1, r2_col2 = st.columns([1.35, 1])
@@ -1733,13 +1587,216 @@ with tab3:
 
             st.markdown('</div>', unsafe_allow_html=True)
 
+
 # ==============================================================================
-# TAB 4: PHÂN TÍCH ĐỘ NHẠY & MÔ PHỎNG NGÂN SÁCH (SENSITIVITY & BUDGET SIMULATION)
+# TAB 4: TỐI ƯU NGÂN SÁCH & QUẢN LÝ CHIẾN DỊCH (BUDGET KNAPSACK & CAMPAIGNS)
 # ==============================================================================
 with tab4:
-    st.markdown("### 📈 Phân Tích Độ Nhạy & Mô Phỏng Giới Hạn Ngân Sách")
-    st.caption("Khảo sát sự thay đổi của lợi nhuận ròng khi biên lợi nhuận (m) thay đổi, và mô phỏng tối ưu hóa danh mục can thiệp khi bị giới hạn ngân sách.")
+    st.markdown("### 🎛️ Tối Ưu Hóa Phân Bổ Ngân Sách & Quản Lý Chiến Dịch")
+    st.caption("Phân bổ ngân sách giới hạn theo tỷ suất sinh lời trên chi phí (ΔEV / Cost), đóng băng chiến dịch vào cơ sở dữ liệu và xuất danh sách thực thi CSV.")
 
+    # 1. MÔ PHỎNG TỐI ƯU NGÂN SÁCH (DÙNG HÀM CHUẨN select_actions_under_budget)
+    st.markdown("#### 1. 💰 Phân Bổ Tối Ưu Theo Hạn Mức Ngân Sách (Budget-Constrained Optimization)")
+    st.info(
+        "ℹ️ **Lưu ý thuật toán:** Khi ngân sách bị giới hạn, hệ thống sử dụng heuristic tham lam ưu tiên gói có **tỷ suất ΔEV trên mỗi USD chi phí** cao nhất "
+        "(nên có thể chọn gói tiết kiệm hơn như A2 thay vì A3 ở tab Hồ sơ 360° để tối đa hóa tổng lợi nhuận toàn tệp). Đây là nghiệm xấp xỉ thực tế."
+    )
+
+    current_total_cost = float(interventions["cost"].sum()) if not interventions.empty else 30000.0
+    sim_col_left, sim_col_right = st.columns([1, 1.4])
+
+    with sim_col_left:
+        st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-header">⚙️ Thiết Lập Hạn Mức Ngân Sách</div>', unsafe_allow_html=True)
+
+        e2e_budget = st.slider(
+            "Hạn mức ngân sách B (USD):",
+            min_value=1000,
+            max_value=max(int(current_total_cost) + 5000, 50000),
+            value=15000,
+            step=1000,
+            key="e2e_budget_slider",
+            help="Thuật toán ưu tiên khách hàng và gói can thiệp có tỷ số ΔEV / Cost cao nhất cho tới khi chạm trần ngân sách.",
+        )
+
+        alloc_e2e = select_actions_under_budget(
+            customers=customers_df,
+            predictions=predictions_df,
+            budget=e2e_budget,
+            actions=current_actions,
+            margin=base_margin,
+            horizon_months=horizon,
+        )
+        interv_e2e = alloc_e2e[alloc_e2e["action_code"] != "A0"]
+        spent_e2e = float(interv_e2e["cost"].sum()) if not interv_e2e.empty else 0.0
+        earned_e2e = float(interv_e2e["net_value"].sum()) if not interv_e2e.empty else 0.0
+        benefit_e2e = float(interv_e2e["benefit"].sum()) if not interv_e2e.empty else 0.0
+        budget_utilization = (spent_e2e / e2e_budget * 100) if e2e_budget > 0 else 0.0
+
+        st.metric("Ngân sách thực tiêu:", f"${spent_e2e:,.2f} / ${e2e_budget:,} ({budget_utilization:.1f}%)")
+        st.metric("Lợi nhuận ròng thu về (ΔEV):", f"+${earned_e2e:,.2f}")
+        st.metric("Số khách được can thiệp:", f"{len(interv_e2e):,} khách")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with sim_col_right:
+        st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="chart-header">📊 Phân Bổ Ngân Sách & Danh Sách Ưu Tiên Hàng Đầu</div>', unsafe_allow_html=True)
+
+        if not interv_e2e.empty:
+            sim_action_breakdown = interv_e2e.groupby("action_code").agg(
+                n_cust=("customerID", "count"),
+                cost_sum=("cost", "sum"),
+                net_sum=("net_value", "sum"),
+            ).reset_index()
+
+            fig_sim = go.Figure(data=[
+                go.Bar(
+                    name="Ngân Sách Tiêu ($)",
+                    x=sim_action_breakdown["action_code"],
+                    y=sim_action_breakdown["cost_sum"],
+                    marker_color="#f97316",
+                    text=[f"${v:,.0f}" for v in sim_action_breakdown["cost_sum"]],
+                    textposition="auto",
+                ),
+                go.Bar(
+                    name="Lợi Nhuận Ròng Thu Về ($)",
+                    x=sim_action_breakdown["action_code"],
+                    y=sim_action_breakdown["net_sum"],
+                    marker_color="#10b981",
+                    text=[f"${v:,.0f}" for v in sim_action_breakdown["net_sum"]],
+                    textposition="auto",
+                ),
+            ])
+            fig_sim.update_layout(
+                barmode="group",
+                height=220,
+                margin=dict(l=10, r=10, t=10, b=10),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                yaxis=dict(title="Giá trị ($)", gridcolor="rgba(148,163,184,0.25)"),
+                xaxis=dict(title="Gói can thiệp", tickangle=0),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            )
+            st.plotly_chart(fig_sim, width="stretch")
+
+            st.dataframe(
+                interv_e2e[["customerID", "action_code", "action_name", "churn_prob", "cost", "benefit", "net_value", "efficiency_ratio"]].head(8).style.format({
+                    "churn_prob": "{:.1%}",
+                    "cost": "${:,.2f}",
+                    "benefit": "${:,.2f}",
+                    "net_value": "${:,.2f}",
+                    "efficiency_ratio": "{:.2f}",
+                }),
+                width="stretch",
+                height=210,
+            )
+        else:
+            st.info("Hạn mức ngân sách quá nhỏ để thực hiện bất kỳ hành động can thiệp nào.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # 2. LƯU & XUẤT CHIẾN DỊCH NGAY TẠI CHỖ (1 LUỒNG LIỀN MẠCH)
+    st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
+    st.markdown('<div class="chart-header">💾 Chốt Kịch Bản Ngân Sách & Xuất Chiến Dịch Thực Thi (.CSV)</div>', unsafe_allow_html=True)
+
+    camp_c1, camp_c2, camp_c3 = st.columns([1.4, 1, 1.2])
+    with camp_c1:
+        e2e_camp_name = st.text_input(
+            "Tên chiến dịch:",
+            value=f"Chiến dịch ngân sách ${e2e_budget:,} - {pd.Timestamp.now().strftime('%d/%m/%Y')}",
+            key="e2e_camp_name_input",
+        )
+    with camp_c2:
+        e2e_camp_ds_ref = st.text_input(
+            "Tập dữ liệu áp dụng:",
+            value=active_dataset_name,
+            key="e2e_camp_ds_ref",
+        )
+    with camp_c3:
+        st.write("")
+        if st.button("💾 Lưu Chiến Dịch Vào Hệ Thống", type="primary", key="btn_save_e2e_camp", width="stretch"):
+            camp_results = {
+                "summary": {
+                    "total_cost": spent_e2e,
+                    "total_benefit": benefit_e2e,
+                    "total_net_value": earned_e2e,
+                    "n_intervened": len(interv_e2e),
+                    "n_total": len(alloc_e2e),
+                },
+                "allocations": alloc_e2e.to_dict("records"),
+            }
+            new_saved_camp = create_campaign(
+                name=e2e_camp_name,
+                dataset_id=e2e_camp_ds_ref,
+                model_version=active_model_version,
+                scoring_run_id=f"scoring-run-{active_model_version}",
+                budget=float(e2e_budget),
+                assumptions={"margin": base_margin, "horizon_months": horizon, "actions": [a.code for a in current_actions]},
+                results=camp_results,
+                status=CampaignStatus.SIMULATED,
+            )
+            st.session_state["last_saved_camp_id"] = new_saved_camp.campaign_id
+            st.success(f"🎉 Đã lưu chiến dịch **'{new_saved_camp.name}'**!")
+
+    last_id = st.session_state.get("last_saved_camp_id")
+    if last_id:
+        csv_bytes = export_campaign_csv(last_id, only_interventions=True)
+        st.download_button(
+            label="📥 Tải Ngay File CSV Danh Sách Khách Hàng Được Chọn (customer_id, action_code, cost, benefit, net_value)",
+            data=csv_bytes,
+            file_name=f"campaign_{last_id[:8]}_interventions.csv",
+            mime="text/csv",
+            key="e2e_csv_dl_btn",
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # 3. LỊCH SỬ CÁC CHIẾN DỊCH ĐÃ LƯU
+    st.markdown("#### 2. 📂 Lịch Sử Chiến Dịch Đã Lưu & Tải Báo Cáo CSV")
+    all_campaigns = list_campaigns()
+    if not all_campaigns:
+        st.info("Hiện chưa có chiến dịch nào được lưu. Hãy bấm **'💾 Lưu Chiến Dịch Vào Hệ Thống'** ở trên để tạo chiến dịch đầu tiên.")
+    else:
+        camp_options = {c.campaign_id: f"{c.name} [{c.status.value}] — Ngân sách: ${c.budget:,.0f} — Ngày: {c.created_at[:10]}" for c in all_campaigns}
+        selected_camp_id = st.selectbox(
+            "Chọn chiến dịch đã lưu để xem lại hoặc xuất CSV:",
+            options=list(camp_options.keys()),
+            format_func=lambda x: camp_options[x],
+        )
+        if selected_camp_id:
+            selected_camp = get_campaign(selected_camp_id)
+            summary_data = selected_camp.results.get("summary", {})
+
+            kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
+            with kpi_col1:
+                st.metric("Hạn Mức Ngân Sách", f"${selected_camp.budget:,.2f}")
+            with kpi_col2:
+                st.metric("Chi Phí Thực Tiêu", f"${summary_data.get('total_cost', 0.0):,.2f}")
+            with kpi_col3:
+                st.metric("Lợi Nhuận Ròng (ΔEV)", f"+${summary_data.get('total_net_value', 0.0):,.2f}")
+            with kpi_col4:
+                st.metric("Trạng Thái", selected_camp.status.value)
+
+            camp_df = export_campaign_dataframe(selected_camp.campaign_id)
+            interv_df = camp_df[camp_df["action_code"] != "A0"] if not camp_df.empty and "action_code" in camp_df.columns else camp_df
+            if not interv_df.empty:
+                st.dataframe(
+                    interv_df.head(10).style.format({"cost": "${:,.2f}", "benefit": "${:,.2f}", "net_value": "${:,.2f}"}),
+                    width="stretch",
+                    height=220,
+                )
+            csv_data = export_campaign_csv(selected_camp.campaign_id, only_interventions=True)
+            st.download_button(
+                label=f"📥 Xuất File CSV Chiến Dịch '{selected_camp.name}'",
+                data=csv_data,
+                file_name=f"campaign_{selected_camp.campaign_id[:8]}.csv",
+                mime="text/csv",
+                key="history_csv_dl_btn",
+            )
+
+    st.markdown("---")
+
+    # 4. PHÂN TÍCH ĐỘ NHẠY THEO MARGIN (m)
     # 1. PHÂN TÍCH ĐỘ NHẠY THEO MARGIN (m)
     sens_df = sensitivity_by_margin(
         customers=customers_df,
@@ -1749,7 +1806,7 @@ with tab4:
         horizon_months=horizon,
     )
 
-    st.markdown("#### 1. Độ Nhạy Khi Biên Lợi Nhuận Giả Định (m) Biến Động")
+    st.markdown("#### 3. 📈 Phân Tích Độ Nhạy Khi Biên Lợi Nhuận Giả Định (m) Biến Động")
     
     sens_col1, sens_col2 = st.columns([1.2, 1])
 
@@ -1847,278 +1904,3 @@ with tab4:
         width="stretch",
     )
 
-    st.markdown("---")
-
-    # 2. MÔ PHỎNG GIỚI HẠN NGÂN SÁCH (BUDGET CONSTRAINT SANDBOX)
-    st.markdown("#### 2. 🎛️ Mô Phỏng Tối Ưu Khi Giới Hạn Ngân Sách (Budget Constraint Sandbox)")
-    st.caption("Trong thực tế, doanh nghiệp không thể giải ngân không giới hạn. Công cụ này cho phép bạn thử nghiệm hạn mức ngân sách và tự động lọc danh sách khách hàng mang lại ROI cao nhất.")
-
-    current_total_cost = float(interventions["cost"].sum())
-    
-    sim_col_left, sim_col_right = st.columns([1, 1.4])
-
-    with sim_col_left:
-        st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
-        st.markdown('<div class="chart-header">⚙️ Thiết Lập Hạn Mức Ngân Sách</div>', unsafe_allow_html=True)
-
-        budget_cap = st.slider(
-            "Hạn mức ngân sách tối đa ($):",
-            min_value=2000,
-            max_value=max(int(current_total_cost) + 5000, 40000),
-            value=max(2000, min(int(st.session_state.get("e2e_budget_slider", 15000)), max(int(current_total_cost) + 5000, 40000))),
-            step=1000,
-            help="Hệ thống sẽ ưu tiên khách hàng có ROI = ΔEV / Cost cao nhất cho đến khi hết ngân sách này.",
-        )
-
-        # Thuật toán phân bổ ngân sách: Sắp xếp theo ROI = ΔEV / Cost
-        interv_sim = interventions.copy()
-        interv_sim["roi_ratio"] = interv_sim["net_value"] / interv_sim["cost"]
-        interv_sim = interv_sim.sort_values(by=["roi_ratio", "net_value"], ascending=[False, False]).reset_index(drop=True)
-        interv_sim["cum_cost"] = interv_sim["cost"].cumsum()
-        
-        approved_sim = interv_sim[interv_sim["cum_cost"] <= budget_cap]
-        
-        n_approved = len(approved_sim)
-        actual_spent = float(approved_sim["cost"].sum()) if not approved_sim.empty else 0
-        actual_earned = float(approved_sim["net_value"].sum()) if not approved_sim.empty else 0
-        budget_utilization = (actual_spent / budget_cap * 100) if budget_cap > 0 else 0
-        sim_roi = (actual_earned / actual_spent * 100) if actual_spent > 0 else 0
-        retention_efficiency = (actual_earned / total_net_value * 100) if total_net_value > 0 else 0
-
-        st.markdown(
-            f"""
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-top: 10px;">
-                <div style="font-size: 0.85rem; color: #64748b; font-weight: 600; margin-bottom: 4px;">TỔNG KẾT PHÂN BỔ:</div>
-                <div style="font-size: 0.92rem; color: #0f172a; padding: 4px 0;">• Khách hàng được duyệt: <strong>{n_approved:,} / {len(interventions):,}</strong> ({n_approved/len(interventions):.1%})</div>
-                <div style="font-size: 0.92rem; color: #0f172a; padding: 4px 0;">• Ngân sách thực tiêu: <strong>${actual_spent:,.2f}</strong> / ${budget_cap:,} ({budget_utilization:.1%})</div>
-                <div style="font-size: 0.92rem; color: #059669; padding: 4px 0; font-weight: 700;">• Lợi nhuận ròng thu về: +${actual_earned:,.2f}</div>
-                <div style="font-size: 0.92rem; color: #4338ca; padding: 4px 0;">• Đạt: <strong>{retention_efficiency:.1%}</strong> hiệu quả kinh tế so với ngân sách vô hạn.</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with sim_col_right:
-        st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
-        st.markdown('<div class="chart-header">📊 Phân Bổ Ngân Sách Theo Gói Can Thiệp Trong Hạn Mức</div>', unsafe_allow_html=True)
-
-        if not approved_sim.empty:
-            sim_action_breakdown = approved_sim.groupby("action_code").agg(
-                n_cust=("customerID", "count"),
-                cost_sum=("cost", "sum"),
-                net_sum=("net_value", "sum"),
-            ).reset_index()
-
-            fig_sim = go.Figure(data=[
-                go.Bar(
-                    name="Ngân Sách Tiêu ($)",
-                    x=sim_action_breakdown["action_code"],
-                    y=sim_action_breakdown["cost_sum"],
-                    marker_color="#f97316",
-                    text=[f"${v:,.0f}" for v in sim_action_breakdown["cost_sum"]],
-                    textposition="auto",
-                ),
-                go.Bar(
-                    name="Lợi Nhuận Ròng Thu Về ($)",
-                    x=sim_action_breakdown["action_code"],
-                    y=sim_action_breakdown["net_sum"],
-                    marker_color="#10b981",
-                    text=[f"${v:,.0f}" for v in sim_action_breakdown["net_sum"]],
-                    textposition="auto",
-                ),
-            ])
-            fig_sim.update_layout(
-                barmode="group",
-                height=260,
-                margin=dict(l=10, r=10, t=10, b=10),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                yaxis=dict(title="Giá trị ($)", gridcolor="rgba(148,163,184,0.25)"),
-                xaxis=dict(title="Gói can thiệp", tickangle=0),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            )
-            st.plotly_chart(fig_sim, width="stretch")
-        else:
-            st.info("Hạn mức ngân sách quá nhỏ để thực hiện bất kỳ hành động can thiệp nào.")
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# ==============================================================================
-# TAB 5: QUẢN LÝ CHIẾN DỊCH (CAMPAIGN MANAGEMENT - TASK 2)
-# ==============================================================================
-with tab5:
-    st.markdown("### 📋 Quản Lý Chiến Dịch Mô Phỏng Giữ Chân Khách Hàng")
-    st.caption("Lưu trữ, theo dõi và xuất danh sách các chiến dịch can thiệp theo ngân sách với nguyên tắc bất biến (Immutability).")
-
-    # Banner giải thích nguyên tắc bất biến
-    st.markdown(
-        """
-        <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; padding: 16px 20px; color: #fff; margin-bottom: 20px; border-left: 4px solid #6366f1;">
-            <div style="font-weight: 700; font-size: 1rem; color: #a5b4fc; margin-bottom: 4px;">🔒 NGUYÊN TẮC BẤT BIẾN & TRUY VẾT DỮ LIỆU:</div>
-            <div style="font-size: 0.88rem; color: #cbd5e1; line-height: 1.5;">
-                Mỗi chiến dịch được gắn chặt với 3 tham chiếu bất biến: <strong>Dataset ID</strong>, <strong>Model Version</strong>, và <strong>Scoring Run ID</strong>. 
-                Khi đổi sang mô hình mới hoặc tập dữ liệu mới, hệ thống sẽ tạo một chiến dịch mới độc lập và bảo toàn 100% kết quả lịch sử của chiến dịch cũ, không bao giờ ghi đè.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    all_campaigns = list_campaigns()
-
-    camp_sub1, camp_sub2 = st.tabs(["📂 Danh Sách Chiến Dịch Đã Lưu", "➕ Tạo Chiến Dịch Mới Từ Mô Phỏng"])
-
-    with camp_sub1:
-        if not all_campaigns:
-            st.info("ℹ️ Hiện chưa có chiến dịch nào được lưu. Bạn có thể chuyển sang tab **'➕ Tạo Chiến Dịch Mới Từ Mô Phỏng'** để khởi tạo chiến dịch đầu tiên.")
-        else:
-            camp_options = {c.campaign_id: f"{c.name} [{c.status.value}] — ${c.budget:,.0f} — {c.created_at[:19]}" for c in all_campaigns}
-            selected_camp_id = st.selectbox(
-                "Chọn chiến dịch để xem chi tiết & xuất báo cáo:",
-                options=list(camp_options.keys()),
-                format_func=lambda x: camp_options[x],
-            )
-
-            if selected_camp_id:
-                selected_camp = get_campaign(selected_camp_id)
-                summary_data = selected_camp.results.get("summary", {})
-
-                # Metadata Cards
-                meta_col1, meta_col2, meta_col3, meta_col4 = st.columns(4)
-                with meta_col1:
-                    st.metric("Tên chiến dịch", selected_camp.name)
-                    st.caption(f"ID: `{selected_camp.campaign_id[:8]}...`")
-                with meta_col2:
-                    st.metric("Dataset Reference", selected_camp.dataset_id)
-                    st.caption(f"Created: {selected_camp.created_at[:10]}")
-                with meta_col3:
-                    st.metric("Model Version", selected_camp.model_version)
-                    st.caption(f"Scoring Run: `{selected_camp.scoring_run_id}`")
-                with meta_col4:
-                    badge_color = "#10b981" if selected_camp.status == CampaignStatus.EXPORTED else "#3b82f6"
-                    st.metric("Trạng Thái", selected_camp.status.value)
-                    st.markdown(f'<span style="background:{badge_color}22; color:{badge_color}; border:1px solid {badge_color}; padding:2px 8px; border-radius:12px; font-size:0.78rem; font-weight:700;">{selected_camp.status.value}</span>', unsafe_allow_html=True)
-
-                st.markdown("---")
-
-                # 4 KPI cards của chiến dịch
-                kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
-                with kpi_col1:
-                    st.metric("Hạn Mức Ngân Sách ($)", f"${selected_camp.budget:,.2f}")
-                with kpi_col2:
-                    spent_val = summary_data.get("total_cost", 0.0)
-                    st.metric("Chi Phí Thực Tiêu ($)", f"${spent_val:,.2f}")
-                with kpi_col3:
-                    benefit_val = summary_data.get("total_benefit", 0.0)
-                    st.metric("Lợi Ích Kỳ Vọng ($)", f"${benefit_val:,.2f}")
-                with kpi_col4:
-                    net_val = summary_data.get("total_net_value", 0.0)
-                    st.metric("Lợi Nhuận Ròng (ΔEV)", f"+${net_val:,.2f}")
-
-                st.markdown("#### 👥 Danh Sách Khách Hàng Được Chọn Can Thiệp")
-                camp_df = export_campaign_dataframe(selected_camp.campaign_id)
-                interv_df = camp_df[camp_df["action_code"] != "A0"] if not camp_df.empty and "action_code" in camp_df.columns else camp_df
-
-                if not interv_df.empty:
-                    st.dataframe(
-                        interv_df.style.format({
-                            "cost": "${:,.2f}",
-                            "benefit": "${:,.2f}",
-                            "net_value": "${:,.2f}",
-                        }),
-                        width="stretch",
-                        height=280,
-                    )
-                else:
-                    st.info("Chiến dịch này không có khách hàng nào được phân bổ can thiệp tốn phí (Toàn bộ là A0).")
-
-                # Nút xuất CSV (Step 3 của Task 2)
-                csv_data = export_campaign_csv(selected_camp.campaign_id, only_interventions=True)
-                st.download_button(
-                    label="📥 Xuất File CSV Danh Sách Được Chọn (customer_id, hành động, chi phí, lợi ích)",
-                    data=csv_data,
-                    file_name=f"campaign_{selected_camp.name.replace(' ', '_')}_{selected_camp.campaign_id[:8]}.csv",
-                    mime="text/csv",
-                    type="primary",
-                    help="Xuất danh sách khách hàng được chọn can thiệp và tự động chuyển trạng thái sang EXPORTED.",
-                )
-
-    with camp_sub2:
-        st.markdown("#### ➕ Tạo Bản Ghi Chiến Dịch Mới")
-        st.caption("Khởi tạo chiến dịch lưu trữ từ mô phỏng ngân sách hiện tại.")
-
-        cur_model_version = "catboost-20261018T130222-seed42" if "CatBoost" in predictor_info else "fake-v1"
-        cur_dataset_id = "telco_churn.csv"
-        cur_scoring_run_id = f"scoring-run-{cur_model_version}"
-
-        c_col1, c_col2 = st.columns(2)
-        with c_col1:
-            new_camp_name = st.text_input("Tên chiến dịch:", value=f"Chiến dịch giữ chân - {pd.Timestamp.now().strftime('%d/%m/%Y')}")
-            new_camp_budget = st.number_input("Hạn mức ngân sách ($):", min_value=0.0, value=float(st.session_state.get("e2e_budget_slider", 15000)), step=1000.0)
-        with c_col2:
-            st.text_input("Dataset Reference (Linh hoạt):", value=active_dataset_name, help="Mã định danh hoặc tên tập dữ liệu áp dụng cho chiến dịch này.")
-            st.text_input("Model Version (bất biến):", value=cur_model_version, disabled=True)
-
-        if st.button("🚀 Khởi Tạo & Chạy Phân Bổ Chiến Dịch Mới", type="primary"):
-            # Chạy thuật toán phân bổ ngân sách
-            alloc_df = select_actions_under_budget(
-                customers=customers_df,
-                predictions=predictions_df,
-                budget=new_camp_budget,
-                actions=current_actions,
-                margin=base_margin,
-                horizon_months=horizon,
-            )
-            interv_alloc = alloc_df[alloc_df["action_code"] != "A0"]
-
-            camp_results = {
-                "summary": {
-                    "total_cost": float(interv_alloc["cost"].sum()) if not interv_alloc.empty else 0.0,
-                    "total_benefit": float(interv_alloc["benefit"].sum()) if not interv_alloc.empty else 0.0,
-                    "total_net_value": float(interv_alloc["net_value"].sum()) if not interv_alloc.empty else 0.0,
-                    "n_intervened": len(interv_alloc),
-                    "n_total": len(alloc_df),
-                },
-                "allocations": alloc_df.to_dict("records"),
-            }
-
-            created_camp = create_campaign(
-                name=new_camp_name,
-                dataset_id=cur_dataset_id,
-                model_version=cur_model_version,
-                scoring_run_id=cur_scoring_run_id,
-                budget=new_camp_budget,
-                assumptions={
-                    "margin": base_margin,
-                    "horizon_months": horizon,
-                    "actions": [a.code for a in current_actions],
-                },
-                results=camp_results,
-                status=CampaignStatus.SIMULATED,
-            )
-            st.success(f"🎉 Đã tạo thành công chiến dịch **'{created_camp.name}'** (ID: `{created_camp.campaign_id}`)!")
-            st.rerun()
-
-    # --- THEO DÕI HÀNG ĐỢI TASK QUEUE & CHỐNG TRÙNG LẶP (TASK 4) ---
-    with st.expander("⚙️ Giám Sát Hạ Tầng Task Queue & Khóa Chống Trùng (Retry & Idempotency)"):
-        st.caption("Truy vết trạng thái các tác vụ ngầm (Background Jobs), chính sách Retry có giới hạn và cơ chế Idempotent.")
-        from churn_retention.adapters.task_queue.queue import SqliteTaskQueue
-        queue = SqliteTaskQueue()
-        jobs = queue.list_jobs(limit=10)
-        if jobs:
-            jobs_df = pd.DataFrame([
-                {
-                    "Job ID": j.job_id[:8] + "...",
-                    "Loại Job": j.job_type.value,
-                    "Idempotency Key": j.idempotency_key,
-                    "Trạng Thái": j.status.value,
-                    "Số lần Retry": f"{j.retry_count}/{j.max_retries}",
-                    "Lỗi (nếu có)": j.error_reason or "None",
-                    "Thời gian": j.created_at[:19],
-                }
-                for j in jobs
-            ])
-            st.dataframe(jobs_df, width="stretch")
-        else:
-            st.info("Hiện chưa có tác vụ nền nào trong hàng đợi.")
