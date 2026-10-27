@@ -79,17 +79,13 @@ def fit_calibration(
     else:
         raw = clone(pipeline)
         if not isinstance(raw.named_steps.get("model"), LogisticRegression):
-            raise ValueError(
-                "Calibration requires a logistic pipeline with a model step"
-            )
+            raise ValueError("Calibration requires a logistic pipeline with a model step")
         raw.set_params(model__class_weight=None, model__random_state=config.seed)
         raw.fit(X_train, y_train)
 
     probabilities = {"none": raw.predict_proba(X_val)[:, 1]}
     for method in ("sigmoid", "isotonic"):
-        folds = StratifiedKFold(
-            n_splits=config.n_splits, shuffle=True, random_state=config.seed
-        )
+        folds = StratifiedKFold(n_splits=config.n_splits, shuffle=True, random_state=config.seed)
         calibrated = CalibratedClassifierCV(
             estimator=clone(raw), method=method, cv=folds, ensemble=False, n_jobs=1
         )
@@ -115,9 +111,7 @@ def fit_calibration(
     return result
 
 
-def reliability_table(
-    y_true: np.ndarray, y_proba: np.ndarray, n_bins: int = 10
-) -> pd.DataFrame:
+def reliability_table(y_true: np.ndarray, y_proba: np.ndarray, n_bins: int = 10) -> pd.DataFrame:
     """Aggregate equal-width probability bins [i/B, (i+1)/B), last includes 1.
 
     Empty bins have count=0 and undefined (NaN) means/rates, written as empty CSV
@@ -131,9 +125,7 @@ def reliability_table(
         raise ValueError("Labels and probabilities must be equal-length 1D arrays")
     if not labels.size or not np.isin(labels, [0, 1]).all():
         raise ValueError("Labels must be nonempty and contain only 0/1")
-    if not np.isfinite(probabilities).all() or np.any(
-        (probabilities < 0) | (probabilities > 1)
-    ):
+    if not np.isfinite(probabilities).all() or np.any((probabilities < 0) | (probabilities > 1)):
         raise ValueError("Probabilities must be finite and in [0, 1]")
     bin_ids = np.minimum((probabilities * n_bins).astype(int), n_bins - 1)
     rows = []
@@ -146,9 +138,7 @@ def reliability_table(
                 "lower": bin_id / n_bins,
                 "upper": (bin_id + 1) / n_bins,
                 "count": count,
-                "mean_probability": float(probabilities[mask].mean())
-                if count
-                else np.nan,
+                "mean_probability": float(probabilities[mask].mean()) if count else np.nan,
                 "churn_rate": float(labels[mask].mean()) if count else np.nan,
             }
         )
@@ -161,9 +151,7 @@ def _table_ece(table: pd.DataFrame) -> float:
     return float((populated["count"] * gaps).sum() / populated["count"].sum())
 
 
-def expected_calibration_error(
-    y_true: np.ndarray, y_proba: np.ndarray, n_bins: int = 10
-) -> float:
+def expected_calibration_error(y_true: np.ndarray, y_proba: np.ndarray, n_bins: int = 10) -> float:
     """ECE = sum_b (n_b / N) * abs(mean_probability_b - churn_rate_b).
 
     Default: 10 equal-width bins [i/10, (i+1)/10), with 1 in the final bin.
@@ -177,9 +165,7 @@ def write_reliability_tables(result: CalibrationResult, directory: Path) -> None
     """Persist only ten-bin validation aggregates, in deterministic CSV format."""
     directory.mkdir(parents=True, exist_ok=True)
     for name, table in result.reliability.items():
-        table.to_csv(
-            directory / f"reliability_{name}.csv", index=False, float_format="%.10f"
-        )
+        table.to_csv(directory / f"reliability_{name}.csv", index=False, float_format="%.10f")
 
 
 def select_calibration(metrics: dict[str, dict[str, float]]) -> str:
@@ -194,8 +180,7 @@ def select_calibration(metrics: dict[str, dict[str, float]]) -> str:
     eligible = [
         name
         for name in ("sigmoid", "isotonic")
-        if baseline["brier_score"] - metrics[name]["brier_score"]
-        >= MIN_BRIER_IMPROVEMENT - 1e-12
+        if baseline["brier_score"] - metrics[name]["brier_score"] >= MIN_BRIER_IMPROVEMENT - 1e-12
         and baseline["roc_auc"] - metrics[name]["roc_auc"] <= MAX_ROC_AUC_DROP + 1e-12
     ]
     return min(
@@ -257,6 +242,143 @@ def significant_thresholds(result: CalibrationResult) -> pd.DataFrame:
 
 def write_calibration_artifacts(result: CalibrationResult, directory: Path) -> None:
     write_reliability_tables(result, directory)
-    result.thresholds.to_csv(
-        directory / "thresholds.csv", index=False, float_format="%.10f"
+    result.thresholds.to_csv(directory / "thresholds.csv", index=False, float_format="%.10f")
+
+
+def run_calibration(config: TuneConfig) -> CalibrationResult:
+    """Read exactly the existing prepared train/val files; perform no MLflow writes."""
+    root = config.source.parent.parent
+    for key, actual in (("train", config.train_path), ("val", config.val_path)):
+        expected = (root / "data" / "processed" / f"{key}.csv").resolve()
+        if actual.resolve() != expected:
+            raise ValueError(f"Calibration only accepts data/processed/{key}.csv")
+    train = pd.read_csv(config.train_path)
+    val = pd.read_csv(config.val_path)
+    return fit_calibration(config, train, val)
+
+
+def render_calibration_report(result: CalibrationResult, config: TuneConfig) -> str:
+    """Render measured results without timestamps, run IDs or fit-time noise."""
+    settings = config.training["models"]["logistic"]
+    best = result.best_threshold
+    lines = [
+        "# M2.2: Logistic calibration",
+        "",
+        "Base: `origin/feat/ml-experiments@1a3b674` (main did not contain M2.1).",
+        (
+            f"Logistic, class_weight=None, C={settings['C']}, max_iter={settings['max_iter']}, "
+            f"seed={result.seed}, folds={result.n_splits}."
+        ),
+        (
+            f"Existing M2.1 split: train={result.train_rows}, val={len(result.y_true)}; "
+            "only data/processed/train.csv and val.csv are opened. Test data is never read."
+        ),
+        "",
+        "## Train-only calibration",
+        "",
+        (
+            "The baseline reuses the existing logistic preprocessing pipeline. "
+            "Sigmoid (Platt) and isotonic wrap the complete pipeline in "
+            "CalibratedClassifierCV with shuffled StratifiedKFold and ensemble=False. "
+            "Each preprocessing fit sees only its training fold. Calibration learns "
+            "from out-of-fold train scores; the final base pipeline is refitted on all "
+            "train rows. Validation is never supplied to fit, including calibrator fit."
+        ),
+        "",
+        "## Validation results",
+        "",
+        "| State | Brier | Log loss | ROC-AUC | PR-AUC (average precision) | ECE |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for name, metrics in result.metrics.items():
+        lines.append(
+            f"| {name} | {metrics['brier_score']:.10f} | {metrics['log_loss']:.10f} | "
+            f"{metrics['roc_auc']:.10f} | {metrics['average_precision']:.10f} | "
+            f"{metrics['ece']:.10f} |"
+        )
+    lines.extend(
+        [
+            "",
+            (
+                "ECE = sum_b (n_b/N) * abs(mean_probability_b - churn_rate_b), with ten "
+                "equal-width bins [i/10, (i+1)/10); the final bin includes probability 1. "
+                "This is positive-class probability ECE. Empty bins contribute zero; "
+                "their undefined means/rates are empty CSV cells."
+            ),
+            "",
+            (
+                "Reliability data (bin, bounds, count, mean probability, observed churn): "
+                "[none](calibration/reliability_none.csv), "
+                "[sigmoid](calibration/reliability_sigmoid.csv), "
+                "[isotonic](calibration/reliability_isotonic.csv). "
+                "These files contain aggregates only, without IDs or individual predictions."
+            ),
+            "",
+            "## Calibration proposal",
+            "",
+            (
+                "Apply calibration only if validation Brier decreases by at least 0.005 "
+                "AND ROC-AUC decreases by no more than 0.005 versus none. "
+                "Inclusive comparisons allow 1e-12 numerical tolerance. Among eligible "
+                "methods choose lowest Brier, then highest ROC-AUC, then method name; "
+                "otherwise retain none. This is a proposal; no saved model is replaced."
+            ),
+            "",
+            selection_message(result),
+            "",
+            "## Validation threshold proposal",
+            "",
+            (
+                "Scan: 0.05 through 0.95 inclusive, step 0.01; churn when proba >= threshold. "
+                f"Selected state: {result.selected}. Max-F1 ties choose the lower threshold. "
+                "Display every 0.05 increment plus max F1; "
+                "[all 91 thresholds](calibration/thresholds.csv) are retained in CSV."
+            ),
+            "",
+            (
+                f"Temporary default only: threshold={best['threshold']:.2f}, "
+                f"precision={best['precision']:.10f}, recall={best['recall']:.10f}, "
+                f"F1={best['f1']:.10f}. This threshold is NOT locked and is NOT written to config."
+            ),
+            "",
+            "| Threshold | Precision | Recall | F1 | TP | FP | FN | TN |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        ]
     )
+    for _, row in significant_thresholds(result).iterrows():
+        lines.append(
+            f"| {row['threshold']:.2f} | {row['precision']:.6f} | {row['recall']:.6f} | "
+            f"{row['f1']:.6f} | {int(row['TP'])} | {int(row['FP'])} | "
+            f"{int(row['FN'])} | {int(row['TN'])} |"
+        )
+    lines.extend(
+        [
+            "",
+            (
+                "The shared evaluation module is absent from both main and the selected "
+                "base. Metrics reuse training.metrics.compute_metrics; confusion counts "
+                "and reliability/ECE supplement it locally."
+            ),
+            "",
+            "Reproduce from the repository root:",
+            "",
+            "```sh",
+            "python3 -m churn_retention.entrypoints.cli calibrate --config configs/training.yaml",
+            "```",
+            "",
+            (
+                "The command replaces only this report and aggregate CSVs. It does not "
+                "write MLflow or modify docs/experiments.md. Repeated runs with the "
+                "same inputs and library versions produce identical docs and CSV bytes."
+            ),
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def write_calibration_report(result: CalibrationResult, config: TuneConfig, path: Path) -> str:
+    text = render_calibration_report(result, config)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_calibration_artifacts(result, path.parent / "calibration")
+    path.write_text(text, encoding="utf-8")
+    return text
