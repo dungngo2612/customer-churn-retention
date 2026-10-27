@@ -47,6 +47,8 @@ def generate_evaluation_report(
         df_true: DataFrame chứa nhãn thực tế và customerID.
         df_pred: DataFrame chứa xác suất dự đoán và customerID.
         threshold: Ngưỡng xác suất để phân loại nhị phân (mặc định 0.5).
+            0.5 chỉ để test; ngưỡng thật do bên gọi truyền vào (chọn trên validation,
+            khoá ở bước sau), không dùng test set để chọn.
         id_col: Tên cột định danh khách hàng.
         label_col: Tên cột nhãn thực tế.
         prob_col: Tên cột xác suất dự đoán.
