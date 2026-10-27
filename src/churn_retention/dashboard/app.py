@@ -705,7 +705,7 @@ def render_action_matrix_html_table(cust_eval: pd.DataFrame, best_code: str) -> 
             f"<td style='font-weight:500;'>{name}</td>"
             f"<td class='num'>${c_val:,.2f}</td>"
             f"<td class='num'>${b_val:,.2f}</td>"
-            f"<td class='num' style='color:{ev_color};font-weight:700;'>{ev_val:+.2f}$</td>"
+            f"<td class='num' style='color:{ev_color};font-weight:700;'>{'+$' if ev_val >= 0 else '-$'}{abs(ev_val):,.2f}</td>"
             f"<td class='num'>{be_str}</td>"
             f"</tr>"
         )
@@ -1060,18 +1060,23 @@ interventions = recommendations[recommendations["action_code"] != "A0"]
 # --- EXECUTIVE HEADER (CHUẨN LINEAR / STRIPE MINIMAL) ---
 st.markdown(
     f"""
-    <div class="exec-header">
+    <div class="exec-header" style="margin-bottom: 8px;">
         <div class="exec-header-left">
             <div class="exec-eyebrow">TELECOM RETENTION DECISION SUPPORT SYSTEM</div>
-            <div class="exec-title">Hệ Thống Tối Ưu Hóa Kinh Tế & Giữ Chân Khách Hàng</div>
+            <div class="exec-title">Hệ Thống Hỗ Trợ Quyết Định &amp; Giữ Chân Khách Hàng</div>
             <div class="exec-subtitle">
-                Cá nhân hóa chính sách can thiệp dựa trên mô hình dự báo CatBoost, giải thích TreeSHAP và tối đa hóa Lợi nhuận Ròng Kỳ vọng (ΔEV).
+                Cá nhân hóa chính sách can thiệp dựa trên mô hình dự báo AI CatBoost, giải thích TreeSHAP và tối đa hóa Lợi nhuận Ròng Kỳ vọng (ΔEV).
             </div>
         </div>
-        <div class="exec-meta-group">
-            <span class="meta-chip">Dataset: {active_dataset_name} ({len(customers_df):,})</span>
-            <span class="meta-chip">Margin m = {base_margin:.0%} | H = {horizon}M</span>
-            <span class="meta-chip meta-chip-active">{SVG_CHECK} CatBoost ROC-AUC 84.8%</span>
+    </div>
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; background:#ffffff; border:1px solid #e3e8ee; border-radius:10px; padding:8px 16px; margin-bottom:14px; font-size:0.8rem; color:#273951;">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span style="font-weight:700; color:#0d253d; text-transform:uppercase; font-size:0.7rem; letter-spacing:0.05em;">Kịch bản kinh tế đang áp dụng:</span>
+            <span class="badge-indigo">Biên lợi nhuận m = {base_margin:.0%}</span>
+            <span class="badge-indigo">Kỳ hạn đánh giá H = {horizon} tháng</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span class="badge-emerald">{SVG_CHECK} Mô hình CatBoost (ROC-AUC 84.8%)</span>
         </div>
     </div>
     """,
