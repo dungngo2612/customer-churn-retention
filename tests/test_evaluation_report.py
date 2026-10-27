@@ -39,19 +39,20 @@ def test_generate_evaluation_report_success():
     assert report["calibration_metrics"]["brier_score"] == 0.025
     assert report["calibration_metrics"]["log_loss"] == 0.1643
 
-    def test_generate_evaluation_report_rejects_missing_customer_id():
-        df_true = pd.DataFrame(
-            {
-                "customerID": ["C1", None],
-                "Churn": [0, 1],
-            }
-        )
-        df_pred = pd.DataFrame(
-            {
-                "customerID": ["C1", None],
-                "churn_prob": [0.1, 0.9],
-            }
-        )
 
-        with pytest.raises(ValueError, match="customerID bị thiếu hoặc rỗng"):
-            generate_evaluation_report(df_true, df_pred)
+def test_generate_evaluation_report_rejects_missing_customer_id():
+    df_true = pd.DataFrame(
+        {
+            "customerID": ["C1", None],
+            "Churn": [0, 1],
+        }
+    )
+    df_pred = pd.DataFrame(
+        {
+            "customerID": ["C1", None],
+            "churn_prob": [0.1, 0.9],
+        }
+    )
+
+    with pytest.raises(ValueError, match="customerID bị thiếu hoặc rỗng"):
+        generate_evaluation_report(df_true, df_pred)
