@@ -15,6 +15,9 @@ from churn_retention.ml.training.baseline import train_logistic
 from churn_retention.ml.training.metrics import compute_metrics
 from churn_retention.ml.training.tune import TuneConfig, _prepare
 
+MIN_BRIER_IMPROVEMENT = 0.005
+MAX_ROC_AUC_DROP = 0.005
+
 
 @dataclass
 class CalibrationResult:
@@ -25,6 +28,7 @@ class CalibrationResult:
     n_splits: int
     metrics: dict[str, dict[str, float]] = field(default_factory=dict)
     reliability: dict[str, pd.DataFrame] = field(default_factory=dict)
+    selected: str = "none"
 
 
 def fit_calibration(
@@ -98,6 +102,7 @@ def fit_calibration(
             for key in ("brier_score", "log_loss", "roc_auc", "average_precision")
         }
         result.metrics[name]["ece"] = _table_ece(result.reliability[name])
+    result.selected = select_calibration(result.metrics)
     return result
 
 
@@ -166,3 +171,36 @@ def write_reliability_tables(result: CalibrationResult, directory: Path) -> None
         table.to_csv(
             directory / f"reliability_{name}.csv", index=False, float_format="%.10f"
         )
+
+
+def select_calibration(metrics: dict[str, dict[str, float]]) -> str:
+    """Propose calibration only for Brier gain >= .005 AND ROC-AUC drop <= .005.
+
+    Compare with the uncalibrated validation baseline, using a numerical tolerance
+    of 1e-12 at the inclusive boundaries. Among eligible methods choose lowest
+    Brier, then highest ROC-AUC, then method name. Otherwise retain none.
+    This proposal never changes a saved model or configuration.
+    """
+    baseline = metrics["none"]
+    eligible = [
+        name
+        for name in ("sigmoid", "isotonic")
+        if baseline["brier_score"] - metrics[name]["brier_score"]
+        >= MIN_BRIER_IMPROVEMENT - 1e-12
+        and baseline["roc_auc"] - metrics[name]["roc_auc"] <= MAX_ROC_AUC_DROP + 1e-12
+    ]
+    return min(
+        eligible,
+        key=lambda name: (
+            metrics[name]["brier_score"],
+            -metrics[name]["roc_auc"],
+            name,
+        ),
+        default="none",
+    )
+
+
+def selection_message(result: CalibrationResult) -> str:
+    if result.selected == "none":
+        return "Đề xuất: không áp dụng hiệu chỉnh; giữ logistic không class_weight."
+    return f"Đề xuất: áp dụng hiệu chỉnh {result.selected} cho logistic không class_weight."
