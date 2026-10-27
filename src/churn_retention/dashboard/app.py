@@ -95,25 +95,30 @@ st.markdown(
         background-color: #f6f9fc !important;
     }
 
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+        height: 1.75rem !important;
+    }
+
     .block-container {
-        padding-top: 1.15rem !important;
-        padding-bottom: 2.5rem !important;
+        padding-top: 0.35rem !important;
+        padding-bottom: 2.2rem !important;
         max-width: 96% !important;
     }
 
-    /* --- STRIPE SIGNATURE ATMOSPHERIC MESH + DARK CONSOLE HERO HEADER --- */
+    /* --- STRIPE SIGNATURE ATMOSPHERIC MESH + DARK CONSOLE HERO HEADER (COMPACT & ELEVATED) --- */
     .exec-header {
         background: linear-gradient(135deg, #0d253d 0%, #1c1e54 68%, #2e2b8c 100%);
         border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 16px;
-        padding: 22px 28px;
-        margin-bottom: 20px;
+        border-radius: 14px;
+        padding: 15px 22px;
+        margin-bottom: 14px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        flex-wrap: wrap;
-        gap: 18px;
-        box-shadow: rgba(0, 55, 112, 0.16) 0px 8px 24px, rgba(0, 55, 112, 0.08) 0px 2px 6px;
+        flex-wrap: nowrap;
+        gap: 16px;
+        box-shadow: rgba(0, 55, 112, 0.14) 0px 6px 18px, rgba(0, 55, 112, 0.06) 0px 2px 4px;
         position: relative;
         overflow: hidden;
     }
@@ -137,42 +142,45 @@ st.markdown(
         pointer-events: none;
     }
     .exec-header-left {
-        max-width: 760px;
+        flex: 1;
+        min-width: 0;
         position: relative;
         z-index: 1;
     }
     .exec-eyebrow {
-        font-size: 0.68rem;
+        font-size: 0.66rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.11em;
+        letter-spacing: 0.1em;
         color: #b9b9f9;
-        margin-bottom: 5px;
+        margin-bottom: 3px;
         display: inline-flex;
         align-items: center;
         gap: 6px;
     }
     .exec-title {
-        font-size: 1.55rem;
-        font-weight: 600;
+        font-size: 1.32rem;
+        font-weight: 700;
         color: #ffffff;
-        letter-spacing: -0.03em;
-        margin-bottom: 5px;
-        line-height: 1.18;
+        letter-spacing: -0.025em;
+        margin-bottom: 3px;
+        line-height: 1.2;
     }
     .exec-subtitle {
-        font-size: 0.87rem;
+        font-size: 0.82rem;
         color: rgba(255, 255, 255, 0.78);
-        line-height: 1.5;
+        line-height: 1.4;
         font-weight: 400;
     }
     .exec-meta-group {
         display: flex;
-        gap: 8px;
+        gap: 7px;
         flex-wrap: wrap;
+        justify-content: flex-end;
         align-items: center;
         position: relative;
         z-index: 1;
+        flex-shrink: 0;
     }
     .meta-chip {
         background: rgba(255, 255, 255, 0.09);
@@ -233,15 +241,17 @@ st.markdown(
     .card-accent-ruby::before { background: #ea2261; }
 
     .card-label {
-        font-size: 0.71rem;
-        font-weight: 600;
+        font-size: 0.7rem;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.04em;
         color: var(--stripe-ink-mute);
         margin-bottom: 8px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        white-space: nowrap;
+        gap: 6px;
     }
     .card-icon-wrap {
         width: 30px;
@@ -297,6 +307,8 @@ st.markdown(
         font-family: 'Fira Code', monospace;
         font-feature-settings: "tnum" on;
         display: inline-block;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
     .badge-indigo {
         background: #eef0ff;
@@ -309,6 +321,8 @@ st.markdown(
         font-family: 'Fira Code', monospace;
         font-feature-settings: "tnum" on;
         display: inline-block;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
     .badge-rose {
         background: #fff1f2;
@@ -319,6 +333,8 @@ st.markdown(
         font-weight: 600;
         font-size: 0.72rem;
         display: inline-block;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
     .badge-amber {
         background: #fffbeb;
@@ -329,6 +345,8 @@ st.markdown(
         font-weight: 600;
         font-size: 0.72rem;
         display: inline-block;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
     .badge-slate {
         background: #f1f5f9;
@@ -339,6 +357,8 @@ st.markdown(
         font-weight: 600;
         font-size: 0.72rem;
         display: inline-block;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
 
     /* --- NATIVE BORDERED CONTAINERS AS STRIPE LEVEL-1 ELEVATION CARDS --- */
@@ -507,16 +527,20 @@ st.markdown(
     .stTabs [data-baseweb="tab-list"] {
         gap: 6px;
         background-color: #ffffff;
-        padding: 6px 8px;
-        border-radius: 9999px;
+        padding: 5px 6px;
+        border-radius: 12px;
         border: 1px solid #e3e8ee;
-        margin-bottom: 18px;
+        margin-bottom: 16px;
         box-shadow: rgba(0, 55, 112, 0.04) 0px 1px 2px;
+    }
+    .stTabs [data-baseweb="tab-highlight"],
+    .stTabs [data-baseweb="tab-border"] {
+        display: none !important;
     }
     .stTabs [data-baseweb="tab"] {
         height: 36px;
-        border-radius: 9999px;
-        padding: 0 18px;
+        border-radius: 8px !important;
+        padding: 0 18px !important;
         font-size: 0.83rem;
         font-weight: 600;
         color: #64748d;
@@ -526,7 +550,8 @@ st.markdown(
     .stTabs [aria-selected="true"] {
         background-color: #533afd !important;
         color: #ffffff !important;
-        box-shadow: rgba(83, 58, 253, 0.24) 0px 2px 6px;
+        border-radius: 8px !important;
+        box-shadow: rgba(83, 58, 253, 0.22) 0px 2px 6px;
     }
     .stButton > button[kind="primary"] {
         background-color: #533afd !important;
@@ -1106,7 +1131,7 @@ with tab1:
             </div>
             <div class="modern-card card-accent-amber">
                 <div class="card-label">
-                    <span>Ngân Sách Đầu Tư (Cost C)</span>
+                    <span>Ngân Sách Đầu Tư (C)</span>
                     <div class="card-icon-wrap" style="background:#fffbeb; color:#d97706;">{SVG_WALLET}</div>
                 </div>
                 <div class="card-value">${total_cost:,.0f}</div>
@@ -1118,7 +1143,7 @@ with tab1:
             </div>
             <div class="modern-card card-accent-emerald">
                 <div class="card-label">
-                    <span>Lợi Nhuận Ròng Kỳ Vọng (ΔEV)</span>
+                    <span>Lợi Nhuận Ròng (ΔEV)</span>
                     <div class="card-icon-wrap" style="background:#ecfdf5; color:#059669;">{SVG_TRENDING}</div>
                 </div>
                 <div class="card-value" style="color: #059669;">+${total_net_value:,.0f}</div>
@@ -1216,21 +1241,29 @@ with tab1:
                 f"+${total_net_value:,.0f}"
             ]
 
+            max_flow_x = max(flow_values) if flow_values else 1000.0
             fig_cashflow = go.Figure(go.Bar(
                 y=flow_labels,
                 x=flow_values,
                 orientation="h",
                 text=flow_texts,
-                textposition="auto",
-                marker=dict(color=flow_colors),
+                textposition="outside",
+                textangle=0,
+                cliponaxis=False,
+                textfont=dict(family="Fira Code, monospace", size=12, color="#0d253d"),
+                marker=dict(color=flow_colors, cornerradius=4),
                 hovertemplate="<b>%{y}</b>: %{text}<extra></extra>",
             ))
             fig_cashflow.update_layout(
                 height=310,
-                margin=dict(l=10, r=20, t=10, b=10),
+                margin=dict(l=10, r=75, t=10, b=10),
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)",
-                xaxis=dict(title="Giá trị tài chính ($)", gridcolor="rgba(148,163,184,0.22)"),
+                xaxis=dict(
+                    title="Giá trị tài chính ($)",
+                    gridcolor="rgba(148,163,184,0.22)",
+                    range=[0, max_flow_x * 1.24],
+                ),
                 yaxis=dict(autorange="reversed", tickfont=dict(size=12)),
             )
             st.plotly_chart(fig_cashflow, width="stretch")
@@ -1251,7 +1284,7 @@ with tab1:
                         y=interv_actions["cost_sum"],
                         marker_color="#d97706",
                         text=[f"${v:,.0f}" for v in interv_actions["cost_sum"]],
-                        textposition="auto",
+                        textposition="outside", textangle=0, cliponaxis=False,
                     ),
                     go.Bar(
                         name="Lợi Nhuận Ròng (ΔEV)",
@@ -1259,7 +1292,7 @@ with tab1:
                         y=interv_actions["net_value_sum"],
                         marker_color="#059669",
                         text=[f"${v:,.0f}" for v in interv_actions["net_value_sum"]],
-                        textposition="auto",
+                        textposition="outside", textangle=0, cliponaxis=False,
                     ),
                 ]
             )
@@ -1300,7 +1333,38 @@ with tab1:
 - **Gói hiệu quả tài chính cao nhất:** {top_action['action_code']} ({top_action['action_name']}) mang lại +${top_action['net_value_sum']:,.2f} lợi nhuận ròng.
 - **Phương án không can thiệp (A0):** {a0_count:,} khách hàng do chi phí can thiệp lớn hơn lợi ích bảo vệ được (ΔEV ≤ 0).
 """
-        st.markdown(report_text)
+        st.markdown(
+            f"""
+            <div style="background:#ffffff; border:1px solid #e3e8ee; border-left:4px solid #533afd; border-radius:10px; padding:18px 22px; margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid #e3e8ee; padding-bottom:10px; margin-bottom:14px;">
+                    <div>
+                        <div style="font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#533afd;">EXECUTIVE SUMMARY REPORT</div>
+                        <div style="font-size:1.05rem; font-weight:700; color:#0d253d;">Báo Cáo Tóm Tắt Chiến Lược Giữ Chân Khách Hàng</div>
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <span class="badge-indigo">Biên lợi nhuận m = {base_margin:.0%}</span>
+                        <span class="badge-slate">Kỳ hạn H = {horizon} tháng</span>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; font-size:0.84rem; line-height:1.65; color:#273951;">
+                    <div style="background:#f6f9fc; border:1px solid #e3e8ee; border-radius:8px; padding:12px 16px;">
+                        <div style="font-weight:700; font-size:0.86rem; color:#0d253d; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.03em;">1. Kết Quả Điều Hành Tổng Thể</div>
+                        <div>• <b>Quy mô tệp khách hàng hoạt động:</b> <span style="font-family:Fira Code,monospace;font-weight:600;">{n_total:,}</span> khách hàng</div>
+                        <div>• <b>Quy mô can thiệp được duyệt (ΔEV &gt; 0):</b> <span style="font-family:Fira Code,monospace;font-weight:600;color:#4434d4;">{n_intervened:,}</span> khách ({intervention_rate:.1%} tổng tệp)</div>
+                        <div>• <b>Tổng ngân sách đề xuất đầu tư:</b> <span style="font-family:Fira Code,monospace;font-weight:600;color:#d97706;">&#36;{total_cost:,.2f}</span> (TB: <span style="font-family:Fira Code,monospace;">&#36;{avg_cost_per_user:,.2f}</span>/khách)</div>
+                        <div>• <b>Doanh thu giữ lại dự kiến (Gross B):</b> <span style="font-family:Fira Code,monospace;font-weight:600;">&#36;{total_benefit:,.2f}</span></div>
+                        <div>• <b>Lợi nhuận ròng kỳ vọng (Net ΔEV):</b> <span style="font-family:Fira Code,monospace;font-weight:700;color:#059669;">+&#36;{total_net_value:,.2f}</span> (ROI <span class="badge-emerald">+{roi:.1f}%</span>)</div>
+                    </div>
+                    <div style="background:#f6f9fc; border:1px solid #e3e8ee; border-radius:8px; padding:12px 16px;">
+                        <div style="font-weight:700; font-size:0.86rem; color:#0d253d; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.03em;">2. Phân Bổ Theo Gói Hành Động</div>
+                        <div style="margin-bottom:6px;">• <b>Gói hiệu quả tài chính cao nhất:</b> <span class="badge-emerald">{top_action['action_code']}</span> <b>{top_action['action_name']}</b> mang lại lợi nhuận ròng <span style="font-family:Fira Code,monospace;font-weight:700;color:#059669;">+&#36;{top_action['net_value_sum']:,.2f}</span>.</div>
+                        <div>• <b>Phương án không can thiệp (A0):</b> <span style="font-family:Fira Code,monospace;font-weight:600;">{a0_count:,}</span> khách hàng được giữ nguyên trạng thái do chi phí can thiệp lớn hơn lợi ích bảo vệ được (ΔEV ≤ 0), giúp tiết kiệm ngân sách.</div>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         st.download_button(
             label="Tải Văn Bản Báo Cáo (.MD)",
             data=report_text.encode("utf-8"),
@@ -1379,7 +1443,7 @@ with tab2:
                 y=contract_churn["ChurnRate"],
                 marker_color=["#e11d48", "#d97706", "#059669"],
                 text=[f"{v:.1f}%" for v in contract_churn["ChurnRate"]],
-                textposition="auto",
+                textposition="outside", textangle=0, cliponaxis=False,
             ))
             fig_contract.update_layout(
                 height=260,
@@ -1407,7 +1471,7 @@ with tab2:
                 y=internet_churn["ChurnRate"],
                 marker_color=["#1e40af", "#e11d48", "#94a3b8"],
                 text=[f"{v:.1f}%" for v in internet_churn["ChurnRate"]],
-                textposition="auto",
+                textposition="outside", textangle=0, cliponaxis=False,
             ))
             fig_internet.update_layout(
                 height=260,
@@ -1437,7 +1501,7 @@ with tab2:
                 y=tech_churn["ChurnRate"],
                 marker_color=["#e11d48", "#94a3b8", "#059669"],
                 text=[f"{v:.1f}%" for v in tech_churn["ChurnRate"]],
-                textposition="auto",
+                textposition="outside", textangle=0, cliponaxis=False,
             ))
             fig_tech.update_layout(
                 height=250,
@@ -1472,7 +1536,7 @@ with tab2:
                 orientation="h",
                 marker_color=["#059669", "#059669", "#e11d48", "#d97706"],
                 text=[f"{v:.1f}%" for v in pay_churn["ChurnRate"]],
-                textposition="auto",
+                textposition="outside", textangle=0, cliponaxis=False,
             ))
             fig_pay.update_layout(
                 height=250,
@@ -1502,7 +1566,7 @@ with tab2:
                     orientation="h",
                     marker_color="#1e40af",
                     text=[f"{v:.1f}%" for v in top10_imp["importance"]],
-                    textposition="auto",
+                    textposition="outside", textangle=0, cliponaxis=False,
                 ))
                 fig_shap_bar.update_layout(
                     height=300,
@@ -1778,7 +1842,7 @@ with tab3:
                         orientation="h",
                         marker_color=bar_colors,
                         text=[f"{v:+.2f}" for v in top_local["shap_value"]],
-                        textposition="auto",
+                        textposition="outside", textangle=0, cliponaxis=False,
                     ))
                     fig_drivers.update_layout(
                         height=255,
@@ -1805,7 +1869,7 @@ with tab3:
                     x=cust_eval["action_code"],
                     y=cust_eval["net_value"],
                     text=[f"${v:+.2f}" for v in cust_eval["net_value"]],
-                    textposition="auto",
+                    textposition="outside", textangle=0, cliponaxis=False,
                     marker_color=colors_comp,
                     hovertemplate="<b>%{x}</b><br>Giá trị ròng (ΔEV): %{y:$.2f}<extra></extra>",
                 ))
@@ -1937,7 +2001,7 @@ with tab4:
                         y=sim_action_breakdown["cost_sum"],
                         marker_color="#d97706",
                         text=[f"${v:,.0f}" for v in sim_action_breakdown["cost_sum"]],
-                        textposition="auto",
+                        textposition="outside", textangle=0, cliponaxis=False,
                     ),
                     go.Bar(
                         name="Lợi Nhuận Ròng Thu Về ($)",
@@ -1945,7 +2009,7 @@ with tab4:
                         y=sim_action_breakdown["net_sum"],
                         marker_color="#059669",
                         text=[f"${v:,.0f}" for v in sim_action_breakdown["net_sum"]],
-                        textposition="auto",
+                        textposition="outside", textangle=0, cliponaxis=False,
                     ),
                 ])
                 fig_sim.update_layout(
@@ -2140,7 +2204,7 @@ with tab4:
                     y=sens_df[ac],
                     marker_color=colors_dict.get(ac, "#4f46e5"),
                     text=sens_df[ac],
-                    textposition="auto",
+                    textposition="outside", textangle=0, cliponaxis=False,
                 ))
 
             fig_stacked.update_layout(
