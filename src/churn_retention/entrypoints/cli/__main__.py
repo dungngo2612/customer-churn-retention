@@ -4,6 +4,10 @@ import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
+from churn_retention.ml.training.calibration import (
+    run_calibration,
+    write_calibration_report,
+)
 from churn_retention.ml.training.tune import (
     load_tune_config,
     run_experiments,
@@ -21,9 +25,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="Use 2 folds, first 500 train rows, <=2 trials",
     )
+    calibrate = commands.add_parser(
+        "calibrate", help="Calibrate unweighted logistic with train-only CV"
+    )
+    calibrate.add_argument("--config", required=True, type=Path)
     args = parser.parse_args(argv)
     try:
         config = load_tune_config(args.config)
+        if args.command == "calibrate":
+            result = run_calibration(config)
+            destination = config.source.parent.parent / "docs" / "calibration.md"
+            print(write_calibration_report(result, config, destination), end="")
+            return 0
         report = run_experiments(config, smoke=args.smoke)
         destination = config.source.parent.parent / "docs" / "experiments.md"
         write_report(report, destination)
