@@ -15,6 +15,37 @@ from sklearn.metrics import (
 )
 
 
+def _validate_probabilities(y_prob: np.ndarray) -> None:
+    if not np.all(np.isfinite(y_prob)):
+        raise ValueError("Xác suất dự đoán chứa giá trị NaN hoặc vô cực (inf).")
+    if np.any((y_prob < 0.0) | (y_prob > 1.0)):
+        raise ValueError("Xác suất dự đoán nằm ngoài khoảng hợp lệ [0.0, 1.0].")
+
+
+def _validate_prediction_arrays(
+    y_true: np.ndarray, y_prob: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
+    y_true = np.asarray(y_true)
+    try:
+        y_prob = np.asarray(y_prob, dtype=float)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Xác suất dự đoán phải là các giá trị số.") from exc
+
+    if y_true.ndim != 1 or y_prob.ndim != 1:
+        raise ValueError("y_true và y_prob phải là các mảng một chiều.")
+    if len(y_true) != len(y_prob):
+        raise ValueError("y_true và y_prob phải có cùng độ dài.")
+    if len(y_true) == 0:
+        raise ValueError("Không thể đánh giá dataset rỗng.")
+    if not np.all(np.isin(y_true, [0, 1])):
+        raise ValueError("Nhãn dạng số chỉ được chứa 0 và 1, không được có giá trị thiếu.")
+
+    _validate_probabilities(y_prob)
+    if len(np.unique(y_true)) < 2:
+        raise ValueError("Cần có cả lớp churn và không churn để tính ROC-AUC.")
+    return y_true.astype(int), y_prob
+
+
 def align_and_validate_data(
     df_true: pd.DataFrame,
     df_pred: pd.DataFrame,
@@ -128,10 +159,7 @@ def align_and_validate_data(
 
     # 6. Kiểm tra tính hợp lệ của xác suất dự đoán
     y_prob = merged["y_prob"].to_numpy(dtype=float)
-    if not np.all(np.isfinite(y_prob)):
-        raise ValueError("Xác suất dự đoán chứa giá trị NaN hoặc vô cực (inf).")
-    if np.any((y_prob < 0.0) | (y_prob > 1.0)):
-        raise ValueError("Xác suất dự đoán nằm ngoài khoảng hợp lệ [0.0, 1.0].")
+    _validate_probabilities(y_prob)
 
     y_true = merged["y_true"].to_numpy(dtype=int)
     return y_true, y_prob
@@ -166,6 +194,7 @@ def compute_threshold_metrics(
 
     Bao gồm Precision, Recall, F1 và Confusion Matrix chi tiết.
     """
+    y_true, y_prob = _validate_prediction_arrays(y_true, y_prob)
     if not (0.0 <= threshold <= 1.0):
         raise ValueError(f"Ngưỡng threshold phải nằm trong [0.0, 1.0], nhận được: {threshold}")
 
