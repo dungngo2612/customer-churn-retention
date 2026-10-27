@@ -1,13 +1,34 @@
 from typing import Any, Dict
 
+import numpy as np
 import pandas as pd
 
 from churn_retention.ml.evaluation.metrics import (
+    _validate_prediction_arrays,
     align_and_validate_data,
     compute_calibration_metrics,
     compute_ranking_metrics,
     compute_threshold_metrics,
 )
+
+
+def evaluate_predictions(
+    y_true: np.ndarray,
+    y_proba: np.ndarray,
+    threshold: float,
+) -> Dict[str, Any]:
+    """Tổng hợp metric từ các mảng nhãn 0/1 và xác suất churn cùng thứ tự.
+
+    Bên gọi phải truyền threshold; proba >= threshold được phân loại là churn.
+    Kết quả có cùng cấu trúc với generate_evaluation_report.
+    """
+    y_true, y_proba = _validate_prediction_arrays(y_true, y_proba)
+    return {
+        "total_samples": int(len(y_true)),
+        "ranking_metrics": compute_ranking_metrics(y_true, y_proba),
+        "threshold_metrics": compute_threshold_metrics(y_true, y_proba, threshold=threshold),
+        "calibration_metrics": compute_calibration_metrics(y_true, y_proba),
+    }
 
 
 def generate_evaluation_report(
@@ -43,17 +64,4 @@ def generate_evaluation_report(
         prob_col=prob_col,
     )
 
-    # 2. Tính toán các nhóm metric
-    ranking_res = compute_ranking_metrics(y_true, y_prob)
-    threshold_res = compute_threshold_metrics(y_true, y_prob, threshold=threshold)
-    calibration_res = compute_calibration_metrics(y_true, y_prob)
-
-    # 3. Đóng gói thành báo cáo tổng hợp hoàn chỉnh
-    report = {
-        "total_samples": int(len(y_true)),
-        "ranking_metrics": ranking_res,  # Average Precision (chính), ROC-AUC
-        "threshold_metrics": threshold_res,  # Precision, Recall, F1, Confusion Matrix
-        "calibration_metrics": calibration_res,  # Brier score, Log loss, Calibration curve
-    }
-
-    return report
+    return evaluate_predictions(y_true, y_prob, threshold=threshold)
