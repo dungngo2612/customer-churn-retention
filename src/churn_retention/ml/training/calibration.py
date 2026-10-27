@@ -29,6 +29,14 @@ class CalibrationResult:
     metrics: dict[str, dict[str, float]] = field(default_factory=dict)
     reliability: dict[str, pd.DataFrame] = field(default_factory=dict)
     selected: str = "none"
+    thresholds: pd.DataFrame = field(default_factory=pd.DataFrame)
+
+    @property
+    def best_threshold(self) -> pd.Series:
+        """Temporary max-F1 proposal; ties choose the lower threshold."""
+        return self.thresholds.sort_values(
+            ["f1", "threshold"], ascending=[False, True], kind="stable"
+        ).iloc[0]
 
 
 def fit_calibration(
@@ -103,6 +111,7 @@ def fit_calibration(
         }
         result.metrics[name]["ece"] = _table_ece(result.reliability[name])
     result.selected = select_calibration(result.metrics)
+    result.thresholds = scan_thresholds(result.y_true, probabilities[result.selected])
     return result
 
 
@@ -204,3 +213,50 @@ def selection_message(result: CalibrationResult) -> str:
     if result.selected == "none":
         return "Đề xuất: không áp dụng hiệu chỉnh; giữ logistic không class_weight."
     return f"Đề xuất: áp dụng hiệu chỉnh {result.selected} cho logistic không class_weight."
+
+
+def scan_thresholds(y_true: np.ndarray, y_proba: np.ndarray) -> pd.DataFrame:
+    """Evaluate all 91 thresholds .05 through .95 at .01 steps on val only.
+
+    Churn means probability >= threshold. Reuse training.metrics because the
+    shared evaluation module is not present on main or this branch's base.
+    Counts supplement that existing helper; no threshold is locked or configured.
+    """
+    labels = np.asarray(y_true)
+    probabilities = np.asarray(y_proba)
+    reliability_table(labels, probabilities)
+    positive = labels == 1
+    rows = []
+    for integer in range(5, 96):
+        threshold = integer / 100
+        metrics = compute_metrics(labels, probabilities, threshold=threshold)
+        predicted = probabilities >= threshold
+        rows.append(
+            {
+                "threshold": threshold,
+                "precision": float(metrics["precision"]),
+                "recall": float(metrics["recall"]),
+                "f1": float(metrics["f1"]),
+                "TP": int((predicted & positive).sum()),
+                "FP": int((predicted & ~positive).sum()),
+                "FN": int((~predicted & positive).sum()),
+                "TN": int((~predicted & ~positive).sum()),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def significant_thresholds(result: CalibrationResult) -> pd.DataFrame:
+    """Display every .05 increment plus max F1; the CSV retains all .01 steps."""
+    table = result.thresholds
+    return table.loc[
+        (np.arange(len(table)) % 5 == 0)
+        | (table["threshold"] == result.best_threshold["threshold"])
+    ]
+
+
+def write_calibration_artifacts(result: CalibrationResult, directory: Path) -> None:
+    write_reliability_tables(result, directory)
+    result.thresholds.to_csv(
+        directory / "thresholds.csv", index=False, float_format="%.10f"
+    )
