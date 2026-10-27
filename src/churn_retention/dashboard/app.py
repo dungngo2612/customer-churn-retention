@@ -60,87 +60,143 @@ SVG_CLOCK = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" view
 SVG_CHECK = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
 SVG_LAYERS = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>'
 
-# --- DESIGN SYSTEM CSS (UI/UX PRO MAX + STRIPE / LINEAR MINIMALISM) ---
+# --- DESIGN SYSTEM CSS (STRIPE DESIGN.MD + UI/UX PRO MAX DATA-DENSE) ---
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    :root {
+        --stripe-primary: #533afd;
+        --stripe-primary-deep: #4434d4;
+        --stripe-primary-press: #2e2b8c;
+        --stripe-primary-soft: #665efd;
+        --stripe-primary-subdued: #eef0ff;
+        --stripe-dark-900: #1c1e54;
+        --stripe-ink: #0d253d;
+        --stripe-ink-secondary: #273951;
+        --stripe-ink-mute: #64748d;
+        --stripe-canvas: #ffffff;
+        --stripe-canvas-soft: #f6f9fc;
+        --stripe-hairline: #e3e8ee;
+        --stripe-ruby: #ea2261;
+        --stripe-emerald: #059669;
+        --stripe-amber: #d97706;
+    }
 
     html, body, [class*="css"] {
-        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-        color: #0f172a;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: var(--stripe-ink);
+        font-feature-settings: "ss01" on, "cv01" on;
+        background-color: var(--stripe-canvas-soft);
+    }
+
+    .stApp {
+        background-color: #f6f9fc !important;
     }
 
     .block-container {
-        padding-top: 1.25rem !important;
+        padding-top: 1.15rem !important;
         padding-bottom: 2.5rem !important;
         max-width: 96% !important;
     }
 
-    /* Header tinh giản chuẩn Linear / Stripe */
+    /* --- STRIPE SIGNATURE ATMOSPHERIC MESH + DARK CONSOLE HERO HEADER --- */
     .exec-header {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-left: 4px solid #1e40af;
-        border-radius: 12px;
-        padding: 20px 26px;
+        background: linear-gradient(135deg, #0d253d 0%, #1c1e54 68%, #2e2b8c 100%);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        padding: 22px 28px;
         margin-bottom: 20px;
         display: flex;
         justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
-        gap: 16px;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+        gap: 18px;
+        box-shadow: rgba(0, 55, 112, 0.16) 0px 8px 24px, rgba(0, 55, 112, 0.08) 0px 2px 6px;
+        position: relative;
+        overflow: hidden;
+    }
+    .exec-header::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #533afd 0%, #665efd 32%, #ea2261 68%, #f96bee 100%);
+    }
+    .exec-header::after {
+        content: "";
+        position: absolute;
+        top: -80px;
+        right: -60px;
+        width: 280px;
+        height: 280px;
+        background: radial-gradient(circle, rgba(83, 58, 253, 0.28) 0%, rgba(234, 34, 97, 0.12) 45%, transparent 70%);
+        pointer-events: none;
     }
     .exec-header-left {
         max-width: 760px;
+        position: relative;
+        z-index: 1;
     }
     .exec-eyebrow {
-        font-size: 0.72rem;
+        font-size: 0.68rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: #1e40af;
-        margin-bottom: 4px;
+        letter-spacing: 0.11em;
+        color: #b9b9f9;
+        margin-bottom: 5px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
     }
     .exec-title {
-        font-size: 1.45rem;
-        font-weight: 800;
-        color: #0f172a;
-        letter-spacing: -0.02em;
-        margin-bottom: 4px;
+        font-size: 1.55rem;
+        font-weight: 600;
+        color: #ffffff;
+        letter-spacing: -0.03em;
+        margin-bottom: 5px;
+        line-height: 1.18;
     }
     .exec-subtitle {
-        font-size: 0.88rem;
-        color: #475569;
+        font-size: 0.87rem;
+        color: rgba(255, 255, 255, 0.78);
         line-height: 1.5;
+        font-weight: 400;
     }
     .exec-meta-group {
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
         align-items: center;
+        position: relative;
+        z-index: 1;
     }
     .meta-chip {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 6px;
-        padding: 5px 11px;
-        font-size: 0.78rem;
-        font-weight: 600;
-        color: #334155;
+        background: rgba(255, 255, 255, 0.09);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 9999px;
+        padding: 6px 13px;
+        font-size: 0.76rem;
+        font-weight: 500;
+        color: #f6f9fc;
         font-family: 'Fira Code', monospace;
+        font-feature-settings: "tnum" on;
+        backdrop-filter: blur(8px);
     }
     .meta-chip-active {
-        background: #ecfdf5;
-        border: 1px solid #a7f3d0;
-        color: #047857;
+        background: rgba(5, 150, 105, 0.22);
+        border: 1px solid rgba(167, 243, 208, 0.45);
+        color: #6ee7b7;
         display: inline-flex;
         align-items: center;
         gap: 5px;
+        font-weight: 600;
     }
 
-    /* KPI Grid 4 cột chuẩn Enterprise */
+    /* --- STRIPE BENTO KPI GRID WITH MICRO-PROGRESS BARS --- */
     .kpi-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -148,18 +204,19 @@ st.markdown(
         margin-bottom: 20px;
     }
     .modern-card {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
+        background: var(--stripe-canvas);
+        border: 1px solid var(--stripe-hairline);
         border-radius: 12px;
         padding: 18px 20px;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        box-shadow: rgba(0, 55, 112, 0.06) 0px 1px 3px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
         position: relative;
         overflow: hidden;
     }
     .modern-card:hover {
-        border-color: #cbd5e1;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+        border-color: #a8c3de;
+        box-shadow: rgba(0, 55, 112, 0.08) 0px 8px 24px, rgba(0, 55, 112, 0.04) 0px 2px 6px;
+        transform: translateY(-1px);
     }
     .modern-card::before {
         content: "";
@@ -169,17 +226,18 @@ st.markdown(
         right: 0;
         height: 3px;
     }
-    .card-accent-blue::before { background: #1e40af; }
-    .card-accent-indigo::before { background: #4f46e5; }
+    .card-accent-blue::before { background: #533afd; }
+    .card-accent-indigo::before { background: #4434d4; }
     .card-accent-amber::before { background: #d97706; }
     .card-accent-emerald::before { background: #059669; }
+    .card-accent-ruby::before { background: #ea2261; }
 
     .card-label {
-        font-size: 0.75rem;
-        font-weight: 700;
+        font-size: 0.71rem;
+        font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #64748b;
+        letter-spacing: 0.06em;
+        color: var(--stripe-ink-mute);
         margin-bottom: 8px;
         display: flex;
         justify-content: space-between;
@@ -188,107 +246,222 @@ st.markdown(
     .card-icon-wrap {
         width: 30px;
         height: 30px;
-        border-radius: 6px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
     }
     .card-value {
         font-family: 'Fira Code', monospace;
-        font-size: 1.65rem;
+        font-size: 1.68rem;
         font-weight: 700;
-        color: #0f172a;
-        line-height: 1.2;
-        letter-spacing: -0.03em;
-        margin-bottom: 6px;
+        color: var(--stripe-ink);
+        line-height: 1.15;
+        letter-spacing: -0.04em;
+        margin-bottom: 8px;
         font-variant-numeric: tabular-nums;
+        font-feature-settings: "tnum" on;
         white-space: nowrap;
     }
+    .kpi-progress-track {
+        width: 100%;
+        height: 5px;
+        background: #edf2f7;
+        border-radius: 9999px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+    .kpi-progress-fill {
+        height: 100%;
+        border-radius: 9999px;
+        transition: width 0.3s ease;
+    }
     .card-footer {
-        font-size: 0.8rem;
-        color: #64748b;
+        font-size: 0.78rem;
+        color: var(--stripe-ink-mute);
         display: flex;
         align-items: center;
+        justify-content: space-between;
         gap: 6px;
     }
 
-    /* Badges ngữ nghĩa */
+    /* --- STRIPE PILL BADGES ({rounded.pill}: 9999px) --- */
     .badge-emerald {
         background: #ecfdf5;
         color: #047857;
         border: 1px solid #a7f3d0;
-        padding: 2px 8px;
-        border-radius: 5px;
+        padding: 2px 9px;
+        border-radius: 9999px;
         font-weight: 600;
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         font-family: 'Fira Code', monospace;
+        font-feature-settings: "tnum" on;
+        display: inline-block;
     }
     .badge-indigo {
-        background: #eef2ff;
-        color: #4338ca;
+        background: #eef0ff;
+        color: #4434d4;
         border: 1px solid #c7d2fe;
-        padding: 2px 8px;
-        border-radius: 5px;
+        padding: 2px 9px;
+        border-radius: 9999px;
         font-weight: 600;
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         font-family: 'Fira Code', monospace;
+        font-feature-settings: "tnum" on;
+        display: inline-block;
     }
     .badge-rose {
         background: #fff1f2;
         color: #be123c;
         border: 1px solid #fecdd3;
-        padding: 2px 8px;
-        border-radius: 5px;
+        padding: 2px 9px;
+        border-radius: 9999px;
         font-weight: 600;
-        font-size: 0.75rem;
+        font-size: 0.72rem;
+        display: inline-block;
     }
     .badge-amber {
         background: #fffbeb;
         color: #b45309;
         border: 1px solid #fde68a;
-        padding: 2px 8px;
-        border-radius: 5px;
+        padding: 2px 9px;
+        border-radius: 9999px;
         font-weight: 600;
-        font-size: 0.75rem;
+        font-size: 0.72rem;
+        display: inline-block;
+    }
+    .badge-slate {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+        padding: 2px 9px;
+        border-radius: 9999px;
+        font-weight: 600;
+        font-size: 0.72rem;
+        display: inline-block;
     }
 
-    /* Native Streamlit Bordered Containers làm Card thật bao quanh biểu đồ */
+    /* --- NATIVE BORDERED CONTAINERS AS STRIPE LEVEL-1 ELEVATION CARDS --- */
     [data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #ffffff !important;
-        border: 1px solid #e2e8f0 !important;
+        border: 1px solid #e3e8ee !important;
         border-radius: 12px !important;
-        padding: 18px 20px !important;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03) !important;
-        margin-bottom: 12px !important;
+        padding: 18px 22px !important;
+        box-shadow: rgba(0, 55, 112, 0.06) 0px 1px 3px !important;
+        margin-bottom: 14px !important;
     }
 
     .panel-title {
-        font-size: 0.96rem;
-        font-weight: 700;
-        color: #0f172a;
-        margin-bottom: 10px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #0d253d;
+        margin-bottom: 12px;
+        padding-bottom: 9px;
+        border-bottom: 1px solid #e3e8ee;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        letter-spacing: -0.01em;
+        letter-spacing: -0.015em;
     }
     .panel-tag {
-        font-size: 0.72rem;
+        font-size: 0.66rem;
         font-weight: 600;
-        color: #64748b;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        padding: 2px 8px;
-        border-radius: 4px;
+        color: #4434d4;
+        background: #eef0ff;
+        border: 1px solid #d8dcfb;
+        padding: 2px 9px;
+        border-radius: 9999px;
         font-family: 'Fira Code', monospace;
+        letter-spacing: 0.04em;
     }
 
-    /* Hồ sơ Customer 360 styling */
+    /* --- CUSTOM STRIPE SAAS HTML TABLES (REPLACING GRAY ST.DATAFRAME) --- */
+    .stripe-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+        border: 1px solid #e3e8ee;
+        border-radius: 10px;
+        background: #ffffff;
+        margin-top: 6px;
+        margin-bottom: 10px;
+    }
+    .stripe-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+        color: #0d253d;
+    }
+    .stripe-table thead tr {
+        background: #f6f9fc;
+        border-bottom: 1px solid #e3e8ee;
+    }
+    .stripe-table th {
+        padding: 10px 12px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #64748d;
+        text-align: left;
+        white-space: nowrap;
+    }
+    .stripe-table th.num, .stripe-table td.num {
+        text-align: right;
+        font-family: 'Fira Code', monospace;
+        font-variant-numeric: tabular-nums;
+        font-feature-settings: "tnum" on;
+    }
+    .stripe-table tbody tr {
+        border-bottom: 1px solid #eef2f6;
+        transition: background-color 0.12s ease;
+    }
+    .stripe-table tbody tr:last-child {
+        border-bottom: none;
+    }
+    .stripe-table tbody tr:hover {
+        background-color: #f8fafd;
+    }
+    .stripe-table tbody tr.optimal-row {
+        background-color: #f0fdf4;
+    }
+    .stripe-table td {
+        padding: 9px 12px;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+    .cust-id-chip {
+        font-family: 'Fira Code', monospace;
+        font-weight: 600;
+        font-size: 0.78rem;
+        color: #0d253d;
+        background: #f6f9fc;
+        border: 1px solid #e3e8ee;
+        padding: 2px 7px;
+        border-radius: 5px;
+    }
+    .risk-cell-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 115px;
+    }
+    .risk-bar-bg {
+        flex: 1;
+        height: 6px;
+        background: #edf2f7;
+        border-radius: 9999px;
+        overflow: hidden;
+        min-width: 52px;
+    }
+    .risk-bar-fill {
+        height: 100%;
+        border-radius: 9999px;
+    }
+
+    /* --- CUSTOMER 360 IDENTITY CARD & DECISION TICKET --- */
     .profile-box {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
+        background: #f6f9fc;
+        border: 1px solid #e3e8ee;
         border-radius: 10px;
         padding: 12px 16px;
         margin-top: 8px;
@@ -298,75 +471,265 @@ st.markdown(
         justify-content: space-between;
         align-items: center;
         padding: 6px 0;
-        border-bottom: 1px solid #f1f5f9;
-        font-size: 0.84rem;
+        border-bottom: 1px solid #e3e8ee;
+        font-size: 0.83rem;
     }
     .profile-item:last-child {
         border-bottom: none;
     }
     .profile-key {
-        color: #64748b;
+        color: #64748d;
         font-weight: 500;
     }
     .profile-val {
-        color: #0f172a;
+        color: #0d253d;
         font-weight: 600;
         font-family: 'Fira Code', monospace;
+        font-feature-settings: "tnum" on;
     }
 
-    /* Hộp Đề Xuất Tối Ưu */
     .recommend-box {
-        background: #f8fafc;
-        border: 1px solid #cbd5e1;
-        border-left: 4px solid #059669;
+        background: linear-gradient(180deg, #ffffff 0%, #f6f9fc 100%);
+        border: 1px solid #e3e8ee;
+        border-left: 4px solid #533afd;
         border-radius: 10px;
-        padding: 16px 18px;
+        padding: 16px;
+        margin-bottom: 10px;
     }
     .recommend-title {
-        font-size: 1.05rem;
+        font-size: 0.95rem;
         font-weight: 700;
-        color: #0f172a;
+        color: #0d253d;
         margin-bottom: 10px;
     }
 
-    /* Sidebar chuẩn sạch */
-    [data-testid="stSidebar"] {
-        background-color: #ffffff !important;
-        border-right: 1px solid #e2e8f0;
-    }
-
-    /* Segmented Tabs chuẩn Component Gallery */
+    /* --- STRIPE PILL BUTTONS & TABS --- */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 4px;
-        background-color: #f1f5f9;
-        padding: 5px;
-        border-radius: 10px;
-        border: 1px solid #e2e8f0;
-        margin-bottom: 16px;
+        gap: 6px;
+        background-color: #ffffff;
+        padding: 6px 8px;
+        border-radius: 9999px;
+        border: 1px solid #e3e8ee;
+        margin-bottom: 18px;
+        box-shadow: rgba(0, 55, 112, 0.04) 0px 1px 2px;
     }
     .stTabs [data-baseweb="tab"] {
-        border-radius: 7px;
-        padding: 8px 18px;
+        height: 36px;
+        border-radius: 9999px;
+        padding: 0 18px;
+        font-size: 0.83rem;
         font-weight: 600;
-        font-size: 0.88rem;
-        color: #475569;
-        background-color: transparent;
-        border: none;
-        transition: all 0.15s ease;
-    }
-    .stTabs [data-baseweb="tab"]:hover {
-        color: #0f172a;
+        color: #64748d;
+        border: none !important;
+        background: transparent;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #ffffff !important;
-        color: #1e40af !important;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08) !important;
-        font-weight: 700 !important;
+        background-color: #533afd !important;
+        color: #ffffff !important;
+        box-shadow: rgba(83, 58, 253, 0.24) 0px 2px 6px;
+    }
+    .stButton > button[kind="primary"] {
+        background-color: #533afd !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 9999px !important;
+        padding: 8px 18px !important;
+        font-weight: 600 !important;
+        box-shadow: rgba(83, 58, 253, 0.2) 0px 2px 5px !important;
+    }
+    .stButton > button[kind="primary"]:hover {
+        background-color: #4434d4 !important;
+    }
+    .stDownloadButton > button {
+        border-radius: 9999px !important;
+        border: 1px solid #533afd !important;
+        color: #533afd !important;
+        font-weight: 600 !important;
+        background: #ffffff !important;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
+
+
+def _action_pill_html(code: str, name: str = "") -> str:
+    label = f"{code} · {name}" if name else code
+    if code == "A0":
+        return f'<span class="badge-slate">{label}</span>'
+    elif code == "A1":
+        return f'<span class="badge-indigo">{label}</span>'
+    elif code == "A2":
+        return f'<span class="badge-amber">{label}</span>'
+    else:
+        return f'<span class="badge-emerald">{label}</span>'
+
+
+def _risk_bar_html(prob: float) -> str:
+    pct = max(0.0, min(100.0, float(prob) * 100.0))
+    color = "#ea2261" if pct >= 65.0 else ("#d97706" if pct >= 35.0 else "#059669")
+    return (
+        f'<div class="risk-cell-wrap">'
+        f'<span style="font-family:Fira Code,monospace;font-weight:600;color:{color};min-width:44px;">{pct:.1f}%</span>'
+        f'<div class="risk-bar-bg"><div class="risk-bar-fill" style="width:{pct:.0f}%;background:{color};"></div></div>'
+        f'</div>'
+    )
+
+
+def render_package_economics_html_table(summary_df: pd.DataFrame) -> str:
+    rows_html = []
+    for _, r in summary_df.iterrows():
+        code = str(r["action_code"])
+        name = str(r["action_name"])
+        n_cust = int(r["n_customers"])
+        pct = float(r["percentage"])
+        cost_val = float(r["cost_sum"])
+        ben_val = float(r["benefit_sum"])
+        net_val = float(r["net_value_sum"])
+        net_style = "color:#059669;font-weight:700;" if net_val > 0 else "color:#64748d;"
+        net_str = f"+${net_val:,.0f}" if net_val > 0 else f"${net_val:,.0f}"
+        bar_color = "#533afd" if code != "A0" else "#94a3b8"
+        rows_html.append(
+            f"<tr>"
+            f"<td>{_action_pill_html(code)}</td>"
+            f"<td style='font-weight:500;color:#273951;'>{name}</td>"
+            f"<td class='num'>{n_cust:,}</td>"
+            f"<td>"
+            f"<div class='risk-cell-wrap'>"
+            f"<span style='font-family:Fira Code,monospace;font-size:0.78rem;min-width:42px;'>{pct:.1f}%</span>"
+            f"<div class='risk-bar-bg'><div class='risk-bar-fill' style='width:{min(100.0, pct):.0f}%;background:{bar_color};'></div></div>"
+            f"</div>"
+            f"</td>"
+            f"<td class='num'>${cost_val:,.0f}</td>"
+            f"<td class='num'>${ben_val:,.0f}</td>"
+            f"<td class='num' style='{net_style}'>{net_str}</td>"
+            f"</tr>"
+        )
+    return (
+        '<div class="stripe-table-wrap"><table class="stripe-table">'
+        '<thead><tr>'
+        '<th>Mã</th><th>Tên Gói Chiến Lược</th><th class="num">Số Khách</th>'
+        '<th>Tỷ Trọng Tệp</th><th class="num">Tổng Chi Phí (C)</th>'
+        '<th class="num">Lợi Ích Gộp (B)</th><th class="num">Lợi Nhuận Ròng (ΔEV)</th>'
+        '</tr></thead><tbody>'
+        + "".join(rows_html)
+        + '</tbody></table></div>'
+    )
+
+
+def render_priority_customers_html_table(df: pd.DataFrame, max_rows: int = 12) -> str:
+    rows_html = []
+    sub = df.head(max_rows)
+    for idx, r in enumerate(sub.itertuples(), start=1):
+        cid = str(r.customerID)
+        code = str(r.action_code)
+        name = str(r.action_name)
+        p_before = float(r.churn_prob)
+        p_after = float(getattr(r, "churn_prob_after", p_before))
+        p_star = getattr(r, "breakeven_prob", None)
+        p_star_str = f"{float(p_star):.1%}" if (p_star is not None and pd.notna(p_star)) else "—"
+        v_val = float(getattr(r, "proxy_value", 0.0))
+        c_val = float(r.cost)
+        b_val = float(r.benefit)
+        ev_val = float(r.net_value)
+        ev_badge = f'<span class="badge-emerald">+${ev_val:,.2f}</span>' if ev_val > 0 else f'<span class="badge-slate">${ev_val:,.2f}</span>'
+        rows_html.append(
+            f"<tr>"
+            f"<td class='num' style='color:#64748d;font-weight:600;'>#{idx:02d}</td>"
+            f"<td><span class='cust-id-chip'>{cid}</span></td>"
+            f"<td>{_action_pill_html(code, name)}</td>"
+            f"<td>{_risk_bar_html(p_before)}</td>"
+            f"<td class='num' style='color:#64748d;'>{p_star_str}</td>"
+            f"<td class='num' style='color:#059669;'>{p_after:.1%}</td>"
+            f"<td class='num'>${v_val:,.2f}</td>"
+            f"<td class='num'>${c_val:,.2f}</td>"
+            f"<td class='num'>${b_val:,.2f}</td>"
+            f"<td class='num'>{ev_badge}</td>"
+            f"</tr>"
+        )
+    return (
+        '<div class="stripe-table-wrap"><table class="stripe-table">'
+        '<thead><tr>'
+        '<th class="num">Hạng</th><th>Mã Khách Hàng</th><th>Gói Đề Xuất</th>'
+        '<th>Rủi Ro Churn (p)</th><th class="num">Hòa Vốn (p*)</th><th class="num">Sau Can Thiệp</th>'
+        '<th class="num">Giá Trị (V)</th><th class="num">Chi Phí (C)</th>'
+        '<th class="num">Lợi Ích (B)</th><th class="num">Lợi Nhuận (ΔEV)</th>'
+        '</tr></thead><tbody>'
+        + "".join(rows_html)
+        + '</tbody></table></div>'
+    )
+
+
+def render_action_matrix_html_table(cust_eval: pd.DataFrame, best_code: str) -> str:
+    rows_html = []
+    for _, r in cust_eval.iterrows():
+        code = str(r["action_code"])
+        name = str(r["action_name"])
+        c_val = float(r["cost"])
+        b_val = float(r["benefit"])
+        ev_val = float(r["net_value"])
+        be_val = r.get("breakeven_prob", None)
+        be_str = f"{float(be_val):.1%}" if (be_val is not None and pd.notna(be_val)) else "—"
+        is_opt = (code == best_code)
+        row_cls = " class='optimal-row'" if is_opt else ""
+        opt_tag = ' <span class="badge-emerald">TỐI ƯU</span>' if is_opt else ""
+        ev_color = "#059669" if ev_val > 0 else ("#ea2261" if ev_val < 0 else "#64748d")
+        rows_html.append(
+            f"<tr{row_cls}>"
+            f"<td>{_action_pill_html(code)}{opt_tag}</td>"
+            f"<td style='font-weight:500;'>{name}</td>"
+            f"<td class='num'>${c_val:,.2f}</td>"
+            f"<td class='num'>${b_val:,.2f}</td>"
+            f"<td class='num' style='color:{ev_color};font-weight:700;'>{ev_val:+.2f}$</td>"
+            f"<td class='num'>{be_str}</td>"
+            f"</tr>"
+        )
+    return (
+        '<div class="stripe-table-wrap"><table class="stripe-table">'
+        '<thead><tr>'
+        '<th>Mã</th><th>Phương Án Hợp Lệ</th><th class="num">Chi Phí (C)</th>'
+        '<th class="num">Lợi Ích (B)</th><th class="num">Giá Trị Ròng (ΔEV)</th><th class="num">Hòa Vốn (p*)</th>'
+        '</tr></thead><tbody>'
+        + "".join(rows_html)
+        + '</tbody></table></div>'
+    )
+
+
+def render_knapsack_allocations_html_table(interv_df: pd.DataFrame, max_rows: int = 10) -> str:
+    rows_html = []
+    has_prob = "churn_prob" in interv_df.columns
+    for idx, (_, r) in enumerate(interv_df.head(max_rows).iterrows(), start=1):
+        cid = str(r.get("customerID", r.get("customer_id", "N/A")))
+        code = str(r.get("action_code", "A0"))
+        name = str(r.get("action_name", ""))
+        p_val = float(r.get("churn_prob", 0.0)) if has_prob else None
+        c_val = float(r.get("cost", 0.0))
+        b_val = float(r.get("benefit", 0.0))
+        ev_val = float(r.get("net_value", 0.0))
+        eff = float(r.get("efficiency_ratio", (ev_val / c_val) if c_val > 0 else 0.0))
+        prob_cell = f"<td>{_risk_bar_html(p_val)}</td>" if p_val is not None else "<td style='color:#64748d;'>—</td>"
+        rows_html.append(
+            f"<tr>"
+            f"<td class='num' style='color:#64748d;'>#{idx:02d}</td>"
+            f"<td><span class='cust-id-chip'>{cid}</span></td>"
+            f"<td>{_action_pill_html(code, name)}</td>"
+            f"{prob_cell}"
+            f"<td class='num'>${c_val:,.2f}</td>"
+            f"<td class='num'>${b_val:,.2f}</td>"
+            f"<td class='num'><span class='badge-emerald'>+${ev_val:,.2f}</span></td>"
+            f"<td class='num'><span class='badge-indigo'>{eff:.2f}x</span></td>"
+            f"</tr>"
+        )
+    return (
+        '<div class="stripe-table-wrap"><table class="stripe-table">'
+        '<thead><tr>'
+        '<th class="num">#</th><th>Mã Khách Hàng</th><th>Gói Phân Bổ</th>'
+        '<th>Xác Suất Churn</th><th class="num">Chi Phí (C)</th><th class="num">Lợi Ích (B)</th>'
+        '<th class="num">Lợi Nhuận (ΔEV)</th><th class="num">Hiệu Suất (ΔEV/C)</th>'
+        '</tr></thead><tbody>'
+        + "".join(rows_html)
+        + '</tbody></table></div>'
+    )
 
 
 # --- NẠP DỮ LIỆU & CHẠY DỰ ĐOÁN ---
@@ -712,47 +1075,57 @@ with tab1:
     avg_cost_per_user = (total_cost / n_intervened) if n_intervened > 0 else 0
     roi = ((total_net_value / total_cost) * 100) if total_cost > 0 else 0
 
+    cost_to_benefit_pct = min(100.0, (total_cost / total_benefit * 100.0)) if total_benefit > 0 else 0.0
+    net_to_benefit_pct = min(100.0, (total_net_value / total_benefit * 100.0)) if total_benefit > 0 else 0.0
     st.markdown(
         f"""
         <div class="kpi-grid">
             <div class="modern-card card-accent-blue">
                 <div class="card-label">
                     <span>Khách Hàng Hoạt Động</span>
-                    <div class="card-icon-wrap" style="background:#eff6ff; color:#1e40af;">{SVG_USERS}</div>
+                    <div class="card-icon-wrap" style="background:#eef0ff; color:#533afd;">{SVG_USERS}</div>
                 </div>
                 <div class="card-value">{n_total:,}</div>
+                <div class="kpi-progress-track"><div class="kpi-progress-fill" style="width:100%; background:#533afd;"></div></div>
                 <div class="card-footer">
-                    <span>Đủ điều kiện xét duyệt chính sách</span>
+                    <span>Toàn bộ danh mục quản lý</span>
+                    <span class="badge-indigo">100% Active</span>
                 </div>
             </div>
             <div class="modern-card card-accent-indigo">
                 <div class="card-label">
                     <span>Quyết Định Can Thiệp</span>
-                    <div class="card-icon-wrap" style="background:#eef2ff; color:#4f46e5;">{SVG_TARGET}</div>
+                    <div class="card-icon-wrap" style="background:#eef0ff; color:#4434d4;">{SVG_TARGET}</div>
                 </div>
                 <div class="card-value">{n_intervened:,}</div>
+                <div class="kpi-progress-track"><div class="kpi-progress-fill" style="width:{intervention_rate * 100:.1f}%; background:#4434d4;"></div></div>
                 <div class="card-footer">
-                    Tỷ lệ tiếp cận: <span class="badge-indigo">{intervention_rate:.1%}</span>
+                    <span>Tỷ lệ khách có ΔEV &gt; 0</span>
+                    <span class="badge-indigo">{intervention_rate:.1%}</span>
                 </div>
             </div>
             <div class="modern-card card-accent-amber">
                 <div class="card-label">
-                    <span>Ngân Sách Đề Xuất</span>
+                    <span>Ngân Sách Đầu Tư (Cost C)</span>
                     <div class="card-icon-wrap" style="background:#fffbeb; color:#d97706;">{SVG_WALLET}</div>
                 </div>
                 <div class="card-value">${total_cost:,.0f}</div>
+                <div class="kpi-progress-track"><div class="kpi-progress-fill" style="width:{cost_to_benefit_pct:.1f}%; background:#d97706;"></div></div>
                 <div class="card-footer">
-                    Trung bình: <strong>${avg_cost_per_user:,.1f}</strong> / khách
+                    <span>Chi phí TB / khách</span>
+                    <span class="badge-amber">${avg_cost_per_user:,.1f}/KH</span>
                 </div>
             </div>
             <div class="modern-card card-accent-emerald">
                 <div class="card-label">
-                    <span>Lợi Nhuận Ròng (ΔEV)</span>
+                    <span>Lợi Nhuận Ròng Kỳ Vọng (ΔEV)</span>
                     <div class="card-icon-wrap" style="background:#ecfdf5; color:#059669;">{SVG_TRENDING}</div>
                 </div>
                 <div class="card-value" style="color: #059669;">+${total_net_value:,.0f}</div>
+                <div class="kpi-progress-track"><div class="kpi-progress-fill" style="width:{net_to_benefit_pct:.1f}%; background:#059669;"></div></div>
                 <div class="card-footer">
-                    Gross: <strong>${total_benefit:,.0f}</strong> <span class="badge-emerald">ROI +{roi:.1f}%</span>
+                    <span>Gross: <strong>${total_benefit:,.0f}</strong></span>
+                    <span class="badge-emerald">ROI +{roi:.1f}%</span>
                 </div>
             </div>
         </div>
@@ -903,25 +1276,7 @@ with tab1:
             st.plotly_chart(fig_grouped, width="stretch")
 
         with col_table:
-            table_display = summary_df[[
-                "action_code", "action_name", "n_customers", "percentage",
-                "cost_sum", "benefit_sum", "net_value_sum"
-            ]].copy().reset_index(drop=True)
-            table_display.columns = [
-                "Mã", "Tên Gói Hành Động", "Số Khách", "Tỷ Lệ %",
-                "Tổng Chi Phí", "Lợi Ích Gộp", "Lợi Nhuận Ròng (ΔEV)"
-            ]
-            st.dataframe(
-                table_display.style.format({
-                    "Số Khách": "{:,}",
-                    "Tỷ Lệ %": "{:.1f}%",
-                    "Tổng Chi Phí": "${:,.2f}",
-                    "Lợi Ích Gộp": "${:,.2f}",
-                    "Lợi Nhuận Ròng (ΔEV)": "${:,.2f}",
-                }),
-                width="stretch",
-                height=260,
-            )
+            st.markdown(render_package_economics_html_table(summary_df), unsafe_allow_html=True)
 
     with st.expander("Xem & Tải Báo Cáo Tóm Tắt Điều Hành (Executive Summary Report)", expanded=False):
         top_action = summary_df.loc[summary_df[summary_df["action_code"] != "A0"]["net_value_sum"].idxmax()]
@@ -970,26 +1325,29 @@ with tab2:
             <div class="modern-card card-accent-blue">
                 <div class="card-label">
                     <span>Tổng Tệp Khảo Sát</span>
-                    <div class="card-icon-wrap" style="background:#eff6ff; color:#1e40af;">{SVG_USERS}</div>
+                    <div class="card-icon-wrap" style="background:#eef0ff; color:#533afd;">{SVG_USERS}</div>
                 </div>
                 <div class="card-value">{eda_total:,}</div>
-                <div class="card-footer"><span>Toàn bộ mẫu dữ liệu Telco</span></div>
+                <div class="kpi-progress-track"><div class="kpi-progress-fill" style="width:100%; background:#533afd;"></div></div>
+                <div class="card-footer"><span>Toàn bộ mẫu dữ liệu Telco</span><span class="badge-indigo">100%</span></div>
             </div>
-            <div class="modern-card card-accent-amber">
+            <div class="modern-card card-accent-ruby">
                 <div class="card-label">
                     <span>Tỷ Lệ Churn Toàn Mạng</span>
-                    <div class="card-icon-wrap" style="background:#fff1f2; color:#be123c;">{SVG_ALERT}</div>
+                    <div class="card-icon-wrap" style="background:#fff1f2; color:#ea2261;">{SVG_ALERT}</div>
                 </div>
-                <div class="card-value" style="color: #be123c;">{churn_pct:.1f}%</div>
-                <div class="card-footer"><span>{churn_count:,} khách hàng rời mạng</span></div>
+                <div class="card-value" style="color: #ea2261;">{churn_pct:.1f}%</div>
+                <div class="kpi-progress-track"><div class="kpi-progress-fill" style="width:{min(100.0, churn_pct):.1f}%; background:#ea2261;"></div></div>
+                <div class="card-footer"><span>Số lượng rời bỏ</span><span class="badge-rose">{churn_count:,} KH</span></div>
             </div>
             <div class="modern-card card-accent-indigo">
                 <div class="card-label">
                     <span>Cước Trung Bình Tháng</span>
-                    <div class="card-icon-wrap" style="background:#eef2ff; color:#4f46e5;">{SVG_WALLET}</div>
+                    <div class="card-icon-wrap" style="background:#eef0ff; color:#4434d4;">{SVG_WALLET}</div>
                 </div>
                 <div class="card-value">${avg_mc:.1f}</div>
-                <div class="card-footer"><span>MonthlyCharges trung bình</span></div>
+                <div class="kpi-progress-track"><div class="kpi-progress-fill" style="width:{min(100.0, avg_mc / 1.2):.1f}%; background:#4434d4;"></div></div>
+                <div class="card-footer"><span>ARPU / MonthlyCharges</span><span class="badge-indigo">USD/Tháng</span></div>
             </div>
             <div class="modern-card card-accent-emerald">
                 <div class="card-label">
@@ -997,7 +1355,8 @@ with tab2:
                     <div class="card-icon-wrap" style="background:#ecfdf5; color:#059669;">{SVG_CLOCK}</div>
                 </div>
                 <div class="card-value">{avg_tenure:.1f}M</div>
-                <div class="card-footer"><span>Khoảng ~{avg_tenure / 12:.1f} năm trung bình</span></div>
+                <div class="kpi-progress-track"><div class="kpi-progress-fill" style="width:{min(100.0, avg_tenure / 72.0 * 100.0):.1f}%; background:#059669;"></div></div>
+                <div class="card-footer"><span>Chu kỳ gắn bó</span><span class="badge-emerald">~{avg_tenure / 12:.1f} năm</span></div>
             </div>
         </div>
         """,
@@ -1226,25 +1585,26 @@ with tab3:
 
         st.caption(f"Tìm thấy **{len(filtered_df):,}** khách hàng thỏa mãn tiêu chí lọc.")
 
-        filtered_display = filtered_df[[
-            "rank", "customerID", "action_code", "action_name", "churn_prob",
-            "proxy_value", "cost", "benefit", "net_value", "breakeven_prob", "churn_prob_after"
-        ]].copy().reset_index(drop=True)
-        filtered_display["rank"] = range(len(filtered_display))
-
-        st.dataframe(
-            filtered_display.style.format({
-                "churn_prob": "{:.1%}",
-                "churn_prob_after": "{:.1%}",
-                "breakeven_prob": "{:.1%}",
-                "proxy_value": "${:.2f}",
-                "cost": "${:.2f}",
-                "benefit": "${:.2f}",
-                "net_value": "${:+.2f}",
-            }),
-            width="stretch",
-            height=240,
-        )
+        st.markdown(render_priority_customers_html_table(filtered_df, max_rows=10), unsafe_allow_html=True)
+        with st.expander("Mở bảng dữ liệu tương tác toàn phần (Sắp xếp / Tra cứu toàn bộ danh sách)", expanded=False):
+            filtered_display = filtered_df[[
+                "rank", "customerID", "action_code", "action_name", "churn_prob",
+                "proxy_value", "cost", "benefit", "net_value", "breakeven_prob", "churn_prob_after"
+            ]].copy().reset_index(drop=True)
+            filtered_display["rank"] = range(1, len(filtered_display) + 1)
+            st.dataframe(
+                filtered_display.style.format({
+                    "churn_prob": "{:.1%}",
+                    "churn_prob_after": "{:.1%}",
+                    "breakeven_prob": "{:.1%}",
+                    "proxy_value": "${:.2f}",
+                    "cost": "${:.2f}",
+                    "benefit": "${:.2f}",
+                    "net_value": "${:+.2f}",
+                }),
+                width="stretch",
+                height=220,
+            )
 
         csv_data = filtered_df[[
             "rank", "customerID", "action_code", "action_name", "churn_prob",
@@ -1459,27 +1819,7 @@ with tab3:
                 )
                 st.plotly_chart(fig_action_comp, width="stretch")
 
-                cust_eval_display = cust_eval[[
-                    "action_code", "action_name", "cost", "benefit", "net_value", "breakeven_prob"
-                ]].rename(columns={
-                    "action_code": "Mã",
-                    "action_name": "Tên gói",
-                    "cost": "Chi phí C",
-                    "benefit": "Lợi ích B",
-                    "net_value": "Giá trị ròng ΔEV",
-                    "breakeven_prob": "Hòa vốn p*",
-                }).reset_index(drop=True)
-
-                st.dataframe(
-                    cust_eval_display.style.format({
-                        "Chi phí C": "${:.2f}",
-                        "Lợi ích B": "${:.2f}",
-                        "Giá trị ròng ΔEV": "${:+.2f}",
-                        "Hòa vốn p*": "{:.1%}",
-                    }),
-                    width="stretch",
-                    height=165,
-                )
+                st.markdown(render_action_matrix_html_table(cust_eval, best_code), unsafe_allow_html=True)
 
         with r2_col2:
             with st.container(border=True):
@@ -1544,9 +1884,40 @@ with tab4:
             benefit_e2e = float(interv_e2e["benefit"].sum()) if not interv_e2e.empty else 0.0
             budget_utilization = (spent_e2e / e2e_budget * 100) if e2e_budget > 0 else 0.0
 
-            st.metric("Ngân sách thực tiêu", f"${spent_e2e:,.2f} / ${e2e_budget:,} ({budget_utilization:.1f}%)")
-            st.metric("Lợi nhuận ròng thu về (ΔEV)", f"+${earned_e2e:,.2f}")
-            st.metric("Số khách hàng được can thiệp", f"{len(interv_e2e):,} khách")
+            roi_e2e = ((earned_e2e / spent_e2e) * 100.0) if spent_e2e > 0 else 0.0
+            st.markdown(
+                f"""
+                <div class="profile-box" style="background:#ffffff; border:1px solid #e3e8ee; padding:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="font-size:0.74rem; font-weight:700; text-transform:uppercase; color:#64748d;">Giải Ngân Ngân Sách Knapsack</span>
+                        <span class="badge-indigo">{budget_utilization:.1f}% Hạn mức</span>
+                    </div>
+                    <div style="font-family:'Fira Code',monospace; font-size:1.35rem; font-weight:700; color:#0d253d; margin-bottom:8px;">
+                        ${spent_e2e:,.2f} <span style="font-size:0.88rem; color:#64748d; font-weight:500;">/ ${e2e_budget:,}</span>
+                    </div>
+                    <div class="kpi-progress-track" style="height:7px; margin-bottom:14px;">
+                        <div class="kpi-progress-fill" style="width:{min(100.0, budget_utilization):.1f}%; background:#533afd;"></div>
+                    </div>
+                    <div class="profile-item">
+                        <span class="profile-key">Lợi nhuận ròng thu về (ΔEV)</span>
+                        <span class="badge-emerald" style="font-size:0.85rem;">+${earned_e2e:,.2f}</span>
+                    </div>
+                    <div class="profile-item">
+                        <span class="profile-key">Lợi ích gộp bảo vệ (Gross B)</span>
+                        <span class="profile-val">${benefit_e2e:,.2f}</span>
+                    </div>
+                    <div class="profile-item">
+                        <span class="profile-key">Tỷ suất sinh lời (ROI)</span>
+                        <span class="profile-val" style="color:#059669;">+{roi_e2e:.1f}%</span>
+                    </div>
+                    <div class="profile-item">
+                        <span class="profile-key">Số khách hàng được duyệt</span>
+                        <span class="profile-val">{len(interv_e2e):,} khách hàng</span>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
     with sim_col_right:
         with st.container(border=True):
@@ -1589,17 +1960,7 @@ with tab4:
                 )
                 st.plotly_chart(fig_sim, width="stretch")
 
-                st.dataframe(
-                    interv_e2e[["customerID", "action_code", "action_name", "churn_prob", "cost", "benefit", "net_value", "efficiency_ratio"]].head(8).style.format({
-                        "churn_prob": "{:.1%}",
-                        "cost": "${:,.2f}",
-                        "benefit": "${:,.2f}",
-                        "net_value": "${:,.2f}",
-                        "efficiency_ratio": "{:.2f}",
-                    }),
-                    width="stretch",
-                    height=200,
-                )
+                st.markdown(render_knapsack_allocations_html_table(interv_e2e, max_rows=8), unsafe_allow_html=True)
             else:
                 st.info("Hạn mức ngân sách quá nhỏ để thực hiện bất kỳ hành động can thiệp nào.")
 
@@ -1673,24 +2034,38 @@ with tab4:
                 selected_camp = get_campaign(selected_camp_id)
                 summary_data = selected_camp.results.get("summary", {})
 
-                kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
-                with kpi_col1:
-                    st.metric("Hạn Mức Ngân Sách", f"${selected_camp.budget:,.2f}")
-                with kpi_col2:
-                    st.metric("Chi Phí Thực Tiêu", f"${summary_data.get('total_cost', 0.0):,.2f}")
-                with kpi_col3:
-                    st.metric("Lợi Nhuận Ròng (ΔEV)", f"+${summary_data.get('total_net_value', 0.0):,.2f}")
-                with kpi_col4:
-                    st.metric("Trạng Thái", selected_camp.status.value)
+                c_budget = float(selected_camp.budget)
+                c_cost = float(summary_data.get("total_cost", 0.0))
+                c_net = float(summary_data.get("total_net_value", 0.0))
+                c_n = int(summary_data.get("n_intervened", 0))
+                st.markdown(
+                    f"""
+                    <div class="kpi-grid" style="margin-top:8px; margin-bottom:12px;">
+                        <div class="modern-card card-accent-blue" style="padding:14px 16px;">
+                            <div class="card-label"><span>Hạn Mức Ngân Sách</span></div>
+                            <div class="card-value" style="font-size:1.3rem;">${c_budget:,.2f}</div>
+                        </div>
+                        <div class="modern-card card-accent-amber" style="padding:14px 16px;">
+                            <div class="card-label"><span>Chi Phí Thực Tiêu</span></div>
+                            <div class="card-value" style="font-size:1.3rem;">${c_cost:,.2f}</div>
+                        </div>
+                        <div class="modern-card card-accent-emerald" style="padding:14px 16px;">
+                            <div class="card-label"><span>Lợi Nhuận Ròng (ΔEV)</span></div>
+                            <div class="card-value" style="font-size:1.3rem; color:#059669;">+${c_net:,.2f}</div>
+                        </div>
+                        <div class="modern-card card-accent-indigo" style="padding:14px 16px;">
+                            <div class="card-label"><span>Trạng Thái & Quy Mô</span></div>
+                            <div style="margin-top:4px;"><span class="badge-indigo">{selected_camp.status.value}</span> <span class="badge-emerald">{c_n:,} KH</span></div>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
                 camp_df = export_campaign_dataframe(selected_camp.campaign_id)
                 interv_df = camp_df[camp_df["action_code"] != "A0"] if not camp_df.empty and "action_code" in camp_df.columns else camp_df
                 if not interv_df.empty:
-                    st.dataframe(
-                        interv_df.head(10).style.format({"cost": "${:,.2f}", "benefit": "${:,.2f}", "net_value": "${:,.2f}"}),
-                        width="stretch",
-                        height=210,
-                    )
+                    st.markdown(render_knapsack_allocations_html_table(interv_df, max_rows=8), unsafe_allow_html=True)
                 csv_data = export_campaign_csv(selected_camp.campaign_id, only_interventions=True)
                 st.download_button(
                     label=f"Xuất File CSV Chiến Dịch '{selected_camp.name}'",
