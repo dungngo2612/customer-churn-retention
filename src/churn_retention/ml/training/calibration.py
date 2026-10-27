@@ -1,6 +1,7 @@
 """Train-only probability calibration for the unweighted logistic pipeline."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -11,6 +12,7 @@ from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyp
 from sklearn.model_selection import StratifiedKFold  # type: ignore[import-untyped]
 
 from churn_retention.ml.training.baseline import train_logistic
+from churn_retention.ml.training.metrics import compute_metrics
 from churn_retention.ml.training.tune import TuneConfig, _prepare
 
 
@@ -21,6 +23,8 @@ class CalibrationResult:
     train_rows: int
     seed: int
     n_splits: int
+    metrics: dict[str, dict[str, float]] = field(default_factory=dict)
+    reliability: dict[str, pd.DataFrame] = field(default_factory=dict)
 
 
 def fit_calibration(
@@ -79,10 +83,86 @@ def fit_calibration(
         )
         calibrated.fit(X_train, y_train)
         probabilities[method] = calibrated.predict_proba(X_val)[:, 1]
-    return CalibrationResult(
+    result = CalibrationResult(
         y_true=y_val.to_numpy(dtype=int),
         probabilities=probabilities,
         train_rows=len(X_train),
         seed=config.seed,
         n_splits=config.n_splits,
     )
+    for name, values in probabilities.items():
+        scores = compute_metrics(result.y_true, values)
+        result.reliability[name] = reliability_table(result.y_true, values)
+        result.metrics[name] = {
+            key: float(scores[key])
+            for key in ("brier_score", "log_loss", "roc_auc", "average_precision")
+        }
+        result.metrics[name]["ece"] = _table_ece(result.reliability[name])
+    return result
+
+
+def reliability_table(
+    y_true: np.ndarray, y_proba: np.ndarray, n_bins: int = 10
+) -> pd.DataFrame:
+    """Aggregate equal-width probability bins [i/B, (i+1)/B), last includes 1.
+
+    Empty bins have count=0 and undefined (NaN) means/rates, written as empty CSV
+    cells. Only bin aggregates are exported, never IDs or individual predictions.
+    """
+    labels = np.asarray(y_true)
+    probabilities = np.asarray(y_proba, dtype=float)
+    if type(n_bins) is not int or n_bins < 1:
+        raise ValueError("n_bins must be a positive integer")
+    if labels.ndim != 1 or probabilities.ndim != 1 or labels.size != probabilities.size:
+        raise ValueError("Labels and probabilities must be equal-length 1D arrays")
+    if not labels.size or not np.isin(labels, [0, 1]).all():
+        raise ValueError("Labels must be nonempty and contain only 0/1")
+    if not np.isfinite(probabilities).all() or np.any(
+        (probabilities < 0) | (probabilities > 1)
+    ):
+        raise ValueError("Probabilities must be finite and in [0, 1]")
+    bin_ids = np.minimum((probabilities * n_bins).astype(int), n_bins - 1)
+    rows = []
+    for bin_id in range(n_bins):
+        mask = bin_ids == bin_id
+        count = int(mask.sum())
+        rows.append(
+            {
+                "bin": bin_id + 1,
+                "lower": bin_id / n_bins,
+                "upper": (bin_id + 1) / n_bins,
+                "count": count,
+                "mean_probability": float(probabilities[mask].mean())
+                if count
+                else np.nan,
+                "churn_rate": float(labels[mask].mean()) if count else np.nan,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def _table_ece(table: pd.DataFrame) -> float:
+    populated = table.loc[table["count"] > 0]
+    gaps = (populated["mean_probability"] - populated["churn_rate"]).abs()
+    return float((populated["count"] * gaps).sum() / populated["count"].sum())
+
+
+def expected_calibration_error(
+    y_true: np.ndarray, y_proba: np.ndarray, n_bins: int = 10
+) -> float:
+    """ECE = sum_b (n_b / N) * abs(mean_probability_b - churn_rate_b).
+
+    Default: 10 equal-width bins [i/10, (i+1)/10), with 1 in the final bin.
+    Empty bins contribute zero. This is binary positive-class probability ECE,
+    not the top-label-confidence variant. No fitting or threshold selection occurs.
+    """
+    return _table_ece(reliability_table(y_true, y_proba, n_bins))
+
+
+def write_reliability_tables(result: CalibrationResult, directory: Path) -> None:
+    """Persist only ten-bin validation aggregates, in deterministic CSV format."""
+    directory.mkdir(parents=True, exist_ok=True)
+    for name, table in result.reliability.items():
+        table.to_csv(
+            directory / f"reliability_{name}.csv", index=False, float_format="%.10f"
+        )
