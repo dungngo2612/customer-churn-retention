@@ -148,6 +148,49 @@ def prepare_features_and_target(
     return X, y
 
 
+def _validate_split_separation(train_df: pd.DataFrame, val_df: pd.DataFrame) -> None:
+    """Reject shared customers, or identical rows when customer IDs are unavailable."""
+    id_columns = ("customerID", "customer_id")
+    train_id_columns = [col for col in id_columns if col in train_df.columns]
+    val_id_columns = [col for col in id_columns if col in val_df.columns]
+    if train_id_columns and val_id_columns:
+        train_ids = {
+            str(value).strip()
+            for col in train_id_columns
+            for value in train_df[col].dropna()
+        }
+        val_ids = {
+            str(value).strip()
+            for col in val_id_columns
+            for value in val_df[col].dropna()
+        }
+        train_ids.discard("")
+        val_ids.discard("")
+        if shared_ids := train_ids & val_ids:
+            raise ValueError(
+                f"Training and validation data share {len(shared_ids)} customer ID(s); "
+                "splits must be disjoint (customerID/customer_id)."
+            )
+        if train_ids and val_ids:
+            return
+
+    # Align columns and dtypes, ignore row indices and any remaining ID columns.
+    rows = pd.concat(
+        [
+            frame.drop(columns=list(id_columns), errors="ignore")
+            for frame in (train_df, val_df)
+        ],
+        ignore_index=True,
+        sort=True,
+    )
+    hashes = pd.util.hash_pandas_object(rows, index=False)
+    if hashes.iloc[len(train_df) :].isin(hashes.iloc[: len(train_df)]).any():
+        raise ValueError(
+            "Training and validation data contain identical rows; "
+            "customer IDs are unavailable in one or both splits."
+        )
+
+
 def train_model(
     config_path: Path,
     model_type: str,
@@ -171,7 +214,16 @@ def train_model(
 
     Returns:
         Dictionary with run info (bundle_dir, run_id, metrics).
+
+    Raises:
+        ValueError: If paths resolve to the same file or the splits overlap.
     """
+    if train_path.resolve() == val_path.resolve():
+        raise ValueError(
+            "train_path and val_path resolve to the same file; "
+            "use separate training and validation files."
+        )
+
     # Load config
     cfg = load_config(config_path)
 
@@ -217,6 +269,7 @@ def train_model(
 
     print(f"Loading validation data from {val_path}...")
     val_df = pd.read_csv(val_path)
+    _validate_split_separation(train_df, val_df)
     validate_dataframe(
         val_df,
         numeric_cols,
