@@ -21,9 +21,28 @@ The source CSV has 7,043 rows and 21 columns. All source columns are accounted f
 
 ## Split manifest integrity
 
-Source SHA-256: `88be4b93fbe0cc83421af1c503794c97c342eca914c1576db7c276e61d61358a`
+Both hashes are SHA-256 of the file bytes **normalized to LF**: replace CRLF
+(`\r\n`) with LF (`\n`), then any remaining CR (`\r`) with LF. Preserve all
+other bytes, including whitespace and the presence or absence of a final newline;
+do not parse or reserialize the CSV. The previous hashes depended on CRLF line
+endings; the LF values below were recomputed from the actual files.
 
-Split manifest SHA-256: `6af410beaa2f3137e46087255cdac0f80595a0834b36a66643c41882ed246032`
+Source SHA-256 (LF): `16320c9c1ec72448db59aa0a26a0b95401046bef5d02fd3aeb906448e3055e91`
+
+Split manifest SHA-256 (LF): `bced80937bf69798aa314d03bd35d59d6c14134a593997d3e3dd8c7fe8b6512c`
+
+Reproduce from the repository root (read-only; independent of checkout line endings):
+
+```sh
+python3 - <<'PY'
+from hashlib import sha256
+from pathlib import Path
+
+for name in ("data/telco_churn.csv", "artifacts/splits/dataset_splits.csv"):
+    content = Path(name).read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    print(f"{sha256(content).hexdigest()}  {name}")
+PY
+```
 
 | Split | Rows | Churn cases | Churn rate |
 | --- | ---: | ---: | ---: |
