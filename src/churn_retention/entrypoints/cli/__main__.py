@@ -4,6 +4,7 @@ import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
+from churn_retention.entrypoints.cli.batch_scoring import register_commands, run_command
 from churn_retention.ml.training.tune import (
     load_tune_config,
     run_experiments,
@@ -21,7 +22,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="Use 2 folds, first 500 train rows, <=2 trials",
     )
+    register_commands(commands)
     args = parser.parse_args(argv)
+    if args.command in {"score-batch", "job-status"}:
+        return run_command(args)
     try:
         config = load_tune_config(args.config)
         report = run_experiments(config, smoke=args.smoke)
