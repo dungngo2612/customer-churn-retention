@@ -6,6 +6,7 @@ import pytest
 import yaml
 
 from churn_retention.workflows import train_model as workflow
+from scripts.make_splits import make_splits
 
 
 def _frames() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -117,7 +118,7 @@ def test_rejects_identical_rows_when_ids_are_missing(
     tmp_path: Path, remaining_id: str | None
 ) -> None:
     train_df, val_df = _frames()
-    val_df.iloc[0] = train_df.iloc[0]
+    val_df = train_df.iloc[: len(val_df)].copy()
     val_df = val_df.loc[:, ["Churn", "segment", "value"]]
     if remaining_id == "train":
         train_df["customerID"] = ["train-0", "train-1", "train-2", "train-3"]
@@ -171,3 +172,51 @@ def test_row_fallback_compares_labels_as_well_as_features(
     )
 
     assert (result["bundle_dir"] / "model.pkl").is_file()
+
+
+def test_real_splits_without_ids_allow_three_matching_validation_rows(
+    tmp_path: Path,
+) -> None:
+    root = Path(__file__).resolve().parents[1]
+    train_path = tmp_path / "train.csv"
+    val_path = tmp_path / "val.csv"
+    make_splits(
+        root / "data/telco_churn.csv",
+        root / "artifacts/splits/dataset_splits.csv",
+        train_path,
+        val_path,
+    )
+    train = pd.read_csv(train_path).drop(columns="customerID")
+    val = pd.read_csv(val_path).drop(columns="customerID")
+    assert len(train) == 4930
+    assert len(val) == 1056
+    assert len(val.merge(train.drop_duplicates(), on=list(val.columns))) == 3
+
+    workflow._validate_split_separation(train, val)
+
+
+@pytest.mark.usefixtures("reject_training")
+def test_rejects_validation_copy_of_train_without_ids(tmp_path: Path) -> None:
+    train_df, _ = _frames()
+    config, train, val = _write_inputs(tmp_path, train_df, train_df.copy())
+
+    with pytest.raises(ValueError, match=r"4/4 validation rows \(100\.0%\)"):
+        workflow.train_model(
+            config, "logistic", False, 42, train, val, tmp_path / "bundles"
+        )
+    assert not (tmp_path / "bundles").exists()
+
+
+@pytest.mark.parametrize(
+    ("matching_rows", "should_raise"), [(17, False), (18, True), (19, True)]
+)
+def test_missing_id_overlap_threshold(matching_rows: int, should_raise: bool) -> None:
+    train = pd.DataFrame({"value": range(20), "Churn": ["No", "Yes"] * 10})
+    val = train.copy()
+    val.loc[matching_rows:, "value"] += 1000
+
+    if should_raise:
+        with pytest.raises(ValueError, match=rf"{matching_rows}/20 validation rows"):
+            workflow._validate_split_separation(train, val)
+    else:
+        workflow._validate_split_separation(train, val)
