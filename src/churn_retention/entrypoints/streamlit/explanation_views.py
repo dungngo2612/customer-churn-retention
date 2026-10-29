@@ -61,7 +61,7 @@ def local_contribution_frame(result: ModelExplanation) -> pd.DataFrame:
     rows = [
         {
             "feature": item.feature_name,
-            "value": item.feature_value,
+            "value": str(item.feature_value),
             "contribution_log_odds": item.contribution,
             "direction": "Tăng log-odds"
             if item.contribution > 0

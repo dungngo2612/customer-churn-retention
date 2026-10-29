@@ -55,8 +55,9 @@ def test_select_customer_requires_unique_ids():
         select_customer(pd.DataFrame({"customerID": ["a"]}), "b")
 
 
-def test_pure_chart_functions():
-    result = ModelExplanation.model_validate(
+@pytest.fixture
+def explanation_result():
+    return ModelExplanation.model_validate(
         {
             "customer_id": "a",
             "model_version": "v1",
@@ -94,7 +95,10 @@ def test_pure_chart_functions():
             ],
         }
     )
-    frame = local_contribution_frame(result)
+
+
+def test_pure_chart_functions(explanation_result):
+    frame = local_contribution_frame(explanation_result)
     assert frame.feature.tolist() == ["x", "y"]
     assert frame.direction.tolist() == ["Tăng log-odds", "Giảm log-odds"]
     assert frame.contribution_log_odds.tolist() == [2.0, -1.0]
@@ -102,6 +106,17 @@ def test_pure_chart_functions():
         {"feature_importance": [{"feature_name": "x", "mean_abs_shap": 2.0}]}
     )
     assert global_frame.loc["x", "mean_abs_shap"] == 2.0
+
+
+def test_local_contribution_values_are_strings_for_mixed_types(explanation_result):
+    explanation_result.contributions[0].feature_value = 18.0
+    explanation_result.contributions[1].feature_value = "Fiber optic"
+
+    frame = local_contribution_frame(explanation_result)
+
+    assert frame["value"].tolist() == ["18.0", "Fiber optic"]
+    assert frame["value"].map(lambda value: isinstance(value, str)).all()
+    assert pd.api.types.is_string_dtype(frame["value"])
 
 
 def test_predictor_bundle_property_requires_loaded_model():
