@@ -15,6 +15,13 @@ class BundlePredictor:
             raise RuntimeError("chưa load bundle")
         return self._bundle.model_version
 
+    @property
+    def loaded_bundle(self) -> LoadedBundle:
+        """Share the exact scored model with the explanation page."""
+        if self._bundle is None:
+            raise RuntimeError("chưa load bundle")
+        return self._bundle
+
     def load(self, artifact_path: str) -> None:
         self._bundle = load_bundle(artifact_path)
 

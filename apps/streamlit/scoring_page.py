@@ -6,6 +6,10 @@ import pandas as pd
 import streamlit as st
 
 from churn_retention.adapters.predictor.bundle_predictor import BundlePredictor
+from churn_retention.entrypoints.streamlit.explanation_views import (
+    SCORING_CONTEXT_KEY,
+    scoring_context,
+)
 from churn_retention.modules.scoring.repository import InMemoryScoringRunRepository
 from churn_retention.modules.scoring.use_cases import (
     DatasetNotFoundError,
@@ -34,11 +38,19 @@ if st.button("Chấm điểm", type="primary"):
         st.error("Vui lòng nhập đường dẫn model bundle.")
     else:
         try:
+            st.session_state.pop(SCORING_CONTEXT_KEY, None)
             predictor = BundlePredictor()
             predictor.load(bundle_path.strip())
+            loaded_frames: dict[str, pd.DataFrame] = {}
+
+            def load_scoring_data(path: str) -> pd.DataFrame:
+                frame = pd.read_csv(path)
+                loaded_frames["dataset"] = frame
+                return frame
+
             batch = score_dataset(
                 dataset_path.strip(),
-                lambda path: pd.read_csv(path),
+                load_scoring_data,
                 predictor,
                 lambda: str(uuid4()),
                 lambda: datetime.now(UTC),
@@ -49,6 +61,11 @@ if st.button("Chấm điểm", type="primary"):
             saved_batch = repository.get(batch.scoring_run_id)
             if saved_batch is None:
                 raise RuntimeError("Không đọc lại được kết quả scoring vừa lưu.")
+
+            st.session_state[SCORING_CONTEXT_KEY] = scoring_context(
+                predictor.loaded_bundle, loaded_frames["dataset"], bundle_path.strip()
+            )
+            st.page_link("pages/1_Explain.py", label="Giải thích mô hình và khách hàng")
 
             st.dataframe(
                 pd.DataFrame(
