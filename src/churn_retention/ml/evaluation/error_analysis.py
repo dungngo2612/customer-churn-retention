@@ -1,4 +1,4 @@
-﻿import numpy as np
+import numpy as np
 import pandas as pd
 
 from churn_retention.ml.evaluation.metrics import align_and_validate_data
@@ -40,9 +40,7 @@ def analyze_errors(
         prob_col=prob_col,
     )
     probabilities = (
-        df_pred.set_index(id_col)[prob_col]
-        .reindex(df_val[id_col])
-        .to_numpy(dtype=float)
+        df_pred.set_index(id_col)[prob_col].reindex(df_val[id_col]).to_numpy(dtype=float)
     )
 
     result = df_val.copy()

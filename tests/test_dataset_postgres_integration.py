@@ -37,9 +37,7 @@ def test_postgres_migrated_schema_accepts_dataset_insert_and_read() -> None:
             assert created.dataset_id == dataset_id
             assert repository.get_by_id(dataset_id) is not None
             session.execute(
-                delete(DatasetMetadataModel).where(
-                    DatasetMetadataModel.dataset_id == dataset_id
-                )
+                delete(DatasetMetadataModel).where(DatasetMetadataModel.dataset_id == dataset_id)
             )
             session.commit()
     finally:

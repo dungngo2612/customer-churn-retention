@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from collections.abc import Iterable
 
@@ -7,7 +7,6 @@ import pandas as pd
 from sklearn.metrics import average_precision_score, precision_score, recall_score, roc_auc_score
 
 from churn_retention.ml.evaluation.metrics import align_and_validate_data
-
 
 DEFAULT_GROUP_COLUMNS = ("Contract", "InternetService")
 
@@ -33,9 +32,7 @@ def _aligned_frame(
         prob_col=prob_col,
     )
     probabilities = (
-        df_pred.set_index(id_col)[prob_col]
-        .reindex(df_val[id_col])
-        .to_numpy(dtype=float)
+        df_pred.set_index(id_col)[prob_col].reindex(df_val[id_col]).to_numpy(dtype=float)
     )
     result = df_val.copy()
     result["_y_true"] = y_true
@@ -142,25 +139,17 @@ def evaluate_segments(
                     "churn_count": churn_count,
                     "churn_rate": float(churn_count / len(part)),
                     "average_precision": (
-                        float(average_precision_score(y_true, y_prob))
-                        if churn_count > 0
-                        else None
+                        float(average_precision_score(y_true, y_prob)) if churn_count > 0 else None
                     ),
                     "roc_auc": (
                         float(roc_auc_score(y_true, y_prob))
                         if churn_count > 0 and non_churn_count > 0
                         else None
                     ),
-                    "precision": float(
-                        precision_score(y_true, y_pred, zero_division=0)
-                    ),
+                    "precision": float(precision_score(y_true, y_pred, zero_division=0)),
                     "recall": float(recall_score(y_true, y_pred, zero_division=0)),
                     "threshold": float(threshold),
-                    "status": (
-                        "ít mẫu, không kết luận mạnh"
-                        if too_small
-                        else "đủ mẫu để mô tả"
-                    ),
+                    "status": ("ít mẫu, không kết luận mạnh" if too_small else "đủ mẫu để mô tả"),
                 }
             )
 

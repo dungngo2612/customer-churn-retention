@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "data" / "telco_churn.csv"
 MANIFEST = ROOT / "artifacts" / "splits" / "dataset_splits.csv"

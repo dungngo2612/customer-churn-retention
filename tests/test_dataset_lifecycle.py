@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import pandas as pd
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 from churn_retention.adapters.database.dataset_repository import DatasetRepository
+from churn_retention.adapters.database.session import get_db
+from churn_retention.entrypoints.api.routes.datasets import router as datasets_router
 from churn_retention.modules.datasets import use_cases
 
 
@@ -100,3 +104,62 @@ def test_upload_validation_failure_does_not_create_metadata_or_snapshot(
     assert result["status"] == "invalid"
     assert repository.list_all() == []
     assert not (tmp_path / "datasets").exists()
+
+
+def test_dataset_api_valid_and_invalid_upload_flow(db_session, tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(use_cases, "STORAGE_DIR", tmp_path / "datasets")
+
+    def override_db():
+        yield db_session
+
+    app = FastAPI()
+    app.include_router(datasets_router)
+    app.dependency_overrides[get_db] = override_db
+
+    with TestClient(app) as client:
+        upload = client.post(
+            "/datasets/upload",
+            files={"file": ("valid.csv", _valid_csv(), "text/csv")},
+        )
+        assert upload.status_code == 201
+        dataset_id = upload.json()["dataset_id"]
+
+        listing = client.get("/datasets")
+        assert listing.status_code == 200
+        assert [item["dataset_id"] for item in listing.json()] == [dataset_id]
+
+        detail = client.get(f"/datasets/{dataset_id}")
+        assert detail.status_code == 200
+        assert detail.json()["total_rows"] == 2
+
+        quality = client.get(f"/datasets/{dataset_id}/quality")
+        assert quality.status_code == 200
+        assert quality.json()["is_valid"] is True
+
+        duplicate_ids = (
+            pd.DataFrame(
+                {
+                    "customerID": ["C-001", "C-001"],
+                    "tenure": [1, 2],
+                    "MonthlyCharges": [20.0, 30.0],
+                    "TotalCharges": [20.0, 60.0],
+                    "Churn": ["No", "Yes"],
+                }
+            )
+            .to_csv(index=False)
+            .encode("utf-8")
+        )
+        invalid = client.post(
+            "/datasets/upload",
+            files={"file": ("invalid.csv", duplicate_ids, "text/csv")},
+        )
+        assert invalid.status_code == 422
+        assert client.get("/datasets").json()[0]["dataset_id"] == dataset_id
+
+        wrong_extension = client.post(
+            "/datasets/upload",
+            files={"file": ("invalid.txt", _valid_csv(), "text/plain")},
+        )
+        assert wrong_extension.status_code == 400
+
+    app.dependency_overrides.clear()

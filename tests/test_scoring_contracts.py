@@ -308,9 +308,7 @@ def test_explanation_list_requires_fields(
         ("explanation_example.json", ExplanationList),
     ],
 )
-def test_demo_json_examples_parse_with_contracts(
-    filename: str, model: type[BaseModel]
-) -> None:
+def test_demo_json_examples_parse_with_contracts(filename: str, model: type[BaseModel]) -> None:
     example_path = Path(__file__).resolve().parents[1] / "docs" / "contracts" / filename
     text = example_path.read_text(encoding="utf-8")
     comment = json.loads(text)["_comment"].lower()

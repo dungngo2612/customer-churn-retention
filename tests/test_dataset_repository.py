@@ -14,8 +14,8 @@ def test_create_and_get_dataset(db_session: Session) -> None:
         filename="churn_data.csv",
         total_rows=100,
         total_columns=10,
-        features_s3_uri="s3://churn-datasets/features.parquet",
-        labels_s3_uri="s3://churn-datasets/labels.parquet",
+        features_path="s3://churn-datasets/features.parquet",
+        labels_path="s3://churn-datasets/labels.parquet",
         has_labels=True,
         created_at=datetime.now(timezone.utc),
     )
@@ -27,6 +27,8 @@ def test_create_and_get_dataset(db_session: Session) -> None:
     assert fetched is not None
     assert fetched.filename == "churn_data.csv"
     assert fetched.total_rows == 100
+    assert fetched.features_path == "s3://churn-datasets/features.parquet"
+    assert fetched.labels_path == "s3://churn-datasets/labels.parquet"
 
 
 def test_list_all_datasets(db_session: Session) -> None:
@@ -38,8 +40,8 @@ def test_list_all_datasets(db_session: Session) -> None:
         total_rows=10,
         total_columns=5,
         has_labels=False,
-        features_s3_uri="s3://churn-datasets/features_1.parquet",
-        labels_s3_uri=None,
+        features_path="s3://churn-datasets/features_1.parquet",
+        labels_path=None,
         created_at=datetime.now(timezone.utc),
     )
     d2 = DatasetMetadataModel(
@@ -48,8 +50,8 @@ def test_list_all_datasets(db_session: Session) -> None:
         total_rows=20,
         total_columns=5,
         has_labels=True,
-        features_s3_uri="s3://churn-datasets/features_2.parquet",
-        labels_s3_uri="s3://churn-datasets/labels_2.parquet",
+        features_path="s3://churn-datasets/features_2.parquet",
+        labels_path="s3://churn-datasets/labels_2.parquet",
         created_at=datetime.now(timezone.utc),
     )
     repo.create(d1)

@@ -24,9 +24,7 @@ def make_splits(
 
     merged = raw_df.merge(splits_df, on="customerID", how="inner")
     if len(merged) != len(raw_df):
-        raise ValueError(
-            f"Merge row count mismatch: raw={len(raw_df)}, merged={len(merged)}"
-        )
+        raise ValueError(f"Merge row count mismatch: raw={len(raw_df)}, merged={len(merged)}")
 
     # Detect empty or blank TotalCharges
     is_empty = merged["TotalCharges"].isna() | (
@@ -37,9 +35,7 @@ def make_splits(
     invalid = merged[is_empty & (merged["tenure"] > 0)]
     if not invalid.empty:
         invalid_ids = invalid["customerID"].tolist()
-        raise ValueError(
-            f"Empty TotalCharges with tenure > 0 for customerID: {invalid_ids}"
-        )
+        raise ValueError(f"Empty TotalCharges with tenure > 0 for customerID: {invalid_ids}")
 
     # Count empty rows to be filled in train and val
     train_filled_count = int((is_empty & (merged["split"] == "train")).sum())
@@ -61,9 +57,7 @@ def make_splits(
 
     print(f"Train split saved to: {train_out} ({len(train_df)} rows)")
     print(f"Validation split saved to: {val_out} ({len(val_df)} rows)")
-    print(
-        f"TotalCharges filled with 0.0 -> Train: {train_filled_count}, Val: {val_filled_count}"
-    )
+    print(f"TotalCharges filled with 0.0 -> Train: {train_filled_count}, Val: {val_filled_count}")
 
     return {
         "train_rows": len(train_df),

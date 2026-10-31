@@ -114,9 +114,7 @@ def load_tune_config(path: str | Path) -> TuneConfig:
     ):
         raise ValueError(f"candidates must be a unique, nonempty list from {allowed}")
     if "catboost_grid" in groups and "catboost_default" not in groups:
-        raise ValueError(
-            "catboost_grid requires catboost_default to reuse its pipeline"
-        )
+        raise ValueError("catboost_grid requires catboost_default to reuse its pipeline")
 
     training = load_config(source.with_name("train_config.yaml"))
     if not isinstance(training, dict) or not {"features", "models"} <= training.keys():
@@ -206,9 +204,7 @@ def _fresh_pipeline(pipeline: Any) -> Any:
     parameters["steps"] = [
         (
             name,
-            type(step)(**deepcopy(step.get_params(deep=False)))
-            if name == "model"
-            else clone(step),
+            type(step)(**deepcopy(step.get_params(deep=False))) if name == "model" else clone(step),
         )
         for name, step in pipeline.steps
     ]
@@ -232,9 +228,7 @@ def _fit_candidate(
     key = (candidate.model, candidate.class_weight)
     if key in templates:
         pipeline = _fresh_pipeline(templates[key])
-        pipeline.set_params(
-            **{f"model__{name}": value for name, value in candidate.params.items()}
-        )
+        pipeline.set_params(**{f"model__{name}": value for name, value in candidate.params.items()})
         pipeline.fit(X, y)
         return pipeline
     if "l2_leaf_reg" in candidate.params:
@@ -271,9 +265,7 @@ def evaluate_cv(
         raise ValueError("Each training class must have at least n_splits rows")
     if templates is None:
         templates = {}
-    splitter = StratifiedKFold(
-        n_splits=config.n_splits, shuffle=True, random_state=config.seed
-    )
+    splitter = StratifiedKFold(n_splits=config.n_splits, shuffle=True, random_state=config.seed)
     folds = []
     for fit_indices, score_indices in splitter.split(X_train, y_train):
         started = perf_counter()
@@ -324,9 +316,7 @@ class ExperimentReport:
         return min(self.config.max_trials, len(self.config.candidates))
 
 
-def _worker(
-    connection: Connection, function: Callable[..., Any], args: tuple[Any, ...]
-) -> None:
+def _worker(connection: Connection, function: Callable[..., Any], args: tuple[Any, ...]) -> None:
     try:
         connection.send((True, function(*args)))
     except Exception as exc:
@@ -336,9 +326,7 @@ def _worker(
         connection.close()
 
 
-def _within_budget(
-    function: Callable[..., Any], args: tuple[Any, ...], deadline: float
-) -> Any:
+def _within_budget(function: Callable[..., Any], args: tuple[Any, ...], deadline: float) -> Any:
     """Terminate even a native model fit when the shared deadline expires.
 
     Spawn avoids inheriting fitted models or the parent's MLflow run. Tracking
@@ -421,9 +409,7 @@ def run_experiments(config: TuneConfig, *, smoke: bool = False) -> ExperimentRep
     train_frame = pd.read_csv(config.train_path, nrows=500 if smoke else None)
     X_train, y_train = _prepare(train_frame, config.training)
     mlflow.set_tracking_uri(get_tracking_uri())
-    experiment = config.training.get("mlflow", {}).get(
-        "experiment_name", "churn-retention"
-    )
+    experiment = config.training.get("mlflow", {}).get("experiment_name", "churn-retention")
     mlflow.set_experiment(f"{experiment}-experiments{'-smoke' if smoke else ''}")
     templates: dict[tuple[str, bool], Any] = {}
     trials: list[TrialResult] = []
@@ -488,9 +474,7 @@ def run_experiments(config: TuneConfig, *, smoke: bool = False) -> ExperimentRep
         # Val is loaded only after CV ranking, and is never passed to evaluate_cv.
         val_frame = pd.read_csv(config.val_path)
         target = config.training["features"]["target_col"]
-        X_val, y_val = _prepare(
-            val_frame, config.training, train_frame[target].unique().tolist()
-        )
+        X_val, y_val = _prepare(val_frame, config.training, train_frame[target].unique().tolist())
         for trial in shortlist:
             if remaining_seconds <= 0:
                 stop_reason = "time_budget_exhausted"
@@ -550,9 +534,7 @@ def run_experiments(config: TuneConfig, *, smoke: bool = False) -> ExperimentRep
             mlflow.set_tags(
                 {
                     "val_status": trial.val_status,
-                    "selected_for_validation": str(
-                        trial.run_id in shortlisted_ids
-                    ).lower(),
+                    "selected_for_validation": str(trial.run_id in shortlisted_ids).lower(),
                 }
             )
     report.seconds = monotonic() - started
@@ -611,9 +593,7 @@ def write_report(report: ExperimentReport, path: Path) -> None:
         ),
         "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
-    for trial in sorted(
-        report.trials, key=lambda row: -row.cv.get("cv_ap_mean", float("-inf"))
-    ):
+    for trial in sorted(report.trials, key=lambda row: -row.cv.get("cv_ap_mean", float("-inf"))):
 
         def summary(metric: str, values: dict[str, float] = trial.cv) -> str:
             if not values:
@@ -652,8 +632,7 @@ def write_report(report: ExperimentReport, path: Path) -> None:
     )
     for trial in report.trials:
         lines.append(
-            f"- `{trial.candidate.name}`: run `{trial.run_id}`, "
-            f"{trial.status}; {trial.val_status}."
+            f"- `{trial.candidate.name}`: run `{trial.run_id}`, {trial.status}; {trial.val_status}."
         )
     lines.extend(
         [

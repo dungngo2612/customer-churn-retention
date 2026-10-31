@@ -51,6 +51,10 @@ jobs:
           ruff format --check .
 
       # 5. Kiểm tra kiểu tĩnh với mypy
+      - name: Check module import boundaries
+        run: |
+          pytest tests/test_module_boundaries.py -q
+
       - name: Type check with mypy
         run: |
           mypy src

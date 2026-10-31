@@ -1,4 +1,4 @@
-﻿import pandas as pd
+import pandas as pd
 import pytest
 
 from churn_retention.ml.evaluation.error_analysis import analyze_errors
@@ -89,4 +89,3 @@ def test_segments_flags_small_or_single_class_groups() -> None:
 
     assert result["status"].eq("ít mẫu, không kết luận mạnh").all()
     assert result["roc_auc"].notna().all()
-
