@@ -58,15 +58,27 @@ async def upload_dataset(
 
 
 @router.get("", response_model=List[Dict[str, Any]])
-def list_all_datasets():
+def list_all_datasets(db: Session = Depends(get_db)):
     """Lấy danh sách tóm tắt toàn bộ các dataset đã upload."""
-    return use_cases.list_datasets()
+    return use_cases.list_datasets(DatasetRepository(db))
+
+
+@router.get("/{dataset_id}/quality")
+def check_dataset_quality(dataset_id: str, db: Session = Depends(get_db)):
+    """Check the stored files and metadata for one dataset."""
+    result = use_cases.check_dataset_quality(dataset_id, DatasetRepository(db))
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Dataset '{dataset_id}' was not found.",
+        )
+    return result
 
 
 @router.get("/{dataset_id}")
-def get_dataset_by_id(dataset_id: str):
+def get_dataset_by_id(dataset_id: str, db: Session = Depends(get_db)):
     """Tra cứu chi tiết một dataset theo dataset_id."""
-    data = use_cases.get_dataset_detail(dataset_id)
+    data = use_cases.get_dataset_detail(dataset_id, DatasetRepository(db))
     if not data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

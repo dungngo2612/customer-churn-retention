@@ -14,9 +14,13 @@ class DatasetRepository:
 
     def create(self, dataset: DatasetMetadataModel) -> DatasetMetadataModel:
         """Lưu bản ghi metadata mới vào cơ sở dữ liệu."""
-        self.session.add(dataset)
-        self.session.commit()
-        self.session.refresh(dataset)
+        try:
+            self.session.add(dataset)
+            self.session.commit()
+            self.session.refresh(dataset)
+        except Exception:
+            self.session.rollback()
+            raise
         return dataset
 
     def get_by_id(self, dataset_id: str) -> Optional[DatasetMetadataModel]:

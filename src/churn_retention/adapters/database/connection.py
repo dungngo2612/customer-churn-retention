@@ -1,16 +1,6 @@
-import os
+from churn_retention.adapters.database.session import Base, SessionLocal, engine
+from churn_retention.config import settings
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+DATABASE_URL = settings.DATABASE_URL
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg://postgres:postgres@localhost:5432/churn_retention",
-)
-
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-class Base(DeclarativeBase):
-    pass
+__all__ = ["Base", "DATABASE_URL", "SessionLocal", "engine"]
