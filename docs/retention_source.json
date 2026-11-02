@@ -1,0 +1,13 @@
+{
+  "source_ref": "origin/demo-test-04",
+  "source_commit": "911a60a028cb89507d35fbe584059f30f7ee2da4",
+  "author": "Cuogphi (Cường)",
+  "files": {
+    "src/churn_retention/modules/retention/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/churn_retention/modules/retention/policy.py": "a4746a39e4d56d8ca37be1249b5ea2f4ea64de6e43e8df033dd56d8514b1dcd5",
+    "src/churn_retention/modules/retention/use_cases.py": "4df288b229471c25186eca489a8a711d1c520d0c8d011b3975e62c5957d1ff0c",
+    "src/churn_retention/modules/retention/budget.py": "cabfeebd8a9c7c23b002fa2bb9609204db3a2def84a70a4955cc9991e14f1f28",
+    "tests/test_retention.py": "450d31bcc6453f01ffd960b207e0fbd1aaea6e8f75208b980e684a009a1188d3",
+    "tests/test_budget.py": "22c98a151dd25776bc6c999906ebcfe2048a6eb67e41737c025b5faaff02678f"
+  }
+}
