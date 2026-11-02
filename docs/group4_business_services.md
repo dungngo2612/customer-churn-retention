@@ -171,7 +171,10 @@ Branch và HEAD trước/sau giữ nguyên như đầu báo cáo; refs và index
 index không có staged files. Đối chiếu SHA-256 xác nhận **2.155 file có sẵn ngoài
 phạm vi không đổi**, bao gồm dữ liệu/artifacts/bundle/golden, API keys và file P1.
 167 executable/config files của snapshot regression khớp mã repository chính.
-Legacy scoring handler và IdempotentPredictionStore trong worker không đổi.
+Ở snapshot audit ban đầu, legacy scoring handler/IdempotentPredictionStore được giữ.
+Sau khi tách classifier trên main, hai thành phần này đã được loại; Queue/Worker
+vẫn giữ handlers được inject, claim/fencing/retry cho batch LLM và nghiệp vụ.
+Snapshot trước tách nằm ở nhánh codex/archive-self-training-2026-11-02.
 Quét pattern secrets trong12 file sửa và2 file mới không có hit.
 Working tree tiếp tục dirty với thay đổi có sẵn và các file nhóm4; không dọn,
 ghi đè hoặc stage các thay đổi đó. Các temp DB/log/cache nằm ngoài repository.

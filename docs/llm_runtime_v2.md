@@ -28,15 +28,14 @@ flowchart TD
 as `ReferenceStore`, without another Store class or an import of a v1 loader.
 `load`, `prepare_query`, `clean_features`, `records`, `matrix`, `feature_schema`
 and `reference_version` remain available. Optional reference-version and dataset
-hash filters are supported. Old model-bundle filters remain exclusively in v1.
+hash filters are supported. Historical model-bundle filters are available only on the archive branch.
 V2 errors inherit the neutral `ReferenceArtifactError` for existing callers.
 
-The pre-migration v1 Store was preserved byte-for-byte in
-`legacy_reference_store.py`. The v1 builder, golden capture script and v1-specific
-tests explicitly import it. The immutable v1 fixtures are not regenerated or
-edited. The retriever accepts a neutral structural `ReferenceSource` protocol;
-all retrieval method bodies remain AST-identical. The predictor, prediction
-service, Prompt Builder, Router and Providers implementations are unchanged.
+Classifier-backed v1 loading/building and golden capture were removed from main.
+Their historical implementation is preserved on [codex/archive-self-training-2026-11-02](https://github.com/dungngo2612/customer-churn-retention/tree/codex/archive-self-training-2026-11-02).
+Immutable v1 JSON/NPY oracles remain for comparison; current tests load v2 and do
+not import or deserialize a classifier. Retrieval uses the neutral ReferenceSource
+protocol. Providers, models, router and timeouts remain unchanged.
 
 ## Artifact configuration and cache
 
@@ -116,32 +115,17 @@ train records; preprocessing receives only features. V1 tests keep the explicit
 legacy loader as an oracle.
 Original datasets, splits, artifacts and golden expected values are untouched.
 
-## Files in this migration
+## Current implementation
 
-Seventeen files that already existed in the working tree changed in this step:
+- `contracts/reference.py` / `reference_source.py`: neutral data contracts and protocol.
+- `adapters/retrieval/rag_preprocessor.py`: classifier-free fit/transform for reference data.
+- `_preprocessing_state.py`, `_reference_v2_format.py`, `reference_v2.py`: JSON codec and bounded loader.
+- `workflows/build_reference_v2.py`: offline builder; no classifier source or bundle input.
+- `entrypoints/streamlit/llm_input.py`: pinned resources and feature validation.
+- `tests/test_reference_contracts.py`, `test_reference_v2.py`, `test_reference_retrieval.py`,
+  `test_rag_preprocessor.py`, `test_llm_rag_golden.py`: current RAG and frozen-oracle regressions.
 
-| Files | Change |
-| --- | --- |
-| `src/churn_retention/adapters/retrieval/reference_store.py` | V2-only public facade |
-| `src/churn_retention/adapters/retrieval/reference_v2.py` | Shared runtime interface, compatibility filters and single authenticated byte snapshot |
-| `src/churn_retention/adapters/retrieval/_reference_v2_format.py` | Error inherits neutral artifact error |
-| `src/churn_retention/adapters/retrieval/nearest_neighbors.py` | Neutral structural type annotation; algorithm bodies unchanged |
-| `src/churn_retention/entrypoints/streamlit/llm_input.py` | Approved v2 defaults and configurable external pin |
-| `apps/streamlit/pages/2_Predict.py` | V2 configuration and pin-aware cache invalidation |
-| `src/churn_retention/workflows/build_reference.py` | Import-only routing to preserved v1 Store |
-| `scripts/capture_llm_rag_golden.py` | Import-only routing to preserved v1 Store |
-| `tests/test_reference_retrieval.py`, `tests/test_reference_retrieval_integration.py`, `tests/test_llm_rag_golden.py` | Explicit legacy oracle imports; expected values unchanged |
-| `tests/test_llm_input.py`, `tests/test_llm_input_page.py`, `tests/test_llm_prediction_service.py`, `tests/test_llm_streamlit_e2e.py`, `tests/test_llm_predictor.py` | Independent v2 unit fixtures and runtime expectations |
-| `tests/test_llm_prompt.py` | Neutral DTO imports |
-
-Five files are new:
-
-- `src/churn_retention/adapters/retrieval/legacy_reference_store.py`: exact copy of
-  the pre-migration v1 Store, including all earlier uncommitted work.
-- `src/churn_retention/contracts/reference_source.py`: neutral retrieval protocol.
-- `tests/llm_v2_fixtures.py`: small independent synthetic v2 fixtures.
-- `tests/test_llm_runtime_v2.py`: 26 runtime/golden/security/integration cases.
-- `docs/llm_runtime_v2.md`: this report.
+The step 7.x implementation inventory is preserved on the classifier archive branch.
 
 ## Equivalence and operational risks
 

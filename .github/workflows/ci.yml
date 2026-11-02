@@ -38,11 +38,11 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      # 3. Nâng cấp pip và cài đặt dự án kèm nhóm dev + training
+      # 3. Nâng cấp pip và cài đặt dự án kèm nhóm dev
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev,training]"
+          pip install -e ".[dev]"
 
       # 4. Kiểm tra chuẩn code và format bằng Ruff
       - name: Check code formatting and lint with Ruff
@@ -53,7 +53,7 @@ jobs:
       # 5. Kiểm tra kiểu tĩnh với mypy
       - name: Check module import boundaries
         run: |
-          pytest tests/test_module_boundaries.py -q
+          pytest tests/test_module_boundaries.py tests/test_llm_only_boundary.py -q
 
       - name: Type check with mypy
         run: |
@@ -72,3 +72,19 @@ jobs:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/churn_db
         run: |
           pytest -v
+
+      - name: Build and verify LLM-only distribution
+        run: |
+          python -m build
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          with ZipFile(next(Path("dist").glob("*.whl"))) as archive:
+              names = archive.namelist()
+              forbidden = ("churn_retention/ml/training/", "churn_retention/ml/explainability/",
+                           "churn_retention/adapters/predictor/", "churn_retention/adapters/model_registry/",
+                           "churn_retention/entrypoints/cli/")
+              assert not any(name.startswith(forbidden) for name in names)
+              assert "churn_retention/dashboard/app.py" in names
+              assert "churn_retention/workflows/build_reference_v2.py" in names
+          PY
