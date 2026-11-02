@@ -44,9 +44,9 @@ def digest(value: object) -> str:
 
 
 @pytest.fixture(scope="module")
-def store() -> ReferenceStore:
+def store(approved_rag_reference: Path) -> ReferenceStore:
     return ReferenceStore.load(
-        llm_input.DEFAULT_REFERENCE_PATH,
+        approved_rag_reference,
         expected_artifact_sha256=llm_input.DEFAULT_REFERENCE_SHA256,
     )
 
@@ -141,10 +141,10 @@ def test_public_store_never_falls_back_to_v1(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def test_external_pin_authenticates_the_exact_archive_snapshot(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, approved_rag_reference: Path
 ) -> None:
     path = tmp_path / "race.zip"
-    path.write_bytes(llm_input.DEFAULT_REFERENCE_PATH.read_bytes())
+    path.write_bytes(approved_rag_reference.read_bytes())
     read = reference_v2._read_payloads
 
     def swapped(data: bytes):
@@ -318,8 +318,12 @@ def invalid_copy(directory: Path, kind: str) -> Path:
     ["missing", "checksum", "schema", "shape", "untrusted", "malformed_pin", "v1"],
 )
 def test_bad_v2_artifacts_fail_safely_before_router_and_preserve_context(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str, request: pytest.FixtureRequest
 ) -> None:
+    if kind == "v1":
+        request.getfixturevalue("frozen_rag_oracle")
+    elif kind != "missing":
+        request.getfixturevalue("approved_rag_reference")
     path = invalid_copy(tmp_path, kind)
     monkeypatch.setenv("CHURN_LLM_REFERENCE_ARTIFACT", str(path))
     pin = (
@@ -350,7 +354,7 @@ def test_bad_v2_artifacts_fail_safely_before_router_and_preserve_context(
 
 @pytest.mark.parametrize("valid_response", [True, False])
 def test_full_predict_ui_in_classifier_and_legacy_free_process(
-    tmp_path: Path, valid_response: bool
+    tmp_path: Path, valid_response: bool, approved_rag_reference: Path
 ) -> None:
     script = (
         "\n"
