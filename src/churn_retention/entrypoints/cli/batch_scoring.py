@@ -11,8 +11,12 @@ from churn_retention.adapters.database.scoring.sqlite import SQLiteScoringStore
 from churn_retention.adapters.predictor.batch_models import BundleScoringModels
 from churn_retention.adapters.task_queue.in_process import InProcessJobQueue
 from churn_retention.entrypoints.worker.tasks.scoring import run_worker_once
-from churn_retention.modules.scoring.jobs import JobStatus
-from churn_retention.workflows.score_dataset import BatchScoringService
+from churn_retention.modules.scoring.jobs import (
+    DEFAULT_LEASE_SECONDS,
+    JobStatus,
+    public_scoring_error,
+)
+from churn_retention.workflows.score_dataset import BatchScoringService, get_job_status
 
 
 def register_commands(commands: Any) -> None:
@@ -27,6 +31,7 @@ def register_commands(commands: Any) -> None:
     score.add_argument("--model-version", required=True)
     score.add_argument("--bundle-root", type=Path, default=Path("artifacts/bundles"))
     score.add_argument("--chunk-size", type=int, default=200)
+    score.add_argument("--lease-seconds", type=int, default=DEFAULT_LEASE_SECONDS)
     score.add_argument("--explain-limit", type=int, default=0)
     score.add_argument("--explain-customer-id", action="append", default=[])
     score.add_argument("--background-train", type=Path)
@@ -43,7 +48,7 @@ def run_command(args: argparse.Namespace) -> int:
     try:
         with SQLiteScoringStore(args.state_db) as store:
             if args.command == "job-status":
-                job = store.get(args.job_id)
+                job = get_job_status(args.job_id, store)
             else:
                 path = args.dataset.resolve()
                 dataset_id = args.dataset_id or str(path)
@@ -56,6 +61,7 @@ def run_command(args: argparse.Namespace) -> int:
                     CsvDatasetReader({dataset_id: path}),
                     models.predictor_for,
                     explain=models.explain_one,
+                    lease_seconds=args.lease_seconds,
                 )
                 job = service.create_job(
                     dataset_id,
@@ -79,5 +85,5 @@ def run_command(args: argparse.Namespace) -> int:
             )
             return 1 if job.status == JobStatus.FAILED else 0
     except (OSError, ValueError, RuntimeError, KeyError) as exc:
-        print(json.dumps({"error": f"{type(exc).__name__}: {exc}"}))
+        print(json.dumps({"error": public_scoring_error(exc)}))
         return 1

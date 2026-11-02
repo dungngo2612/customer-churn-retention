@@ -36,3 +36,6 @@ dist/
 mlruns/
 mlflow.db
 catboost_info/
+
+# Isolated Dashboard preview state
+/.dashboard-preview/

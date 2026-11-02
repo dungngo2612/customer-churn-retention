@@ -12,6 +12,7 @@ from typing import Self
 from churn_retention.contracts.http.explanations import ModelExplanation
 from churn_retention.contracts.http.scoring import Prediction, PredictionBatch
 from churn_retention.modules.scoring.jobs import (
+    LEASE_EXPIRED_ERROR,
     InvalidJobTransition,
     JobStatus,
     ResultsNotReady,
@@ -32,7 +33,8 @@ class SQLiteScoringStore:
         self._db.executescript("""
             CREATE TABLE IF NOT EXISTS scoring_jobs (
                 job_id TEXT PRIMARY KEY, idempotency_key TEXT NOT NULL,
-                status TEXT NOT NULL, payload TEXT NOT NULL
+                status TEXT NOT NULL, payload TEXT NOT NULL,
+                lease_expires_at TEXT DEFAULT NULL
             );
             CREATE UNIQUE INDEX IF NOT EXISTS scoring_active_key
                 ON scoring_jobs(idempotency_key)
@@ -49,6 +51,15 @@ class SQLiteScoringStore:
                     REFERENCES scoring_predictions(job_id, customer_id) ON DELETE CASCADE
             );
         """)
+        # Old databases retain all rows; a NULL lease is expired, never immortal.
+        with self._transaction() as db:
+            columns = {
+                row["name"] for row in db.execute("PRAGMA table_info(scoring_jobs)")
+            }
+            if "lease_expires_at" not in columns:
+                db.execute(
+                    "ALTER TABLE scoring_jobs ADD COLUMN lease_expires_at TEXT DEFAULT NULL"
+                )
 
     def __enter__(self) -> Self:
         return self
@@ -74,17 +85,29 @@ class SQLiteScoringStore:
     @staticmethod
     def _get(db: sqlite3.Connection, job_id: str) -> ScoringJob:
         row = db.execute(
-            "SELECT payload FROM scoring_jobs WHERE job_id = ?", (job_id,)
+            "SELECT payload, lease_expires_at FROM scoring_jobs WHERE job_id = ?",
+            (job_id,),
         ).fetchone()
         if row is None:
             raise KeyError(f"Scoring job not found: {job_id}")
-        return ScoringJob.from_dict(json.loads(row["payload"]))
+        return SQLiteScoringStore._decode(row)
+
+    @staticmethod
+    def _decode(row: sqlite3.Row) -> ScoringJob:
+        payload = json.loads(row["payload"])
+        payload["lease_expires_at"] = row["lease_expires_at"]
+        return ScoringJob.from_dict(payload)
 
     @staticmethod
     def _write(db: sqlite3.Connection, job: ScoringJob) -> None:
         db.execute(
-            "UPDATE scoring_jobs SET status = ?, payload = ? WHERE job_id = ?",
-            (job.status.value, json.dumps(job.to_dict()), job.job_id),
+            "UPDATE scoring_jobs SET status = ?, payload = ?, lease_expires_at = ? WHERE job_id = ?",
+            (
+                job.status.value,
+                json.dumps(job.to_dict()),
+                job.lease_expires_at.isoformat() if job.lease_expires_at else None,
+                job.job_id,
+            ),
         )
 
     def get(self, job_id: str) -> ScoringJob:
@@ -94,25 +117,50 @@ class SQLiteScoringStore:
     @staticmethod
     def _active(db: sqlite3.Connection, key: str) -> ScoringJob | None:
         row = db.execute(
-            """SELECT payload FROM scoring_jobs WHERE idempotency_key = ?
+            """SELECT payload, lease_expires_at FROM scoring_jobs WHERE idempotency_key = ?
                             AND status IN ('PENDING', 'RUNNING', 'SUCCEEDED')""",
             (key,),
         ).fetchone()
-        return ScoringJob.from_dict(json.loads(row["payload"])) if row else None
+        return SQLiteScoringStore._decode(row) if row else None
 
     def find_active(self, key: str) -> ScoringJob | None:
         with self._lock:
             return self._active(self._db, key)
 
-    def create_or_get(self, job: ScoringJob) -> ScoringJob:
+    @classmethod
+    def _recover_active(
+        cls, db: sqlite3.Connection, key: str, now: datetime
+    ) -> ScoringJob | None:
+        existing = cls._active(db, key)
+        if (
+            existing is not None
+            and existing.status == JobStatus.RUNNING
+            and not existing.has_active_lease(now)
+        ):
+            failed = existing.transition(JobStatus.FAILED, now, LEASE_EXPIRED_ERROR)
+            db.execute(
+                "DELETE FROM scoring_predictions WHERE job_id = ?", (existing.job_id,)
+            )
+            cls._write(db, failed)
+            return None
+        return existing
+
+    def find_or_recover(self, key: str, now: datetime) -> ScoringJob | None:
+        with self._transaction() as db:
+            return self._recover_active(db, key, now)
+
+    def create_or_get(self, job: ScoringJob, now: datetime | None = None) -> ScoringJob:
         if job.status != JobStatus.PENDING:
             raise InvalidJobTransition("New jobs must be PENDING")
         with self._transaction() as db:
-            existing = self._active(db, job.idempotency_key)
+            existing = self._recover_active(
+                db, job.idempotency_key, now or job.created_at
+            )
             if existing is not None:
                 return existing
             db.execute(
-                "INSERT INTO scoring_jobs VALUES (?, ?, ?, ?)",
+                """INSERT INTO scoring_jobs
+                   (job_id, idempotency_key, status, payload) VALUES (?, ?, ?, ?)""",
                 (
                     job.job_id,
                     job.idempotency_key,
@@ -137,12 +185,31 @@ class SQLiteScoringStore:
             self._write(db, job)
             return job
 
+    def renew_lease(self, job_id: str, now: datetime) -> ScoringJob:
+        with self._transaction() as db:
+            job = self._get(db, job_id).renew_lease(now)
+            self._write(db, job)
+            return job
+
+    def fail_if_running(self, job_id: str, now: datetime, error: str) -> ScoringJob:
+        with self._transaction() as db:
+            job = self._get(db, job_id)
+            if job.status != JobStatus.RUNNING:
+                return job  # A stale worker cannot overwrite recovery/terminal state.
+            if not job.has_active_lease(now):
+                error = LEASE_EXPIRED_ERROR
+            failed = job.transition(JobStatus.FAILED, now, error)
+            db.execute("DELETE FROM scoring_predictions WHERE job_id = ?", (job_id,))
+            self._write(db, failed)
+            return failed
+
     def finish(
         self, job_id: str, now: datetime, error: str | None = None
     ) -> ScoringJob:
         with self._transaction() as db:
             job = self._get(db, job_id)
             if error is None:
+                job.require_lease(now)
                 count = db.execute(
                     "SELECT COUNT(*) FROM scoring_predictions WHERE job_id = ?",
                     (job_id,),
@@ -156,12 +223,16 @@ class SQLiteScoringStore:
             return job
 
     def stage(
-        self, batch: PredictionBatch, explanations: Sequence[ModelExplanation]
+        self,
+        batch: PredictionBatch,
+        explanations: Sequence[ModelExplanation],
+        now: datetime,
     ) -> None:
         with self._transaction() as db:
             job = self._get(db, batch.scoring_run_id)
             if job.status != JobStatus.RUNNING:
                 raise InvalidJobTransition("Only RUNNING jobs may stage predictions")
+            job.require_lease(now)
             if batch.model_version != job.model_version:
                 raise ValueError(
                     "Prediction model_version does not match pinned job model"

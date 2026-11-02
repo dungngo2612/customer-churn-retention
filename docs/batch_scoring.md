@@ -32,7 +32,7 @@ Bundle version và dataset ID được coi là immutable; thêm thư mục bundl
 
 `ScoringJob` là dataclass frozen: `job_id`, `dataset_id`, `model_version`, `chunk_size`,
 `total_rows`, `processed_rows`, `status`, `error`, `created_at`, `started_at`,
-`finished_at`; có `idempotency_key` và cấu hình `explain_limit`, `explain_customer_ids`.
+`finished_at`, `lease_seconds`, `lease_expires_at`; có `idempotency_key` và cấu hình `explain_limit`, `explain_customer_ids`.
 Timestamps là ISO-8601 có timezone; `scoring_run_id = job_id` trong Prediction v1.
 
 ```text
@@ -48,12 +48,13 @@ thành công, tính từ processed_rows/chunk_size theo adapter CSV có chunk c�
 Key = SHA-256 của UTF-8 JSON `[dataset_id, model_version]`, separator `,`/`:` và
 `ensure_ascii=False`; JSON framing tránh nhập nhằng khi nối chuỗi.
 
-- Cùng key PENDING/RUNNING/SUCCEEDED: trả job cũ với nguyên cấu hình đầu tiên.
+- Cùng key PENDING/RUNNING chưa hết lease/SUCCEEDED: trả job cũ với nguyên cấu hình đầu tiên.
   Đổi chunk_size/explain_limit không tạo lại job. PENDING được enqueue lại an toàn;
   queue loại trùng reference đang chờ.
 - Cùng key FAILED: tạo job_id/scoring_run_id mới, đọc lại từ đầu. Không resume chunk.
 - Delivery lại job RUNNING/SUCCEEDED/FAILED: trả trạng thái hiện tại, không chạy lại.
-  Claim chuyển PENDING -> RUNNING atomic; không có hai worker cùng chấm một job.
+  Claim chuyển PENDING -> RUNNING atomic. Thu hồi lease xảy ra khi gửi lại yêu cầu
+  tạo job cùng key, không phải khi chỉ delivery lại message job_id cũ.
 - Primary key `(job_id, customer_id)` tương ứng `(scoring_run_id, customer_id)`;
   vị trí dòng cũng unique theo job. ID trùng trong/cross chunk làm job FAILED,
   không dùng upsert để che mất dữ liệu trùng.
@@ -76,11 +77,35 @@ Kết thúc kiểm số Prediction staging = total_rows và processed_rows = tot
 rồi commit SUCCEEDED. Đây là điểm publication duy nhất trong cùng SQLite database.
 Consumer phải đọc qua port, không đọc trực tiếp bảng staging.
 
-Lỗi predict/SHAP/đọc CSV/ghi chunk được bắt trong worker: xoá staging (kể cả explanation
-qua FK cascade), ghi FAILED, error, finished_at. Giữ processed_rows cuối cùng để chẩn
-đoán, không coi là số kết quả đã publish. Nếu dọn staging lỗi thì vẫn ghi FAILED và
-kèm lỗi cleanup; kết quả vẫn bị chặn bởi trạng thái. Lỗi vật lý khiến chính database
-không ghi được trạng thái phải được caller/operator xử lý.
+Lỗi predict/SHAP/đọc CSV/ghi chunk được bắt trong worker: chuyển RUNNING -> FAILED
+qua máy trạng thái và xoá staging (kể cả explanation qua FK cascade) trong cùng
+transaction. Giữ processed_rows cuối cùng để chẩn đoán, không coi là số kết quả đã
+publish. Lỗi vật lý khiến database không ghi được trạng thái phải được caller xử lý.
+
+Lỗi mới lưu trong job và lỗi JSON do CLI bắt chỉ giữ tên loại exception cùng thông
+báo cố định `batch scoring failed`; không nội suy exception message, input mẫu của
+Pydantic, customer ID hay giá trị feature. Lỗi lease vẫn là `lease expired`.
+Chẩn đoán chi tiết từ exception không được lưu hoặc in ra qua các trường error này.
+
+## Lease và thu hồi job bị bỏ rơi
+
+`DEFAULT_LEASE_SECONDS = 300`; CLI cấu hình bằng `--lease-seconds`, service nhận
+`lease_seconds` và `clock` có thể thay bằng đồng hồ giả. Duration được lưu với job,
+không thay khi submit trùng key. Claim gán `lease_expires_at = now + lease_seconds`;
+sau mỗi chunk stage và cập nhật tiến độ thành công, gia hạn lại cùng duration.
+Chọn duration lớn hơn thời gian xử lý chunk (kể cả SHAP). Không có heartbeat nền:
+chunk chạy quá hạn bị FAILED, không được hồi sinh lease hay publish kết quả.
+
+Khi `create_job` cùng key gặp RUNNING: nếu deadline > now thì trả job cũ. Nếu deadline
+<= now hoặc NULL, transaction chuyển RUNNING -> FAILED với chính xác `lease expired`,
+xoá toàn bộ staging/explanation rồi cho phép tạo job_id mới và đọc CSV từ đầu.
+Create-or-get kiểm lại điều kiện dưới `BEGIN IMMEDIATE`, tránh hai submit đồng thời
+tạo hai job mới. Worker cũ bị chặn stage/renew/publish theo trạng thái và lease;
+không ghi đè error của job đã thu hồi. Query status chỉ đọc, không tự thu hồi job.
+
+Mở database cũ tự thêm cột nullable `lease_expires_at`, giữ nguyên dữ liệu và cấu trúc
+JSON còn lại; job cũ không có deadline được xử lý như đã hết lease. Không dùng staging
+cũ cho job mới. Public port vẫn chỉ trả kết quả của SUCCEEDED.
 
 ## SHAP có giới hạn
 
@@ -125,14 +150,20 @@ import/copy migration, ORM, repository hay use case của nhánh chưa merge:
 `score-batch` tạo/enqueue job rồi gọi `run_worker_once` ngay **trong cùng tiến trình**,
 đợi kết thúc và in JSON job. Đây không phải dịch vụ worker nền. `job-status` có thể
 chạy riêng với cùng `--state-db`. CLI trả exit 1 khi FAILED hoặc đầu vào/lưu trữ lỗi.
-Queue trong bộ nhớ mất khi tiến trình kết thúc; không có durable outbox/lease/heartbeat.
+`job-status` gọi use case `get_job_status(job_id, jobs)` trong
+`workflows/score_dataset.py` qua port `JobRepository`, không gọi storage trực tiếp
+từ CLI. Use case chỉ đọc: không mở CSV/bundle/background, không enqueue/chạy worker
+hoặc thu hồi lease. Job không tồn tại trả JSON error đã lọc và exit 1.
+Queue trong bộ nhớ mất khi tiến trình kết thúc; không có durable outbox/heartbeat nền.
 PENDING còn trong SQLite có thể resubmit để enqueue lại. Crash cứng lúc RUNNING để
-lại RUNNING và staging không publish; chưa có tự phục hồi/resume job bị kẹt.
+lại staging không publish; gửi lại yêu cầu sau hạn lease sẽ thu hồi và chấm từ đầu.
+Không có exactly-once execution: worker cũ có thể còn tính toán sau khi hết lease,
+nhưng không được publish. SQLite là storage local; chưa dùng cho nhiều host.
 
 Khi thay adapter: dùng Postgres cho cả hai storage port với transaction publication
 chung, partial unique key và claim atomic; queue thật vẫn chỉ mang job_id. Thêm outbox
-để không mất enqueue, ack sau khi đọc kết quả terminal, và lease/recovery cho crash.
-Không chỉ đổi queue rồi giả định retry RUNNING đã an toàn. Không cần sửa workflow
+để không mất enqueue, ack sau khi đọc kết quả terminal; triển khai cùng ngữ nghĩa
+lease/recovery, fencing worker cũ và atomic cleanup khi thay storage. Không cần sửa workflow
 cho SQL/broker, nhưng adapter mới phải đáp ứng cùng cam kết atomic/visibility.
 Các file __init__.py worker/task_queue/database 0 byte trên base được giữ nguyên;
 chỉ thêm __init__.py cho hai package mới `database/scoring` và `worker/tasks`.
@@ -232,7 +263,11 @@ Không chạy full pytest. Tests dùng SQLite tạm và model tối thiểu, ki�
 atomic claim/create, idempotency, chunk/progress, xác suất hữu hạn/biên 0/1,
 failure không publish, ID trùng, version cố định, message chỉ job_id, bounded SHAP,
 CLI status và tương đương chấm một lần. Các test scoring v1 giữ nguyên.
-Lượt kiểm tra cuối: **79 passed**; ruff check/format và mypy sạch trên 13 file Python.
+Kiểm tra sau ba bản vá: **102 passed**; ruff check/format và mypy sạch trên 6 file
+Python có thay đổi. Regression tests kiểm lỗi load model, đọc CSV, predict, SHAP,
+stage và CLI không lưu/in customer ID hoặc giá trị feature trong exception message;
+job-status dùng use case cho cả bốn trạng thái và job không tồn tại, không đọc input,
+chạy worker hay thu hồi lease.
 
 ## Kết quả đã chạy thật
 
@@ -251,5 +286,5 @@ Lượt kiểm tra cuối: **79 passed**; ruff check/format và mypy sạch trê
 - Background của cả 5 explanation không trùng ID với val; không có SHAP cho các khách còn lại.
 
 Phần làm tạm: CSV/path registry, SQLite local và queue volatile/worker đồng bộ trong
-tiến trình; chưa có service worker/broker/Postgres, durable outbox, lease/recovery hoặc
+tiến trình; chưa có service worker/broker/Postgres, durable outbox, heartbeat nền hoặc
 endpoint HTTP job status. Các điểm tích hợp phía trên không kéo code Hiếu/Cường vào nhánh này.

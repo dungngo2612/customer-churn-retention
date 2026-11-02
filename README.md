@@ -25,3 +25,25 @@ cp .env.example .env
 | Cả nhóm | `src/churn_retention/contracts/`, `notebooks/`, `tests/`, `data/`, `artifacts/`, `docs/` | Schema chung và tài nguyên dùng chung |
 
 Người 3 chủ trì tích hợp các phần của nhóm.
+
+## Streamlit LLM + RAG độc lập
+
+Chạy từ repository root:
+
+```bash
+PYTHONPATH=src python3 -m streamlit run apps/streamlit_llm/app.py
+```
+
+Ứng dụng chỉ đăng ký trang Predict, sử dụng Reference Artifact v2 với hash pin
+hiện có và không khởi chạy Scoring/Explain. Cấu hình artifact, khóa provider và
+giới hạn được mô tả trong [hướng dẫn app độc lập](docs/llm_standalone_app.md).
+
+### Dashboard demo một quản trị viên
+
+```bash
+PYTHONPATH=src python3 -m churn_retention.dashboard.demo
+```
+
+Chỉ `http://127.0.0.1:8501`, mock mặc định và SQLite demo riêng. Không có
+authentication hoặc cách ly phiên. Không dùng tunnel/reverse proxy/public deploy.
+Xem [phạm vi bảo mật demo](docs/group5_single_admin_security.md).
