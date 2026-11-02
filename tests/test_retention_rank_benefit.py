@@ -75,9 +75,7 @@ def test_evaluate_actions_matches_hand_calculated_benefit_and_net_value(
     customers, predictions = retention_inputs
 
     options = evaluate_actions(customers, predictions, margin=0.5, horizon_months=12)
-    option = options.set_index(["customerID", "action_code"]).loc[
-        (customer_id, action_code)
-    ]
+    option = options.set_index(["customerID", "action_code"]).loc[(customer_id, action_code)]
 
     # V = 600, reductions A0..A3 = 0, 0.10, 0.14, 0.20; costs = 0, 8, 9, 19.
     # At p=0.5 benefits are 0, 30, 42, 60; subtract each cost for net value.

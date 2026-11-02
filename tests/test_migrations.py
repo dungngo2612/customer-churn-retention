@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 
 
 def test_alembic_migrations(tmp_path: Path) -> None:
@@ -28,7 +28,19 @@ def test_alembic_migrations(tmp_path: Path) -> None:
         # Chạy migration nâng cấp lên head
         command.upgrade(config, "head")
 
+        inspector = inspect(connection)
+        assert "dataset_metadata" in inspector.get_table_names()
+        assert {
+            "dataset_id",
+            "features_path",
+            "labels_path",
+            "schema_version",
+            "checksum_sha256",
+        } <= {column["name"] for column in inspector.get_columns("dataset_metadata")}
+
         # Chạy migration hạ cấp về base
         command.downgrade(config, "base")
+
+        assert "dataset_metadata" not in inspect(connection).get_table_names()
 
     engine.dispose()
