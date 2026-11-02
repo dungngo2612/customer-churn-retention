@@ -22,6 +22,17 @@ def frozen_rag_oracle() -> Path:
     return path
 
 
+@pytest.fixture(scope="module")
+def approved_rag_reference() -> Path:
+    path = Path(__file__).resolve().parents[1] / "artifacts/references/telco-train-v2.zip"
+    if not path.is_file():
+        message = "Approved private RAG reference is unavailable; synthetic integration still runs."
+        if os.environ.get("CHURN_GOLDEN_REQUIRE_ASSETS") == "1":
+            pytest.fail(message)
+        pytest.skip(message)
+    return path
+
+
 @pytest.fixture(scope="function")
 def db_session(tmp_path: Path) -> Generator[Session, None, None]:
     """Tạo database SQLite tạm thời trên ổ cứng cho từng bài test, tự dọn dẹp khi xong."""

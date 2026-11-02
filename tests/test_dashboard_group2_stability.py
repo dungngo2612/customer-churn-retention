@@ -33,7 +33,6 @@ from churn_retention.entrypoints.streamlit.dashboard_llm_service import (
     validate_frame,
 )
 from churn_retention.entrypoints.streamlit.llm_input import (
-    DEFAULT_REFERENCE_PATH,
     DEFAULT_REFERENCE_SHA256,
 )
 from churn_retention.entrypoints.worker.worker import JobWorker
@@ -69,11 +68,13 @@ def sdk_failure(kind: str, role: str):
     }[kind]
 
 
-def test_real_artifact_is_exactly_train_4930_and_retrieval_never_heldout() -> None:
+def test_real_artifact_is_exactly_train_4930_and_retrieval_never_heldout(
+    approved_rag_reference: Path,
+) -> None:
     store = ReferenceStore.load(
-        DEFAULT_REFERENCE_PATH, expected_artifact_sha256=DEFAULT_REFERENCE_SHA256
+        approved_rag_reference, expected_artifact_sha256=DEFAULT_REFERENCE_SHA256
     )
-    splits = pd.read_csv(ROOT / "data/raw/dataset_splits.csv", dtype={"customerID": str})
+    splits = pd.read_csv(ROOT / "artifacts/splits/dataset_splits.csv", dtype={"customerID": str})
     train = pd.read_csv(ROOT / "data/processed/train.csv", dtype={"customerID": str})
     ref_ids = {row.customer_id for row in store.records}
     split_train = set(splits.loc[splits["split"] == "train", "customerID"])
