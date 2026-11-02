@@ -23,9 +23,7 @@ def scoring_context(
     bundle: LoadedBundle, dataset: pd.DataFrame, bundle_path: str
 ) -> ScoringContext:
     """Keep the exact successfully scored model and a snapshot of its input."""
-    return ScoringContext(
-        bundle, dataset.copy(deep=True), str(Path(bundle_path).resolve())
-    )
+    return ScoringContext(bundle, dataset.copy(deep=True), str(Path(bundle_path).resolve()))
 
 
 def load_train_background(path: str | Path) -> pd.DataFrame:

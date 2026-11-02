@@ -37,16 +37,8 @@ def probe(port: int) -> dict[str, object]:
         ):
             assert status(path, headers) == 403
             checked += 1
-    assert (
-        status(
-            "/_stcore/upload_file/a/b", {"Origin": "http://attacker.example"}, "POST"
-        )
-        == 403
-    )
-    assert (
-        status("/_stcore/upload_file/a/b", {"X-Forwarded-For": "127.0.0.1"}, "POST")
-        == 403
-    )
+    assert status("/_stcore/upload_file/a/b", {"Origin": "http://attacker.example"}, "POST") == 403
+    assert status("/_stcore/upload_file/a/b", {"X-Forwarded-For": "127.0.0.1"}, "POST") == 403
     checked += 2
     websocket = {
         "Connection": "Upgrade",

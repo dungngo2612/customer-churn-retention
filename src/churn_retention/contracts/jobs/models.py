@@ -53,9 +53,7 @@ class TaskJob:
             )
             or self.retry_count > self.max_retries
         ):
-            raise ValueError(
-                "Retry counts must be non-negative integers within the limit"
-            )
+            raise ValueError("Retry counts must be non-negative integers within the limit")
 
     @classmethod
     def create(

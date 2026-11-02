@@ -27,9 +27,7 @@ class ReferenceArtifactError(ValueError):
 
 
 class _StrictModel(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid", strict=True, frozen=True, allow_inf_nan=False
-    )
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True, allow_inf_nan=False)
 
 
 class FeatureColumn(_StrictModel):
@@ -93,18 +91,14 @@ def validate_schema(schema: list[FeatureColumn]) -> None:
     for column in schema:
         if column.kind == "numeric":
             if np.dtype(column.dtype).kind not in "iuf":
-                raise ReferenceArtifactError(
-                    "Invalid numerical dtype in feature schema."
-                )
+                raise ReferenceArtifactError("Invalid numerical dtype in feature schema.")
         elif column.dtype not in {"str", "object", "string"}:
             raise ReferenceArtifactError("Invalid categorical dtype in feature schema.")
 
 
 def validate_id(value: object) -> str:
     if not isinstance(value, str) or not value.strip() or value != value.strip():
-        raise ValueError(
-            "Customer ID must be a non-empty string without surrounding whitespace."
-        )
+        raise ValueError("Customer ID must be a non-empty string without surrounding whitespace.")
     return value
 
 
@@ -144,11 +138,7 @@ def clean_features(
         raise ValueError("SeniorCitizen must be 0 or 1.")
 
     total = values["TotalCharges"]
-    missing = (
-        total is None
-        or total is pd.NA
-        or (isinstance(total, str) and not total.strip())
-    )
+    missing = total is None or total is pd.NA or (isinstance(total, str) and not total.strip())
     if isinstance(total, (float, np.floating)) and math.isnan(float(total)):
         missing = True
     if missing:

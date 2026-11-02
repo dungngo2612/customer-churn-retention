@@ -23,9 +23,7 @@ class SimilarCustomerRetriever:
         self._k = _validate_k(k)
         # This fit only indexes already-transformed vectors; it fits no scaler,
         # encoder, classifier, or label-dependent model.
-        self._neighbors = NearestNeighbors(
-            metric="euclidean", algorithm="brute", n_jobs=1
-        )
+        self._neighbors = NearestNeighbors(metric="euclidean", algorithm="brute", n_jobs=1)
         self._neighbors.fit(store.matrix)
 
     def retrieve(
@@ -40,9 +38,7 @@ class SimilarCustomerRetriever:
         records = self._store.records
         # Ask for all distances so ties at the K boundary are broken globally
         # by customer ID, rather than backend-dependent partial-sort ordering.
-        distances, indices = self._neighbors.kneighbors(
-            prepared.vector, n_neighbors=len(records)
-        )
+        distances, indices = self._neighbors.kneighbors(prepared.vector, n_neighbors=len(records))
         ids = np.asarray([records[int(index)].customer_id for index in indices[0]])
         order = np.lexsort((ids, distances[0]))
         results = []

@@ -109,10 +109,7 @@ def validation_queries(
     # Read only feature columns: neither validation labels nor IDs enter this path.
     names = [column.name for column in store.feature_schema]
     frame = pd.read_csv(VALIDATION, usecols=names)
-    return {
-        case["name"]: {name: frame.iloc[case["row"]][name] for name in names}
-        for case in cases
-    }
+    return {case["name"]: {name: frame.iloc[case["row"]][name] for name in names} for case in cases}
 
 
 def preprocessing_snapshot(store: ReferenceStore) -> dict[str, Any]:
@@ -164,26 +161,20 @@ def prompt_snapshot(text: str, reference_count: int) -> dict[str, Any]:
     encoded, suffix = rest.split("\nEND_CUSTOMER_DATA_JSON\n", 1)
     payload = json.loads(encoded)
     schema = json.loads(
-        prefix.split("\nBEGIN_OUTPUT_JSON_SCHEMA\n", 1)[1].split(
-            "\nEND_OUTPUT_JSON_SCHEMA\n", 1
-        )[0]
+        prefix.split("\nBEGIN_OUTPUT_JSON_SCHEMA\n", 1)[1].split("\nEND_OUTPUT_JSON_SCHEMA\n", 1)[0]
     )
     return {
         "sha256": digest_bytes(text.encode("utf-8")),
         "characters": len(text),
         "utf8_bytes": len(text.encode("utf-8")),
         "reference_count": reference_count,
-        "reference_labels": [
-            example["Churn"] for example in payload["reference_customers"]
-        ],
+        "reference_labels": [example["Churn"] for example in payload["reference_customers"]],
         "ordered_examples_sha256": digest_json(payload["reference_customers"]),
         "template_sha256": digest_bytes((prefix + "\n<DATA>\n" + suffix).encode()),
         "structure": {
             "data_keys": sorted(payload),
             "query_feature_names": sorted(payload["customer_to_predict"]),
-            "example_keys": [
-                sorted(example) for example in payload["reference_customers"]
-            ],
+            "example_keys": [sorted(example) for example in payload["reference_customers"]],
             "output_schema": schema,
         },
     }
@@ -246,9 +237,7 @@ def missing_probes(query: Mapping[str, object]) -> dict[str, dict[str, object]]:
     return probes
 
 
-def probe_snapshot(
-    store: ReferenceStore, query: Mapping[str, object]
-) -> dict[str, Any]:
+def probe_snapshot(store: ReferenceStore, query: Mapping[str, object]) -> dict[str, Any]:
     try:
         prepared = store.prepare_query(query)
     except (ValueError, TypeError) as error:
@@ -274,9 +263,7 @@ def capture(public_path: Path, private_path: Path) -> None:
     with offline_without_fitting():
         store = ReferenceStore.load(ARTIFACT)
         retriever = SimilarCustomerRetriever(store, k=5)
-        cases: list[dict[str, Any]] = [
-            {"name": name, "row": row} for name, row in QUERY_ROWS
-        ]
+        cases: list[dict[str, Any]] = [{"name": name, "row": row} for name, row in QUERY_ROWS]
         queries = validation_queries(store, cases)
         public: dict[str, Any] = {
             "baseline_format": 1,
@@ -324,9 +311,7 @@ def capture(public_path: Path, private_path: Path) -> None:
     with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
         json.dump(private, handle, ensure_ascii=False, allow_nan=False, indent=2)
         handle.write("\n")
-    print(
-        json.dumps({"queries": len(cases), "matrix_shape": public["matrix"]["shape"]})
-    )
+    print(json.dumps({"queries": len(cases), "matrix_shape": public["matrix"]["shape"]}))
 
 
 def main() -> None:

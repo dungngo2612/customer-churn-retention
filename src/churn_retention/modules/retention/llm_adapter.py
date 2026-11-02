@@ -29,9 +29,7 @@ class CustomerContext(BaseModel):
 
 
 class RetentionScenario(BaseModel):
-    model_config = ConfigDict(
-        strict=True, frozen=True, extra="forbid", allow_inf_nan=False
-    )
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid", allow_inf_nan=False)
     budget: StrictFloat = Field(default=20.0, ge=0)
     margin: StrictFloat = Field(default=0.5, gt=0, le=1)
     horizon_months: StrictInt = Field(default=12, gt=0)
@@ -70,9 +68,7 @@ def project_inputs(
         if context.observed_active is None:
             raise ValueError("Cần xác nhận trạng thái hoạt động từ ngữ cảnh nghiệp vụ.")
         if context.customer_ref in seen_customers or record.record_id in seen_records:
-            raise ValueError(
-                "Chỉ chọn một prediction cho mỗi khách hàng; không được trùng ID."
-            )
+            raise ValueError("Chỉ chọn một prediction cho mỗi khách hàng; không được trùng ID.")
         seen_customers.add(context.customer_ref)
         seen_records.add(record.record_id)
         customers.append(

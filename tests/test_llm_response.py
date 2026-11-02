@@ -31,9 +31,7 @@ def test_valid_response_is_preserved_without_recalculation() -> None:
 def test_probability_accepts_json_numbers_without_type_coercion(
     probability: float,
 ) -> None:
-    parsed = parse_churn_response(
-        json.dumps({**VALID, "churn_probability": probability})
-    )
+    parsed = parse_churn_response(json.dumps({**VALID, "churn_probability": probability}))
     assert parsed.churn_probability == probability
     assert type(parsed.churn_probability) is type(probability)
 
@@ -106,9 +104,7 @@ def test_nonfinite_json_numbers_are_rejected(number: str) -> None:
         parse_churn_response(text)
 
 
-@pytest.mark.parametrize(
-    "value", ["", " \n\t", "x" * 301, None, 10, True, [], {}, "\ud800"]
-)
+@pytest.mark.parametrize("value", ["", " \n\t", "x" * 301, None, 10, True, [], {}, "\ud800"])
 def test_reason_is_bounded_nonempty_unicode_string(value: object) -> None:
     with pytest.raises(LLMResponseValidationError) as caught:
         parse_churn_response(json.dumps({**VALID, "reason": value}))
@@ -116,9 +112,7 @@ def test_reason_is_bounded_nonempty_unicode_string(value: object) -> None:
 
 
 def test_whitespace_around_json_and_reason_boundary_are_valid() -> None:
-    parsed = parse_churn_response(
-        " \n" + json.dumps({**VALID, "reason": "a" * 300}) + "\t"
-    )
+    parsed = parse_churn_response(" \n" + json.dumps({**VALID, "reason": "a" * 300}) + "\t")
     assert len(parsed.reason) == 300
 
 

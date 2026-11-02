@@ -130,9 +130,7 @@ class DashboardRunStore:
 
     def get(self, run_id: str) -> SavedRun:
         with self.connect() as conn:
-            row = conn.execute(
-                "SELECT * FROM dashboard_runs WHERE run_id=?", (run_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM dashboard_runs WHERE run_id=?", (run_id,)).fetchone()
         if row is None:
             raise ValueError("Run not found")
         reject_credentials(dict(row))
@@ -142,7 +140,10 @@ class DashboardRunStore:
         with self.connect() as conn:
             return (
                 conn.execute(
-                    "UPDATE dashboard_runs SET status='RUNNING' WHERE run_id=? AND status='PENDING'",
+                    (
+                        "UPDATE dashboard_runs SET status='RUNNING' WHERE run_id=? AN"
+                        "D status='PENDING'"
+                    ),
                     (run_id,),
                 ).rowcount
                 == 1
@@ -159,8 +160,7 @@ class DashboardRunStore:
             if (
                 run is None
                 or run["status"] != "RUNNING"
-                or customer_id
-                not in {row["customerID"] for row in json.loads(run["cohort_json"])}
+                or customer_id not in {row["customerID"] for row in json.loads(run["cohort_json"])}
             ):
                 raise ValueError("Attempt must belong to a running accepted cohort")
             conn.execute(
@@ -180,7 +180,10 @@ class DashboardRunStore:
             reject_credentials(result.model_dump())
         with self.connect() as conn:
             changed = conn.execute(
-                "UPDATE dashboard_outcomes SET state=?,result_json=? WHERE run_id=? AND customer_id=? AND state='CALLING'",
+                (
+                    "UPDATE dashboard_outcomes SET state=?,result_json=? WHERE ru"
+                    "n_id=? AND customer_id=? AND state='CALLING'"
+                ),
                 (
                     "SUCCESS" if result else "FAILED",
                     canonical(result.model_dump()) if result else None,
@@ -191,11 +194,7 @@ class DashboardRunStore:
             if changed != 1:
                 raise ValueError("Outcome already finalized or attempt missing")
             if result is None:
-                code = (
-                    error_code
-                    if error_code in FAILURE_MESSAGES
-                    else "prediction_failed"
-                )
+                code = error_code if error_code in FAILURE_MESSAGES else "prediction_failed"
                 conn.execute(
                     "INSERT INTO dashboard_failures VALUES (?,?,?)",
                     (run_id, customer_id, code),
@@ -206,7 +205,10 @@ class DashboardRunStore:
         code = code if code in FAILURE_MESSAGES else "prediction_failed"
         with self.connect() as conn:
             if conn.execute(
-                "UPDATE dashboard_runs SET status='FAILED' WHERE run_id=? AND status IN ('PENDING','RUNNING')",
+                (
+                    "UPDATE dashboard_runs SET status='FAILED' WHERE run_id=? AND"
+                    " status IN ('PENDING','RUNNING')"
+                ),
                 (run_id,),
             ).rowcount:
                 conn.execute(
@@ -217,20 +219,23 @@ class DashboardRunStore:
     def error_code(self, run_id: str) -> str:
         with self.connect() as conn:
             row = conn.execute(
-                "SELECT error_code FROM dashboard_failures WHERE run_id=? ORDER BY customer_id='' DESC,customer_id LIMIT 1",
+                (
+                    "SELECT error_code FROM dashboard_failures WHERE run_id=? ORD"
+                    "ER BY customer_id='' DESC,customer_id LIMIT 1"
+                ),
                 (run_id,),
             ).fetchone()
-        return (
-            row[0]
-            if row is not None and row[0] in FAILURE_MESSAGES
-            else "prediction_failed"
-        )
+        return row[0] if row is not None and row[0] in FAILURE_MESSAGES else "prediction_failed"
 
     def progress(self, run_id: str) -> pd.DataFrame:
         run = self.get(run_id)
         with self.connect() as conn:
             rows = conn.execute(
-                "SELECT o.customer_id,o.state,f.error_code FROM dashboard_outcomes o LEFT JOIN dashboard_failures f ON f.run_id=o.run_id AND f.customer_id=o.customer_id WHERE o.run_id=?",
+                (
+                    "SELECT o.customer_id,o.state,f.error_code FROM dashboard_out"
+                    "comes o LEFT JOIN dashboard_failures f ON f.run_id=o.run_id "
+                    "AND f.customer_id=o.customer_id WHERE o.run_id=?"
+                ),
                 (run_id,),
             ).fetchall()
         states = {row["customer_id"]: row for row in rows}
@@ -256,16 +261,17 @@ class DashboardRunStore:
                     "message": failure_message(code) if code else "",
                 }
             )
-        return pd.DataFrame(
-            result, columns=["customer_id", "state", "error_code", "message"]
-        )
+        return pd.DataFrame(result, columns=["customer_id", "state", "error_code", "message"])
 
     def finish(self, run_id: str, *, interrupted: bool = False) -> SavedRun:
         run = self.get(run_id)
         with self.connect() as conn:
             if interrupted:
                 conn.execute(
-                    "UPDATE dashboard_outcomes SET state='UNKNOWN' WHERE run_id=? AND state='CALLING'",
+                    (
+                        "UPDATE dashboard_outcomes SET state='UNKNOWN' WHERE run_id=?"
+                        " AND state='CALLING'"
+                    ),
                     (run_id,),
                 )
             succeeded = conn.execute(
@@ -275,7 +281,10 @@ class DashboardRunStore:
             complete = succeeded == len(json.loads(run.cohort_json)) and not interrupted
             status = "COMPLETE" if complete else "PARTIAL" if succeeded else "FAILED"
             conn.execute(
-                "UPDATE dashboard_runs SET status=? WHERE run_id=? AND status IN ('PENDING','RUNNING')",
+                (
+                    "UPDATE dashboard_runs SET status=? WHERE run_id=? AND status"
+                    " IN ('PENDING','RUNNING')"
+                ),
                 (status, run_id),
             )
         return self.get(run_id)
@@ -297,7 +306,10 @@ class DashboardRunStore:
                 raise ValueError("Interrupted job has no linked run")
             if run["status"] in {"PENDING", "RUNNING"}:
                 conn.execute(
-                    "UPDATE dashboard_outcomes SET state='UNKNOWN' WHERE run_id=? AND state='CALLING'",
+                    (
+                        "UPDATE dashboard_outcomes SET state='UNKNOWN' WHERE run_id=?"
+                        " AND state='CALLING'"
+                    ),
                     (run_id,),
                 )
                 count = conn.execute(
@@ -312,7 +324,10 @@ class DashboardRunStore:
             # Repair that job from durable outcomes without rerunning prediction.
             success = run["status"] == "COMPLETE"
             conn.execute(
-                "UPDATE task_jobs SET status=?,error_type=?,error_reason=?,updated_at=? WHERE job_id=?",
+                (
+                    "UPDATE task_jobs SET status=?,error_type=?,error_reason=?,up"
+                    "dated_at=? WHERE job_id=?"
+                ),
                 (
                     "SUCCESS" if success else "FAILED",
                     None if success else "Interrupted",
@@ -327,25 +342,22 @@ class DashboardRunStore:
         run = self.get(run_id)
         with self.connect() as conn:
             rows = conn.execute(
-                "SELECT customer_id,result_json FROM dashboard_outcomes WHERE run_id=? AND state='SUCCESS'",
+                (
+                    "SELECT customer_id,result_json FROM dashboard_outcomes WHERE"
+                    " run_id=? AND state='SUCCESS'"
+                ),
                 (run_id,),
             ).fetchall()
         for row in rows:
             reject_credentials(dict(row))
         outcomes = {
-            row["customer_id"]: LLMChurnPrediction.model_validate_json(
-                row["result_json"]
-            )
+            row["customer_id"]: LLMChurnPrediction.model_validate_json(row["result_json"])
             for row in rows
         }
         for result in outcomes.values():
             reject_credentials(result.model_dump())
         customers = pd.DataFrame(json.loads(run.cohort_json))
-        customers = (
-            customers[customers["customerID"].isin(outcomes)]
-            .copy()
-            .reset_index(drop=True)
-        )
+        customers = customers[customers["customerID"].isin(outcomes)].copy().reset_index(drop=True)
         records: list[dict[str, Any]] = []
         for cid in customers["customerID"]:
             result = outcomes[cid]

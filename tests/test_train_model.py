@@ -17,9 +17,7 @@ def _frames() -> tuple[pd.DataFrame, pd.DataFrame]:
             "Churn": ["No", "Yes", "No", "Yes"],
         }
     )
-    val = pd.DataFrame(
-        {"value": [4.5, 5.5], "segment": ["a", "b"], "Churn": ["No", "Yes"]}
-    )
+    val = pd.DataFrame({"value": [4.5, 5.5], "segment": ["a", "b"], "Churn": ["No", "Yes"]})
     return train, val
 
 
@@ -31,9 +29,7 @@ def _write_inputs(
             "numeric_cols": ["value"],
             "categorical_cols": ["segment"],
             "drop_cols": [
-                col
-                for col in ("customerID", "customer_id")
-                if col in train or col in val
+                col for col in ("customerID", "customer_id") if col in train or col in val
             ],
             "target_col": "Churn",
             "positive_label": "Yes",
@@ -81,9 +77,7 @@ def test_rejects_paths_resolving_to_same_file(
         val.symlink_to(train)
 
     with pytest.raises(ValueError, match="resolve to the same file"):
-        workflow.train_model(
-            config, model_type, False, 42, train, val, tmp_path / "bundles"
-        )
+        workflow.train_model(config, model_type, False, 42, train, val, tmp_path / "bundles")
     assert not (tmp_path / "bundles").exists()
 
 
@@ -97,18 +91,14 @@ def test_rejects_paths_resolving_to_same_file(
         ("customer_id", "customerID"),
     ],
 )
-def test_rejects_shared_customer_ids(
-    tmp_path: Path, train_id: str, val_id: str
-) -> None:
+def test_rejects_shared_customer_ids(tmp_path: Path, train_id: str, val_id: str) -> None:
     train_df, val_df = _frames()
     train_df[train_id] = ["shared", "train-1", "train-2", "train-3"]
     val_df[val_id] = [" shared ", "val-1"]
     config, train, val = _write_inputs(tmp_path, train_df, val_df)
 
     with pytest.raises(ValueError, match="share 1 customer ID"):
-        workflow.train_model(
-            config, "logistic", False, 42, train, val, tmp_path / "bundles"
-        )
+        workflow.train_model(config, "logistic", False, 42, train, val, tmp_path / "bundles")
     assert not (tmp_path / "bundles").exists()
 
 
@@ -126,12 +116,8 @@ def test_rejects_identical_rows_when_ids_are_missing(
         val_df["customer_id"] = ["val-0", "val-1"]
     config, train, val = _write_inputs(tmp_path, train_df, val_df)
 
-    with pytest.raises(
-        ValueError, match="identical rows.*customer IDs are unavailable"
-    ):
-        workflow.train_model(
-            config, "logistic", False, 42, train, val, tmp_path / "bundles"
-        )
+    with pytest.raises(ValueError, match="identical rows.*customer IDs are unavailable"):
+        workflow.train_model(config, "logistic", False, 42, train, val, tmp_path / "bundles")
     assert not (tmp_path / "bundles").exists()
 
 
@@ -148,9 +134,7 @@ def test_disjoint_splits_still_train_and_save_bundle(
     config, train, val = _write_inputs(tmp_path, train_df, val_df)
     monkeypatch.setattr(workflow, "log_training_run", lambda **kwargs: "test-run")
 
-    result = workflow.train_model(
-        config, "logistic", False, 42, train, val, tmp_path / "bundles"
-    )
+    result = workflow.train_model(config, "logistic", False, 42, train, val, tmp_path / "bundles")
 
     assert result["run_id"] == "test-run"
     assert (result["bundle_dir"] / "model.pkl").is_file()
@@ -167,9 +151,7 @@ def test_row_fallback_compares_labels_as_well_as_features(
     config, train, val = _write_inputs(tmp_path, train_df, val_df)
     monkeypatch.setattr(workflow, "log_training_run", lambda **kwargs: "test-run")
 
-    result = workflow.train_model(
-        config, "logistic", False, 42, train, val, tmp_path / "bundles"
-    )
+    result = workflow.train_model(config, "logistic", False, 42, train, val, tmp_path / "bundles")
 
     assert (result["bundle_dir"] / "model.pkl").is_file()
 
@@ -201,15 +183,11 @@ def test_rejects_validation_copy_of_train_without_ids(tmp_path: Path) -> None:
     config, train, val = _write_inputs(tmp_path, train_df, train_df.copy())
 
     with pytest.raises(ValueError, match=r"4/4 validation rows \(100\.0%\)"):
-        workflow.train_model(
-            config, "logistic", False, 42, train, val, tmp_path / "bundles"
-        )
+        workflow.train_model(config, "logistic", False, 42, train, val, tmp_path / "bundles")
     assert not (tmp_path / "bundles").exists()
 
 
-@pytest.mark.parametrize(
-    ("matching_rows", "should_raise"), [(17, False), (18, True), (19, True)]
-)
+@pytest.mark.parametrize(("matching_rows", "should_raise"), [(17, False), (18, True), (19, True)])
 def test_missing_id_overlap_threshold(matching_rows: int, should_raise: bool) -> None:
     train = pd.DataFrame({"value": range(20), "Churn": ["No", "Yes"] * 10})
     val = train.copy()

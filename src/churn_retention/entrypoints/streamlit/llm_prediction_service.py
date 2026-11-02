@@ -62,13 +62,14 @@ def _error_message(error: Exception) -> str:
     if isinstance(error, LLMRouterError) and error.deadline_exceeded:
         return "Dự đoán đã vượt thời gian chờ. Vui lòng thử lại sau."
     if any(isinstance(failure, LLMRateLimitError) for failure in failures):
-        return "Chưa thể dự đoán: dịch vụ LLM đang giới hạn lượt gọi hoặc hết quota. Vui lòng thử lại sau."
+        return (
+            "Chưa thể dự đoán: dịch vụ LLM đang giới hạn lượt gọi hoặc hế"
+            "t quota. Vui lòng thử lại sau."
+        )
     if any(isinstance(failure, LLMTimeoutError) for failure in failures):
         return "Chưa thể dự đoán: dịch vụ LLM hết thời gian chờ. Vui lòng thử lại sau."
     if any(isinstance(failure, LLMConnectionError) for failure in failures):
-        return (
-            "Không thể kết nối dịch vụ LLM. Vui lòng kiểm tra kết nối hoặc thử lại sau."
-        )
+        return "Không thể kết nối dịch vụ LLM. Vui lòng kiểm tra kết nối hoặc thử lại sau."
     if any(isinstance(failure, LLMResponseValidationError) for failure in failures):
         return "Dịch vụ LLM chưa trả về kết quả JSON hợp lệ. Vui lòng thử lại sau."
     if isinstance(error, (ValueError, TypeError)):
@@ -86,9 +87,7 @@ async def _predict_once(
         return await predictor.predict(snapshot)
 
 
-def predict_customer(
-    store: ReferenceStore, snapshot: Mapping[str, object]
-) -> LLMChurnPrediction:
+def predict_customer(store: ReferenceStore, snapshot: Mapping[str, object]) -> LLMChurnPrediction:
     """Reuse the loaded Store; open/close async resources entirely inside run().
 
     Streamlit's script thread is synchronous. Refuse use from a running event
@@ -102,14 +101,18 @@ def predict_customer(
         pass
     else:
         raise LLMPredictionServiceError(
-            "Không thể dự đoán trong luồng đang chạy tác vụ async. Vui lòng liên hệ người quản trị.",
+            (
+                "Không thể dự đoán trong luồng đang chạy tác vụ async. Vui lò"
+                "ng liên hệ người quản trị."
+            ),
             code="configuration",
         )
-    if not all(
-        os.environ.get(name, "").strip() for name in ("GROQ_API_KEY", "GEMINI_API_KEY")
-    ):
+    if not all(os.environ.get(name, "").strip() for name in ("GROQ_API_KEY", "GEMINI_API_KEY")):
         raise LLMPredictionServiceError(
-            "Chưa đủ cấu hình LLM. Người quản trị cần cấu hình cả GROQ_API_KEY và GEMINI_API_KEY trên máy chủ.",
+            (
+                "Chưa đủ cấu hình LLM. Người quản trị cần cấu hình cả GROQ_AP"
+                "I_KEY và GEMINI_API_KEY trên máy chủ."
+            ),
             code="configuration",
         )
     if (
@@ -128,6 +131,4 @@ def predict_customer(
         return result
     except Exception as error:  # noqa: BLE001 -- Sanitize all errors at the UI boundary.
         # Do not expose raw SDK/transformer/cleanup errors or exception chains.
-        raise LLMPredictionServiceError(
-            _error_message(error), code=_error_code(error)
-        ) from None
+        raise LLMPredictionServiceError(_error_message(error), code=_error_code(error)) from None

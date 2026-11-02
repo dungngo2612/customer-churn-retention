@@ -47,9 +47,7 @@ class CountingPredictor:
     def load(self, artifact_path: str) -> None:
         pass
 
-    def predict_batch(
-        self, features: pd.DataFrame, customer_ids: Sequence[str]
-    ) -> list[float]:
+    def predict_batch(self, features: pd.DataFrame, customer_ids: Sequence[str]) -> list[float]:
         self.calls.append(list(customer_ids))
         if len(self.calls) == self.bad_on_call:
             return [self.bad_value] * len(customer_ids)
@@ -58,9 +56,7 @@ class CountingPredictor:
 
 @pytest.fixture
 def setup(tmp_path):
-    frame = pd.DataFrame(
-        {"customer_id": [f"c{i}" for i in range(7)], "signal": np.arange(1, 8)}
-    )
+    frame = pd.DataFrame({"customer_id": [f"c{i}" for i in range(7)], "signal": np.arange(1, 8)})
     csv = tmp_path / "customers.csv"
     frame.to_csv(csv, index=False)
     with SQLiteScoringStore(tmp_path / "state.sqlite3") as store:
@@ -90,9 +86,7 @@ def explanation_for(version, row):
             "log_odds": base,
             "probability": probability,
             "background": {"seed": 42, "rows": 1, "customer_ids": ["train-0"]},
-            "feature_schema": [
-                {"name": "signal", "kind": "numeric", "dtype": "float64"}
-            ],
+            "feature_schema": [{"name": "signal", "kind": "numeric", "dtype": "float64"}],
             "contributions": [
                 {
                     "customer_id": customer,
@@ -161,9 +155,7 @@ def test_pending_idempotency_and_message_has_only_reference(setup):
     _, _, queue, _, service = setup
     first = service.create_job("dataset", "v1", 2)
     repeated = service.create_job("dataset", "v1", 5, explain_limit=1)
-    assert (
-        repeated == first and repeated.chunk_size == 2 and repeated.explain_limit == 0
-    )
+    assert repeated == first and repeated.chunk_size == 2 and repeated.explain_limit == 0
     assert queue.dequeue() == {"job_id": first.job_id}
     assert queue.dequeue() is None
     assert run_worker_once(queue, service) is None
@@ -271,9 +263,7 @@ def test_explain_limit_and_requested_ids(setup, limit, requested, expected):
 def test_missing_requested_explanation_fails_without_publishing(setup):
     _, store, queue, _, service = setup
     service.explain = explanation_for
-    job = service.create_job(
-        "dataset", "v1", 2, explain_limit=1, explain_customer_ids=["absent"]
-    )
+    job = service.create_job("dataset", "v1", 2, explain_limit=1, explain_customer_ids=["absent"])
     assert run_worker_once(queue, service).status == JobStatus.FAILED
     with pytest.raises(ResultsNotReady):
         store.explanations(job.job_id)
@@ -312,9 +302,7 @@ def test_atomic_idempotency_and_claim_across_connections(tmp_path):
             )
             assert created[0].job_id == created[1].job_id
             claimed = list(
-                pool.map(
-                    lambda store: store.claim(created[0].job_id, NOW), [first, second]
-                )
+                pool.map(lambda store: store.claim(created[0].job_id, NOW), [first, second])
             )
         assert sum(job is not None for job in claimed) == 1
 
@@ -354,9 +342,7 @@ def test_model_version_mismatch_is_failed(setup):
 def test_probability_endpoints_are_valid(setup, tmp_path):
     _, store, queue, _, service = setup
     path = tmp_path / "endpoints.csv"
-    pd.DataFrame({"customer_id": ["zero", "one"], "signal": [0, 100]}).to_csv(
-        path, index=False
-    )
+    pd.DataFrame({"customer_id": ["zero", "one"], "signal": [0, 100]}).to_csv(path, index=False)
     service.reader = CsvDatasetReader({"dataset": path})
     job = service.create_job("dataset", "v1", 1)
     assert run_worker_once(queue, service).status == JobStatus.SUCCEEDED
@@ -411,35 +397,27 @@ def local_bundle(tmp_path):
     return root, pipeline, schema
 
 
-def test_exact_model_version_remains_pinned_after_new_bundle(
-    setup, local_bundle, tmp_path
-):
+def test_exact_model_version_remains_pinned_after_new_bundle(setup, local_bundle, tmp_path):
     _, store, queue, _, service = setup
     root, pipeline, schema = local_bundle
     models = BundleScoringModels(root)
     service.reader = CsvDatasetReader({"dataset": tmp_path / "val.csv"})
     service.predictor_for = models.predictor_for
     job = service.create_job("dataset", "v1", 2)
-    save_bundle(
-        pipeline, root / "v2", schema, {"model_version": "v2", "model_type": "logistic"}
-    )
+    save_bundle(pipeline, root / "v2", schema, {"model_version": "v2", "model_type": "logistic"})
     assert run_worker_once(queue, service).status == JobStatus.SUCCEEDED
     assert store.get(job.job_id).model_version == "v1"
     assert {p.model_version for p in store.predictions(job.job_id)} == {"v1"}
-    full = next(
-        CsvDatasetReader({"dataset": tmp_path / "val.csv"}).chunks("dataset", 100)
-    )
+    full = next(CsvDatasetReader({"dataset": tmp_path / "val.csv"}).chunks("dataset", 100))
     expected = models.predictor_for("v1").predict_batch(
         full.drop(columns="customer_id"), full.customer_id.tolist()
     )
-    assert [
-        p.churn_probability for p in store.predictions(job.job_id)
-    ] == pytest.approx(expected, abs=1e-12, rel=0)
+    assert [p.churn_probability for p in store.predictions(job.job_id)] == pytest.approx(
+        expected, abs=1e-12, rel=0
+    )
 
 
-def test_cli_persists_status_and_uses_m23_only_for_requested_rows(
-    local_bundle, tmp_path, capsys
-):
+def test_cli_persists_status_and_uses_m23_only_for_requested_rows(local_bundle, tmp_path, capsys):
     root, _, _ = local_bundle
     database = tmp_path / "cli.sqlite3"
     arguments = [
@@ -462,10 +440,7 @@ def test_cli_persists_status_and_uses_m23_only_for_requested_rows(
     assert main(arguments) == 0
     result = json.loads(capsys.readouterr().out)
     assert result["status"] == "SUCCEEDED" and result["processed_chunks"] == 2
-    assert (
-        main(["job-status", "--job-id", result["job_id"], "--state-db", str(database)])
-        == 0
-    )
+    assert main(["job-status", "--job-id", result["job_id"], "--state-db", str(database)]) == 0
     status = json.loads(capsys.readouterr().out)
     assert status["job_id"] == result["job_id"] and status["processed_rows"] == 3
     with SQLiteScoringStore(database) as store:
@@ -473,8 +448,7 @@ def test_cli_persists_status_and_uses_m23_only_for_requested_rows(
         explanations = store.explanations(result["job_id"])
         assert [item.customer_id for item in explanations] == ["val-a", "val-b"]
         assert not any(
-            set(item.background.customer_ids) & {"val-a", "val-b", "val-c"}
-            for item in explanations
+            set(item.background.customer_ids) & {"val-a", "val-b", "val-c"} for item in explanations
         )
 
 
@@ -537,34 +511,19 @@ def test_expired_lease_discards_staging_and_restarts_from_zero(setup, monkeypatc
 
     monkeypatch.setattr(service, "create_job", create)
     old = crash_after_first_chunk(service, predictor, monkeypatch)
-    assert (
-        store._db.execute("SELECT COUNT(*) FROM scoring_explanations").fetchone()[0]
-        == 1
-    )
+    assert store._db.execute("SELECT COUNT(*) FROM scoring_explanations").fetchone()[0] == 1
     clock.advance(30)  # Equality is expired, not a grace period.
     fresh = service.create_job("dataset", "v1", 2)
     failed = store.get(old.job_id)
     assert failed.status == JobStatus.FAILED and failed.error == "lease expired"
     assert failed.finished_at == clock() and failed.processed_rows == 2
     assert fresh.job_id != old.job_id and fresh.processed_rows == 0
-    assert (
-        store._db.execute("SELECT COUNT(*) FROM scoring_predictions").fetchone()[0] == 0
-    )
-    assert (
-        store._db.execute("SELECT COUNT(*) FROM scoring_explanations").fetchone()[0]
-        == 0
-    )
+    assert store._db.execute("SELECT COUNT(*) FROM scoring_predictions").fetchone()[0] == 0
+    assert store._db.execute("SELECT COUNT(*) FROM scoring_explanations").fetchone()[0] == 0
     assert service.run_scoring_job(fresh.job_id).status == JobStatus.SUCCEEDED
     assert len(store.predictions(fresh.job_id)) == 7
-    assert (
-        store._db.execute("SELECT COUNT(*) FROM scoring_predictions").fetchone()[0] == 7
-    )
-    assert (
-        len(
-            {(p.scoring_run_id, p.customer_id) for p in store.predictions(fresh.job_id)}
-        )
-        == 7
-    )
+    assert store._db.execute("SELECT COUNT(*) FROM scoring_predictions").fetchone()[0] == 7
+    assert len({(p.scoring_run_id, p.customer_id) for p in store.predictions(fresh.job_id)}) == 7
     assert service.run_scoring_job(old.job_id) == failed
     assert service.run_scoring_job(fresh.job_id).status == JobStatus.SUCCEEDED
     assert len(store.predictions(fresh.job_id)) == 7
@@ -614,9 +573,7 @@ def test_expired_chunk_cannot_publish_or_revive_lease(setup, monkeypatch):
     job = service.create_job("dataset", "v1", 2)
     failed = service.run_scoring_job(job.job_id)
     assert failed.status == JobStatus.FAILED and failed.error == "lease expired"
-    assert (
-        store._db.execute("SELECT COUNT(*) FROM scoring_predictions").fetchone()[0] == 0
-    )
+    assert store._db.execute("SELECT COUNT(*) FROM scoring_predictions").fetchone()[0] == 0
 
 
 def test_stale_worker_cannot_overwrite_reclaimed_job(setup, monkeypatch):
@@ -639,24 +596,24 @@ def test_stale_worker_cannot_overwrite_reclaimed_job(setup, monkeypatch):
     failed = service.run_scoring_job(old.job_id)
     assert failed.error == "lease expired" and failed.status == JobStatus.FAILED
     assert len(store.predictions(fresh_jobs[0].job_id)) == 7
-    assert (
-        store._db.execute("SELECT COUNT(*) FROM scoring_predictions").fetchone()[0] == 7
-    )
+    assert store._db.execute("SELECT COUNT(*) FROM scoring_predictions").fetchone()[0] == 7
 
 
 def test_legacy_sqlite_migration_treats_missing_lease_as_expired(tmp_path):
     import sqlite3
 
     path = tmp_path / "legacy.sqlite3"
-    old = ScoringJob("old", "dataset", "v1", 2, 7, NOW).transition(
-        JobStatus.RUNNING, NOW
-    )
+    old = ScoringJob("old", "dataset", "v1", 2, 7, NOW).transition(JobStatus.RUNNING, NOW)
     payload = old.to_dict()
     payload.pop("lease_expires_at")
     payload.pop("lease_seconds")
     with sqlite3.connect(path) as db:
         db.execute(
-            "CREATE TABLE scoring_jobs (job_id TEXT PRIMARY KEY, idempotency_key TEXT NOT NULL, status TEXT NOT NULL, payload TEXT NOT NULL)"
+            (
+                "CREATE TABLE scoring_jobs (job_id TEXT PRIMARY KEY, idempote"
+                "ncy_key TEXT NOT NULL, status TEXT NOT NULL, payload TEXT NO"
+                "T NULL)"
+            )
         )
         db.execute(
             "INSERT INTO scoring_jobs VALUES (?, ?, ?, ?)",
@@ -725,9 +682,7 @@ def test_worker_failures_redact_exception_data(setup, monkeypatch, source):
         store.predictions(job.job_id)
 
 
-def test_cli_validation_error_redacts_customer_and_feature_values(
-    local_bundle, tmp_path, capsys
-):
+def test_cli_validation_error_redacts_customer_and_feature_values(local_bundle, tmp_path, capsys):
     root, _, _ = local_bundle
     dataset = tmp_path / "invalid.csv"
     dataset.write_text(
@@ -782,9 +737,7 @@ def test_cli_failures_redact_exception_data(tmp_path, capsys, monkeypatch, error
         == 1
     )
     output = capsys.readouterr()
-    assert json.loads(output.out) == {
-        "error": f"{error_type.__name__}: batch scoring failed"
-    }
+    assert json.loads(output.out) == {"error": f"{error_type.__name__}: batch scoring failed"}
     assert "private-customer" not in output.out + output.err
     assert "private-feature-value" not in output.out + output.err
 
@@ -845,15 +798,10 @@ def test_cli_job_status_uses_read_use_case_without_loading_inputs(
         assert result[field] == value
     assert result["processed_chunks"] == expected.processed_chunks
     assert store.get(job.job_id) == expected
-    assert (
-        store._db.execute("SELECT COUNT(*) FROM scoring_predictions").fetchone()[0]
-        == staged
-    )
+    assert store._db.execute("SELECT COUNT(*) FROM scoring_predictions").fetchone()[0] == staged
 
 
-def test_cli_job_status_missing_job_returns_safe_error(
-    setup, tmp_path, capsys, monkeypatch
-):
+def test_cli_job_status_missing_job_returns_safe_error(setup, tmp_path, capsys, monkeypatch):
     calls = []
 
     def query(job_id, jobs):

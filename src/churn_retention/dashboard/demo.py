@@ -18,11 +18,7 @@ MARKER = "single-admin-demo-v1\n"
 
 
 def demo_directory(value: str | None) -> Path:
-    path = (
-        Path(value)
-        if value
-        else Path(tempfile.mkdtemp(prefix="churn-admin-demo-")).resolve()
-    )
+    path = Path(value) if value else Path(tempfile.mkdtemp(prefix="churn-admin-demo-")).resolve()
     if path.is_symlink():
         raise DemoSecurityError()
     # Resolve parents too; only private, owned directories can be reused.
@@ -63,14 +59,9 @@ def configure(port: int, state_dir: str | None, live: bool) -> DemoPolicy:
 
     if config.get_option("server.address") not in {None, "127.0.0.1"}:
         raise DemoSecurityError()
-    if config.get_option("server.baseUrlPath") or config.get_option(
-        "server.sslCertFile"
-    ):
+    if config.get_option("server.baseUrlPath") or config.get_option("server.sslCertFile"):
         raise DemoSecurityError()
-    if (
-        live
-        and input("Type ENABLE LIVE API to permit paid calls: ") != "ENABLE LIVE API"
-    ):
+    if live and input("Type ENABLE LIVE API to permit paid calls: ") != "ENABLE LIVE API":
         raise DemoSecurityError()
     path = demo_directory(state_dir)
     os.environ["CHURN_DASHBOARD_STATE"] = str(path / "state.sqlite3")

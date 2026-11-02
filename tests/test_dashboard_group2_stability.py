@@ -73,9 +73,7 @@ def test_real_artifact_is_exactly_train_4930_and_retrieval_never_heldout() -> No
     store = ReferenceStore.load(
         DEFAULT_REFERENCE_PATH, expected_artifact_sha256=DEFAULT_REFERENCE_SHA256
     )
-    splits = pd.read_csv(
-        ROOT / "data/raw/dataset_splits.csv", dtype={"customerID": str}
-    )
+    splits = pd.read_csv(ROOT / "data/raw/dataset_splits.csv", dtype={"customerID": str})
     train = pd.read_csv(ROOT / "data/processed/train.csv", dtype={"customerID": str})
     ref_ids = {row.customer_id for row in store.records}
     split_train = set(splits.loc[splits["split"] == "train", "customerID"])
@@ -84,22 +82,17 @@ def test_real_artifact_is_exactly_train_4930_and_retrieval_never_heldout() -> No
     no_heldout = ref_ids.isdisjoint(heldout)
     assert len(ref_ids) == len(store.records) == 4930 and exact_train and no_heldout
     assert store.matrix.shape == (4930, 45)
-    assert (
-        store.manifest.reference_split == "train"
-        and store.manifest.fit.target_used is False
-    )
+    assert store.manifest.reference_split == "train" and store.manifest.fit.target_used is False
     assert (
         hashlib.sha256((ROOT / "data/processed/train.csv").read_bytes()).hexdigest()
         == store.manifest.source_train_sha256
     )
     query = {
-        str(name): value
-        for name, value in train.iloc[0].drop(["customerID", "Churn"]).items()
+        str(name): value for name, value in train.iloc[0].drop(["customerID", "Churn"]).items()
     }
     neighbors = SimilarCustomerRetriever(store, k=5).retrieve(query)
     only_train = all(
-        row.customer_id in ref_ids and row.customer_id not in heldout
-        for row in neighbors
+        row.customer_id in ref_ids and row.customer_id not in heldout for row in neighbors
     )
     assert len(neighbors) == 5 and only_train
 
@@ -119,9 +112,7 @@ def test_snapshot_round_trip_preserves_every_float_and_query_vector(setup) -> No
     assert job is not None and job.status == JobStatus.SUCCESS
     observed = calls.call_args.args[1]
     assert observed == before
-    np.testing.assert_array_equal(
-        adapter.resources.store.prepare_query(observed).vector, expected
-    )
+    np.testing.assert_array_equal(adapter.resources.store.prepare_query(observed).vector, expected)
 
 
 @pytest.mark.parametrize("mode", ["unknown", "LIVE", "", None])
@@ -155,9 +146,7 @@ def test_worker_rejects_oversized_saved_batch_even_when_prepare_was_bypassed(
 
 
 @pytest.mark.parametrize("kind", ["json", "digest", "feature", "reference"])
-def test_worker_rejects_corrupt_persisted_snapshot_without_calling_provider(
-    setup, kind
-) -> None:
+def test_worker_rejects_corrupt_persisted_snapshot_without_calling_provider(setup, kind) -> None:
     adapter, calls = setup
     run = adapter.prepare(ui.synthetic_frame().iloc[:1], "synthetic", "corrupt")
     with adapter.store.connect() as conn:
@@ -194,9 +183,7 @@ def test_worker_rejects_corrupt_persisted_snapshot_without_calling_provider(
     "field,value",
     [("provider", None), ("reference_count", 4), ("reference_version", "rag-v2-wrong")],
 )
-def test_response_provenance_is_required_before_success_persistence(
-    setup, field, value
-) -> None:
+def test_response_provenance_is_required_before_success_persistence(setup, field, value) -> None:
     adapter, calls = setup
     response = {
         **json.loads(VALID),
@@ -227,10 +214,7 @@ def test_groq_failure_falls_back_to_gemini_once_and_persists_complete_output(
     row = results.iloc[0]
     assert row["provider"] == "Gemini" and row["execution_mode"] == "live"
     assert row["churn_prediction"] == 1 and row["churn_prob"] == 0.6 and row["reason"]
-    assert (
-        row["reference_count"] == 5
-        and row["reference_version"] == run.reference_version
-    )
+    assert row["reference_count"] == 5 and row["reference_version"] == run.reference_version
     assert all(c.request.await_count == 1 for c in sdk.clients)
     ui.execute(adapter, run)
     assert len(sdk.clients) == 2
@@ -249,9 +233,7 @@ def test_both_provider_failures_are_not_success_and_are_safe_durable_and_nonretr
     setup, sdk, monkeypatch, kind, code
 ) -> None:
     adapter = live_adapter(setup, monkeypatch)
-    sdk.outcomes.update(
-        Groq=sdk_failure(kind, "Groq"), Gemini=sdk_failure(kind, "Gemini")
-    )
+    sdk.outcomes.update(Groq=sdk_failure(kind, "Groq"), Gemini=sdk_failure(kind, "Gemini"))
     run = adapter.prepare(ui.synthetic_frame().iloc[:3], "synthetic", "both-fail")
     job = ui.execute(adapter, run)
     assert job is not None and job.status == JobStatus.FAILED
@@ -275,22 +257,15 @@ def test_both_provider_failures_are_not_success_and_are_safe_durable_and_nonretr
     )
     worker = JobWorker(
         queue,
-        handlers={
-            JobType.SCORING: lambda item: adapter.process(str(item.payload["run_id"]))
-        },
+        handlers={JobType.SCORING: lambda item: adapter.process(str(item.payload["run_id"]))},
         sanitize_errors=True,
     )
     replay = worker.process_one(repeat.job_id)
     assert replay is not None and replay.status == JobStatus.FAILED
-    assert (
-        len(sdk.clients) == 2
-        and PRIVATE.encode() not in adapter.store.path.read_bytes()
-    )
+    assert len(sdk.clients) == 2 and PRIVATE.encode() not in adapter.store.path.read_bytes()
 
 
-def test_hedge_at_60_runs_providers_in_parallel_and_drains_loser(
-    setup, sdk, monkeypatch
-) -> None:
+def test_hedge_at_60_runs_providers_in_parallel_and_drains_loser(setup, sdk, monkeypatch) -> None:
     adapter = live_adapter(setup, monkeypatch)
     clock = Clock()
     monkeypatch.setattr(llm_router, "get_running_loop", lambda: clock)
@@ -308,14 +283,10 @@ def test_hedge_at_60_runs_providers_in_parallel_and_drains_loser(
     job = ui.execute(adapter, run)
     assert job is not None and job.status == JobStatus.SUCCESS
     assert adapter.store.frames(run.run_id)[1].iloc[0]["provider"] == "Gemini"
-    assert sdk.clients[0].cancelled and all(
-        c.request.await_count == 1 for c in sdk.clients
-    )
+    assert sdk.clients[0].cancelled and all(c.request.await_count == 1 for c in sdk.clients)
 
 
-def test_hedged_gemini_failure_still_accepts_healthy_groq(
-    setup, sdk, monkeypatch
-) -> None:
+def test_hedged_gemini_failure_still_accepts_healthy_groq(setup, sdk, monkeypatch) -> None:
     adapter = live_adapter(setup, monkeypatch)
     clock = Clock()
     release = asyncio.Event()
@@ -338,9 +309,7 @@ def test_hedged_gemini_failure_still_accepts_healthy_groq(
     assert adapter.store.frames(run.run_id)[1].iloc[0]["provider"] == "Groq"
 
 
-def test_overall_120s_deadline_does_not_trigger_worker_retry(
-    setup, sdk, monkeypatch
-) -> None:
+def test_overall_120s_deadline_does_not_trigger_worker_retry(setup, sdk, monkeypatch) -> None:
     adapter = live_adapter(setup, monkeypatch)
     clock = Clock()
     monkeypatch.setattr(llm_router, "get_running_loop", lambda: clock)
@@ -355,9 +324,7 @@ def test_overall_120s_deadline_does_not_trigger_worker_retry(
     assert job is not None and job.status == JobStatus.FAILED
     assert adapter.store.error_code(run.run_id) == "deadline"
     assert adapter.store.frames(run.run_id)[1].empty
-    assert len(sdk.clients) == 2 and all(
-        c.request.await_count <= 1 for c in sdk.clients
-    )
+    assert len(sdk.clients) == 2 and all(c.request.await_count <= 1 for c in sdk.clients)
 
 
 def test_exactly_five_rows_and_repeated_submit_do_not_exceed_request_budget(
@@ -376,9 +343,7 @@ def test_exactly_five_rows_and_repeated_submit_do_not_exceed_request_budget(
     again = ui.execute(adapter, run)
     assert job is not None and again is not None and job.job_id == again.job_id
     assert len(adapter.store.frames(run.run_id)[1]) == 5
-    assert (
-        len(sdk.clients) == 10 and sum(c.request.await_count for c in sdk.clients) == 5
-    )
+    assert len(sdk.clients) == 10 and sum(c.request.await_count for c in sdk.clients) == 5
 
 
 def test_concurrent_double_submit_only_invokes_generation_once(setup) -> None:
@@ -392,14 +357,10 @@ def test_concurrent_double_submit_only_invokes_generation_once(setup) -> None:
 @pytest.mark.parametrize(
     "feature", ui.synthetic_frame().columns.drop(["customerID", "Churn"]).tolist()
 )
-def test_all_nineteen_features_are_required_before_any_generation(
-    setup, feature
-) -> None:
+def test_all_nineteen_features_are_required_before_any_generation(setup, feature) -> None:
     adapter, calls = setup
     with pytest.raises(ValueError):
-        adapter.prepare(
-            ui.synthetic_frame().drop(columns=feature), "synthetic", "missing"
-        )
+        adapter.prepare(ui.synthetic_frame().drop(columns=feature), "synthetic", "missing")
     calls.assert_not_called()
 
 
@@ -442,9 +403,7 @@ def test_live_confirmation_resets_and_failure_ui_keeps_mock_snapshot_honest(
     setup, sdk, monkeypatch
 ) -> None:
     base, _ = setup
-    mock_run = base.prepare(
-        ui.synthetic_frame().iloc[:1], "synthetic-mock", "mock-seed"
-    )
+    mock_run = base.prepare(ui.synthetic_frame().iloc[:1], "synthetic-mock", "mock-seed")
     ui.execute(base, mock_run)
     monkeypatch.setenv("CHURN_DASHBOARD_DEMO_RUN", mock_run.run_id)
     monkeypatch.setenv("CHURN_DASHBOARD_ALLOW_LIVE", "1")

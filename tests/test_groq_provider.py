@@ -185,10 +185,7 @@ def test_uses_configured_model_in_request(
     asyncio.run(provider.generate("prompt"))
 
     assert provider.model == expected
-    assert (
-        mock_sdk.return_value.chat.completions.create.await_args.kwargs["model"]
-        == expected
-    )
+    assert mock_sdk.return_value.chat.completions.create.await_args.kwargs["model"] == expected
 
 
 @pytest.mark.parametrize("prompt", ["", " \n\t"])
@@ -221,9 +218,7 @@ def test_rejects_invalid_timeout(mock_sdk: MagicMock, timeout: float) -> None:
 
 
 @pytest.mark.parametrize("fail", [False, True])
-def test_context_manager_closes_client_even_on_error(
-    mock_sdk: MagicMock, fail: bool
-) -> None:
+def test_context_manager_closes_client_even_on_error(mock_sdk: MagicMock, fail: bool) -> None:
     mock_sdk.return_value.chat.completions.create.return_value = completion("answer")
     if fail:
         mock_sdk.return_value.chat.completions.create.side_effect = APITimeoutError(

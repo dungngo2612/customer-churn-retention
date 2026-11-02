@@ -45,9 +45,7 @@ def _logistic_parts(bundle: LoadedBundle) -> tuple[Any, Any]:
     ]:
         raise TypeError("SHAP requires an uncalibrated logistic pipeline")
     preprocessor, model = pipeline.steps[0][1], pipeline.steps[1][1]
-    if not isinstance(model, LogisticRegression) or not isinstance(
-        preprocessor, ColumnTransformer
-    ):
+    if not isinstance(model, LogisticRegression) or not isinstance(preprocessor, ColumnTransformer):
         raise TypeError("SHAP requires an uncalibrated logistic pipeline")
     if (
         model.class_weight is not None
@@ -68,9 +66,7 @@ def _feature_mapping(preprocessor: Any) -> tuple[list[str], list[str]]:
         if isinstance(transformer, str) and transformer == "drop":
             continue
         if not isinstance(transformer, Pipeline):
-            raise TypeError(
-                "Unsupported preprocessing mapping: expected fitted pipelines"
-            )
+            raise TypeError("Unsupported preprocessing mapping: expected fitted pipelines")
         last = transformer.steps[-1][1]
         if isinstance(last, OneHotEncoder):
             inputs = list(transformer[:-1].get_feature_names_out(columns))
@@ -81,22 +77,14 @@ def _feature_mapping(preprocessor: Any) -> tuple[list[str], list[str]]:
                     counts[i] -= len(infrequent[i]) - 1
                 if last.drop_idx_ is not None and last.drop_idx_[i] is not None:
                     counts[i] -= 1
-            mapped = [
-                col
-                for col, count in zip(inputs, counts, strict=True)
-                for _ in range(count)
-            ]
+            mapped = [col for col, count in zip(inputs, counts, strict=True) for _ in range(count)]
         else:
             mapped = list(transformer.get_feature_names_out(columns))
         if any(col not in columns for col in mapped):
-            raise ValueError(
-                "Unsupported preprocessing: output does not map to input features"
-            )
+            raise ValueError("Unsupported preprocessing: output does not map to input features")
         output_slice = preprocessor.output_indices_[name]
         if len(mapped) != output_slice.stop - output_slice.start:
-            raise ValueError(
-                "Preprocessing feature mapping has inconsistent dimensions"
-            )
+            raise ValueError("Preprocessing feature mapping has inconsistent dimensions")
         sources.extend(mapped)
     if len(sources) != len(names):
         raise ValueError("Preprocessing feature mapping has inconsistent dimensions")
@@ -122,31 +110,23 @@ def _calculate(
 ) -> dict[str, Any]:
     preprocessor, model = _logistic_parts(bundle)
     background = sample_background(background_df)
-    transformed_background = _dense(
-        preprocessor.transform(_features(bundle, background))
-    )
+    transformed_background = _dense(preprocessor.transform(_features(bundle, background)))
     frame = background if row_df is None else row_df
     transformed = _dense(preprocessor.transform(_features(bundle, frame)))
     names, sources = _feature_mapping(preprocessor)
     # Independent defaults to 100 rows; pass the explicit cap to retain our sample.
-    masker = maskers.Independent(
-        transformed_background, max_samples=MAX_BACKGROUND_ROWS
-    )
+    masker = maskers.Independent(transformed_background, max_samples=MAX_BACKGROUND_ROWS)
     explainer = LinearExplainer(model, masker)
     values = np.asarray(explainer.shap_values(transformed), dtype=float)
     base_value = float(np.asarray(explainer.expected_value).item())
     grouped = {
-        column["name"]: values[:, [source == column["name"] for source in sources]].sum(
-            axis=1
-        )
+        column["name"]: values[:, [source == column["name"] for source in sources]].sum(axis=1)
         for column in bundle.feature_schema
     }
     logits = np.asarray(model.decision_function(transformed), dtype=float)
     if not np.allclose(base_value + values.sum(axis=1), logits, atol=1e-6, rtol=0):
         raise ValueError("SHAP additivity failed for logistic log-odds")
-    ids = next(
-        (background[c].astype(str).tolist() for c in ID_COLUMNS if c in background), []
-    )
+    ids = next((background[c].astype(str).tolist() for c in ID_COLUMNS if c in background), [])
     return {
         "frame": frame,
         "transformed": transformed,

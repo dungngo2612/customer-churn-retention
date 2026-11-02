@@ -37,9 +37,7 @@ def input_fixture(tmp_path_factory: pytest.TempPathFactory):
     source.build()
     store = ReferenceStore.load(source.output, trusted=True)
     snapshot = {
-        key: value
-        for key, value in query(source).items()
-        if key not in {"customerID", "Churn"}
+        key: value for key, value in query(source).items() if key not in {"customerID", "Churn"}
     }
     return store, snapshot
 
@@ -74,9 +72,7 @@ def sdk(monkeypatch: pytest.MonkeyPatch):
                     raise outcome
                 if role == "Groq":
                     return SimpleNamespace(
-                        choices=[
-                            SimpleNamespace(message=SimpleNamespace(content=outcome))
-                        ]
+                        choices=[SimpleNamespace(message=SimpleNamespace(content=outcome))]
                     )
                 return SimpleNamespace(text=outcome)
             except asyncio.CancelledError:
@@ -195,9 +191,7 @@ def test_failures_are_safe_and_clients_close(
 ) -> None:
     request = httpx.Request("POST", "https://groq.invalid")
     primary = {
-        "quota": RateLimitError(
-            PRIVATE, response=httpx.Response(429, request=request), body={}
-        ),
+        "quota": RateLimitError(PRIVATE, response=httpx.Response(429, request=request), body={}),
         "timeout": APITimeoutError(request=request),
         "connection": APIConnectionError(message=PRIVATE, request=request),
         "json": PRIVATE,
@@ -214,9 +208,7 @@ def test_failures_are_safe_and_clients_close(
     with pytest.raises(service.LLMPredictionServiceError) as caught:
         service.predict_customer(*input_fixture)
     assert expected in str(caught.value)
-    assert (
-        PRIVATE not in "".join(traceback.format_exception(caught.value)) + caplog.text
-    )
+    assert PRIVATE not in "".join(traceback.format_exception(caught.value)) + caplog.text
     assert all(state.request.await_count == 1 for state in sdk.clients)
 
 
@@ -242,12 +234,8 @@ def test_two_submissions_use_new_loops_same_store_no_dataset_reads_or_fits(
 ) -> None:
     store, snapshot = input_fixture
     state = pickle.dumps(store.preprocessor._transformer)
-    monkeypatch.setattr(
-        ReferenceStore, "load", Mock(side_effect=AssertionError("Reuse Store"))
-    )
-    monkeypatch.setattr(
-        pd, "read_csv", Mock(side_effect=AssertionError("No dataset read"))
-    )
+    monkeypatch.setattr(ReferenceStore, "load", Mock(side_effect=AssertionError("Reuse Store")))
+    monkeypatch.setattr(pd, "read_csv", Mock(side_effect=AssertionError("No dataset read")))
     transform = Mock(wraps=store.preprocessor._transformer.transform)
 
     def record_transform(self, *args, **kwargs):
@@ -255,9 +243,7 @@ def test_two_submissions_use_new_loops_same_store_no_dataset_reads_or_fits(
         return transform(*args, **kwargs)
 
     # Patch the class so undo does not leave a bound method in the instance state.
-    monkeypatch.setattr(
-        type(store.preprocessor._transformer), "transform", record_transform
-    )
+    monkeypatch.setattr(type(store.preprocessor._transformer), "transform", record_transform)
     predictor = Mock(wraps=service.LLMChurnPredictor)
     monkeypatch.setattr(service, "LLMChurnPredictor", predictor)
     first = service.predict_customer(store, snapshot)
@@ -271,9 +257,7 @@ def test_two_submissions_use_new_loops_same_store_no_dataset_reads_or_fits(
     assert pickle.dumps(store.preprocessor._transformer) == state
 
 
-def test_running_event_loop_is_rejected_without_creating_coroutine(
-    input_fixture, sdk
-) -> None:
+def test_running_event_loop_is_rejected_without_creating_coroutine(input_fixture, sdk) -> None:
     async def case():
         with pytest.raises(service.LLMPredictionServiceError, match="async"):
             service.predict_customer(*input_fixture)
@@ -318,9 +302,7 @@ def test_hedge_drains_loser_before_http_client_close(
     result = service.predict_customer(*input_fixture)
     assert result.provider == "Gemini"
     assert sdk.clients[0].cancelled and not sdk.clients[0].active
-    assert not [
-        timer for timer in clock.timers if not timer.cancelled and not timer.fired
-    ]
+    assert not [timer for timer in clock.timers if not timer.cancelled and not timer.fired]
 
 
 def test_overall_deadline_keeps_existing_timeout_and_cleans_up(
@@ -354,9 +336,7 @@ def test_async_cancellation_closes_clients(input_fixture, sdk) -> None:
             await task
         assert all(state.http.is_closed for state in sdk.clients)
         assert not [
-            task
-            for task in asyncio.all_tasks()
-            if task.get_name().startswith("llm-router:")
+            task for task in asyncio.all_tasks() if task.get_name().startswith("llm-router:")
         ]
 
     asyncio.run(case())

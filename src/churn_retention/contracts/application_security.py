@@ -8,7 +8,11 @@ from urllib.parse import unquote
 
 _KEY_NAMES = ("GROQ_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "OPENAI_API_KEY")
 _CREDENTIAL = re.compile(
-    r"(?<![A-Za-z0-9_-])(?:gsk_[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_-]{30,}|sk-(?:proj-)?[A-Za-z0-9_-]{24,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----)"
+    (
+        "(?<![A-Za-z0-9_-])(?:gsk_[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_-]{"
+        "30,}|sk-(?:proj-)?[A-Za-z0-9_-]{24,}|-----BEGIN (?:RSA |EC |"
+        "OPENSSH )?PRIVATE KEY-----)"
+    )
 )
 
 
@@ -34,9 +38,7 @@ def reject_credentials(value: object) -> None:
     if not isinstance(value, str):
         return
     decoded = html.unescape(unquote(value))
-    secrets = tuple(
-        v for name in _KEY_NAMES if len(v := os.environ.get(name, "").strip()) >= 8
-    )
+    secrets = tuple(v for name in _KEY_NAMES if len(v := os.environ.get(name, "").strip()) >= 8)
     if (
         any(secret in value or secret in decoded for secret in secrets)
         or _CREDENTIAL.search(value)

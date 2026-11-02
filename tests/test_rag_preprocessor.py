@@ -56,73 +56,94 @@ def candidate(preprocessor: RAGPreprocessor) -> tuple[CandidateReferenceView, An
 def test_fit_and_transform_in_isolated_process_without_classifier_or_bundle(
     tmp_path: Path,
 ) -> None:
-    script = r"""
-import hashlib
-import importlib.abc
-import json
-import os
-import socket
-import sys
-import types
-
-sys.dont_write_bytecode = True
-sys.path.insert(0, sys.argv[1])
-blocked = (
-    "sklearn.linear_model._logistic", "churn_retention.ml", "churn_retention.workflows",
-    "churn_retention.adapters.retrieval._artifact",
-    "churn_retention.adapters.retrieval.reference_store",
-    "churn_retention.adapters.retrieval.nearest_neighbors",
-    "churn_retention.adapters.predictor",
-)
-class ImportBarrier(importlib.abc.MetaPathFinder):
-    def find_spec(self, fullname, path=None, target=None):
-        if any(fullname == name or fullname.startswith(name + ".") for name in blocked):
-            raise AssertionError("New preprocessing must not import classifier/legacy code")
-
-def no_models(event, args):
-    if event == "open" and isinstance(args[0], (str, bytes, os.PathLike)):
-        path = os.fsdecode(args[0]).replace("\\", "/")
-        if path.endswith("model.pkl") or "/artifacts/bundles/" in path or "/artifacts/references/" in path:
-            raise AssertionError("Model bundles and reference artifacts are unavailable")
-
-def no_network(*args, **kwargs):
-    raise AssertionError("No network in RAG equivalence tests")
-
-# sklearn.compose also exports a target regressor importing LinearRegression.
-# Allow that unrelated public namespace, but replace only logistic exports with
-# poison symbols. Its actual implementation cannot be imported or instantiated.
-class UnavailableLogistic:
-    def __new__(cls, *args, **kwargs):
-        raise AssertionError("Logistic Regression is unavailable")
-
-poison = types.ModuleType("sklearn.linear_model._logistic")
-poison.LogisticRegression = UnavailableLogistic
-poison.LogisticRegressionCV = UnavailableLogistic
-sys.modules[poison.__name__] = poison
-sys.meta_path.insert(0, ImportBarrier())
-sys.addaudithook(no_models)
-socket.socket.connect = no_network
-socket.socket.connect_ex = no_network
-socket.create_connection = no_network
-from churn_retention.adapters.retrieval.rag_preprocessor import RAGPreprocessor
-import numpy as np
-import pandas as pd
-p = RAGPreprocessor.fit_train(sys.argv[2], sys.argv[3])
-b = json.load(open(sys.argv[5]))
-names = list(p.input_feature_names)
-train = pd.read_csv(sys.argv[2], usecols=["customerID", *names]).sort_values("customerID", kind="stable")
-actual = p.transform_many(train[names].to_dict("records"))
-assert actual.shape == (4930, 45) and actual.dtype == np.float64
-assert hashlib.sha256(actual.astype("<f8").tobytes()).hexdigest() == b["matrix"]["values_sha256"]
-validation = pd.read_csv(sys.argv[4], usecols=names)
-for case in b["queries"]:
-    vector = p.transform_one({name: validation.iloc[case["row"]][name] for name in names})
-    assert hashlib.sha256(vector.astype("<f8").tobytes()).hexdigest() == case["vector_sha256"]
-assert sys.modules["sklearn.linear_model._logistic"] is poison
-assert not hasattr(poison, "__file__")
-assert not any(name == prefix or name.startswith(prefix + ".") for name in sys.modules for prefix in blocked[1:])
-print("classifier-free fit, matrix, and eight query vectors passed")
-"""
+    script = (
+        "\n"
+        "import hashlib\n"
+        "import importlib.abc\n"
+        "import json\n"
+        "import os\n"
+        "import socket\n"
+        "import sys\n"
+        "import types\n"
+        "\n"
+        "sys.dont_write_bytecode = True\n"
+        "sys.path.insert(0, sys.argv[1])\n"
+        "blocked = (\n"
+        '    "sklearn.linear_model._logistic", "churn_retention.ml", '
+        '"churn_retention.workflows",\n'
+        '    "churn_retention.adapters.retrieval._artifact",\n'
+        '    "churn_retention.adapters.retrieval.reference_store",\n'
+        '    "churn_retention.adapters.retrieval.nearest_neighbors",\n'
+        '    "churn_retention.adapters.predictor",\n'
+        ")\n"
+        "class ImportBarrier(importlib.abc.MetaPathFinder):\n"
+        "    def find_spec(self, fullname, path=None, target=None):\n"
+        "        if any(fullname == name or fullname.startswith(name "
+        '+ ".") for name in blocked):\n'
+        '            raise AssertionError("New preprocessing must not'
+        ' import classifier/legacy code")\n'
+        "\n"
+        "def no_models(event, args):\n"
+        '    if event == "open" and isinstance(args[0], (str, bytes, '
+        "os.PathLike)):\n"
+        '        path = os.fsdecode(args[0]).replace("\\\\", "/")\n'
+        '        if path.endswith("model.pkl") or "/artifacts/bundles'
+        '/" in path or "/artifacts/references/" in path:\n'
+        '            raise AssertionError("Model bundles and referenc'
+        'e artifacts are unavailable")\n'
+        "\n"
+        "def no_network(*args, **kwargs):\n"
+        '    raise AssertionError("No network in RAG equivalence test'
+        's")\n'
+        "\n"
+        "# sklearn.compose also exports a target regressor importing "
+        "LinearRegression.\n"
+        "# Allow that unrelated public namespace, but replace only lo"
+        "gistic exports with\n"
+        "# poison symbols. Its actual implementation cannot be import"
+        "ed or instantiated.\n"
+        "class UnavailableLogistic:\n"
+        "    def __new__(cls, *args, **kwargs):\n"
+        '        raise AssertionError("Logistic Regression is unavail'
+        'able")\n'
+        "\n"
+        'poison = types.ModuleType("sklearn.linear_model._logistic")\n'
+        "poison.LogisticRegression = UnavailableLogistic\n"
+        "poison.LogisticRegressionCV = UnavailableLogistic\n"
+        "sys.modules[poison.__name__] = poison\n"
+        "sys.meta_path.insert(0, ImportBarrier())\n"
+        "sys.addaudithook(no_models)\n"
+        "socket.socket.connect = no_network\n"
+        "socket.socket.connect_ex = no_network\n"
+        "socket.create_connection = no_network\n"
+        "from churn_retention.adapters.retrieval.rag_preprocessor imp"
+        "ort RAGPreprocessor\n"
+        "import numpy as np\n"
+        "import pandas as pd\n"
+        "p = RAGPreprocessor.fit_train(sys.argv[2], sys.argv[3])\n"
+        "b = json.load(open(sys.argv[5]))\n"
+        "names = list(p.input_feature_names)\n"
+        'train = pd.read_csv(sys.argv[2], usecols=["customerID", *nam'
+        'es]).sort_values("customerID", kind="stable")\n'
+        'actual = p.transform_many(train[names].to_dict("records"))\n'
+        "assert actual.shape == (4930, 45) and actual.dtype == np.flo"
+        "at64\n"
+        'assert hashlib.sha256(actual.astype("<f8").tobytes()).hexdig'
+        'est() == b["matrix"]["values_sha256"]\n'
+        "validation = pd.read_csv(sys.argv[4], usecols=names)\n"
+        'for case in b["queries"]:\n'
+        '    vector = p.transform_one({name: validation.iloc[case["ro'
+        'w"]][name] for name in names})\n'
+        '    assert hashlib.sha256(vector.astype("<f8").tobytes()).he'
+        'xdigest() == case["vector_sha256"]\n'
+        'assert sys.modules["sklearn.linear_model._logistic"] is pois'
+        "on\n"
+        'assert not hasattr(poison, "__file__")\n'
+        'assert not any(name == prefix or name.startswith(prefix + ".'
+        '") for name in sys.modules for prefix in blocked[1:])\n'
+        'print("classifier-free fit, matrix, and eight query vectors '
+        'passed")\n'
+    )
     if not TRAIN.is_file():
         if os.environ.get("CHURN_GOLDEN_REQUIRE_ASSETS") == "1":
             pytest.fail("Real train file is required")
@@ -146,10 +167,7 @@ print("classifier-free fit, matrix, and eight query vectors passed")
         check=True,
         timeout=60,
     )
-    assert (
-        result.stdout.strip()
-        == "classifier-free fit, matrix, and eight query vectors passed"
-    )
+    assert result.stdout.strip() == "classifier-free fit, matrix, and eight query vectors passed"
 
 
 def test_schema_names_vocabulary_parameters_and_fitted_statistics_exact(
@@ -211,10 +229,7 @@ def test_retrieval_uses_new_matrix_and_vectors_with_original_top_five(
     retriever = make_retriever(candidate[0])
     actual = retriever.retrieve(queries[case["name"]])
     assert len(actual) == 5
-    assert (
-        json_digest([row.customer_id for row in actual])
-        == case["ordered_neighbor_ids_sha256"]
-    )
+    assert json_digest([row.customer_id for row in actual]) == case["ordered_neighbor_ids_sha256"]
     np.testing.assert_allclose(
         [row.distance for row in actual], case["distances"], rtol=1e-12, atol=1e-12
     )
@@ -240,10 +255,7 @@ def test_eight_prompt_hashes_and_example_order_use_new_retrieval(
             "\nEND_CUSTOMER_DATA_JSON\n", 1
         )[0]
     )
-    assert (
-        json_digest(payload["reference_customers"])
-        == case["prompt"]["ordered_examples_sha256"]
-    )
+    assert json_digest(payload["reference_customers"]) == case["prompt"]["ordered_examples_sha256"]
     assert [row["Churn"] for row in payload["reference_customers"]] == case["prompt"][
         "reference_labels"
     ]
@@ -268,9 +280,7 @@ def test_new_vectors_preserve_boundary_ties_and_self_exclusion(
         features, customer_id="synthetic-c" if exclude_self else None
     )
     suffixes = ("a", "b", "d", "e", "f") if exclude_self else ("a", "b", "c", "d", "e")
-    assert [row.customer_id for row in results] == [
-        "synthetic-" + suffix for suffix in suffixes
-    ]
+    assert [row.customer_id for row in results] == ["synthetic-" + suffix for suffix in suffixes]
     assert len({row.distance for row in results}) == 1
     np.testing.assert_allclose([row.distance for row in results], 0.0, atol=1e-7)
 
@@ -285,9 +295,7 @@ def synthetic_source(directory: Path) -> tuple[Path, Path]:
             "tenure": index,
             "MonthlyCharges": 20.0 + index,
             "TotalCharges": float(index * (20 + index)),
-            **{
-                name: values[index % len(values)] for name, values in categories.items()
-            },
+            **{name: values[index % len(values)] for name, values in categories.items()},
         }
         for index in range(4)
     ]
@@ -295,8 +303,7 @@ def synthetic_source(directory: Path) -> tuple[Path, Path]:
     pd.DataFrame(rows).to_csv(train, index=False)
     pd.DataFrame(
         {
-            "customerID": [row["customerID"] for row in rows]
-            + ["synthetic-val", "synthetic-test"],
+            "customerID": [row["customerID"] for row in rows] + ["synthetic-val", "synthetic-test"],
             "split": ["train"] * 4 + ["val", "test"],
         }
     ).to_csv(splits, index=False)
@@ -314,9 +321,7 @@ def test_fit_passes_only_nineteen_feature_columns_and_no_target(
     calls = []
 
     def observe(self: Any, features: pd.DataFrame, y: Any = None, **kwargs: Any) -> Any:
-        assert (
-            list(features.columns) == BASELINE["preprocessing"]["input_feature_names"]
-        )
+        assert list(features.columns) == BASELINE["preprocessing"]["input_feature_names"]
         assert len(features) == 4 and y is None
         calls.append(True)
         return original(self, features, y=y, **kwargs)
@@ -393,9 +398,7 @@ def test_non_train_populations_are_rejected_before_fit(
         RAGPreprocessor.fit_train(train, splits)
 
 
-@pytest.mark.parametrize(
-    "kind", ["duplicate_ids", "bad_split", "no_train", "bad_columns"]
-)
+@pytest.mark.parametrize("kind", ["duplicate_ids", "bad_split", "no_train", "bad_columns"])
 def test_invalid_split_manifests_are_rejected(tmp_path: Path, kind: str) -> None:
     train, splits = synthetic_source(tmp_path)
     frame = pd.read_csv(splits)
@@ -421,9 +424,7 @@ def test_missing_total_charges_rules_remain_unchanged(
     query = {**queries["zero_tenure"], "TotalCharges": missing}
     assert (
         array_digest(preprocessor.transform_one(query))
-        == next(case for case in CASES if case["name"] == "zero_tenure")[
-            "vector_sha256"
-        ]
+        == next(case for case in CASES if case["name"] == "zero_tenure")["vector_sha256"]
     )
     with pytest.raises(ValueError, match="Missing TotalCharges"):
         preprocessor.transform_one({**query, "tenure": 1})
@@ -464,9 +465,7 @@ def test_batch_input_order_dtype_empty_and_no_transform_time_refitting(
     monkeypatch.setattr(type(preprocessor._transformer), "fit", forbidden)
     rows = [dict(reversed(list(query.items()))) for query in queries.values()]
     many = preprocessor.transform_many(rows)
-    assert np.array_equal(
-        many, np.vstack([preprocessor.transform_one(row) for row in rows])
-    )
+    assert np.array_equal(many, np.vstack([preprocessor.transform_one(row) for row in rows]))
     assert many.shape == (8, 45) and many.dtype == np.float64
     assert preprocessor.transform_many([]).shape == (0, 45)
     assert pickle.dumps(preprocessor._transformer) == before

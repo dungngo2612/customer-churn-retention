@@ -39,9 +39,7 @@ class ResultsNotReady(RuntimeError):
 
 def idempotency_key(dataset_id: str, model_version: str) -> str:
     # JSON framing distinguishes ('ab', 'c') from ('a', 'bc').
-    value = json.dumps(
-        [dataset_id, model_version], ensure_ascii=False, separators=(",", ":")
-    )
+    value = json.dumps([dataset_id, model_version], ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
@@ -64,15 +62,10 @@ class ScoringJob:
     explain_customer_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        if not all(
-            value.strip()
-            for value in (self.job_id, self.dataset_id, self.model_version)
-        ):
+        if not all(value.strip() for value in (self.job_id, self.dataset_id, self.model_version)):
             raise ValueError("job_id, dataset_id and model_version must be non-empty")
         if self.chunk_size <= 0 or not 0 <= self.processed_rows <= self.total_rows:
-            raise ValueError(
-                "chunk_size must be positive and 0 <= processed_rows <= total_rows"
-            )
+            raise ValueError("chunk_size must be positive and 0 <= processed_rows <= total_rows")
         if self.lease_seconds <= 0:
             raise ValueError("lease_seconds must be positive")
         if self.explain_limit < 0:
@@ -84,18 +77,14 @@ class ScoringJob:
         if len(set(self.explain_customer_ids)) != len(self.explain_customer_ids) or any(
             not value.strip() for value in self.explain_customer_ids
         ):
-            raise ValueError(
-                "Requested explanation customer IDs must be non-empty and unique"
-            )
+            raise ValueError("Requested explanation customer IDs must be non-empty and unique")
         for value in (
             self.created_at,
             self.started_at,
             self.finished_at,
             self.lease_expires_at,
         ):
-            if value is not None and (
-                value.tzinfo is None or value.utcoffset() is None
-            ):
+            if value is not None and (value.tzinfo is None or value.utcoffset() is None):
                 raise ValueError("Job timestamps must be timezone-aware")
 
     @property
@@ -114,9 +103,7 @@ class ScoringJob:
             JobStatus.RUNNING: {JobStatus.SUCCEEDED, JobStatus.FAILED},
         }
         if status not in allowed.get(self.status, set()):
-            raise InvalidJobTransition(
-                f"Invalid job transition: {self.status} -> {status}"
-            )
+            raise InvalidJobTransition(f"Invalid job transition: {self.status} -> {status}")
         if status == JobStatus.RUNNING:
             return replace(
                 self,
@@ -128,9 +115,7 @@ class ScoringJob:
             raise InvalidJobTransition("Cannot succeed before all rows are processed")
         if status == JobStatus.FAILED and not error:
             raise ValueError("FAILED jobs require an error")
-        return replace(
-            self, status=status, finished_at=now, error=error, lease_expires_at=None
-        )
+        return replace(self, status=status, finished_at=now, error=error, lease_expires_at=None)
 
     def has_active_lease(self, now: datetime) -> bool:
         return (
@@ -147,9 +132,7 @@ class ScoringJob:
 
     def renew_lease(self, now: datetime) -> "ScoringJob":
         self.require_lease(now)
-        return replace(
-            self, lease_expires_at=now + timedelta(seconds=self.lease_seconds)
-        )
+        return replace(self, lease_expires_at=now + timedelta(seconds=self.lease_seconds))
 
     def progress(self, processed_rows: int) -> "ScoringJob":
         if self.status != JobStatus.RUNNING:
@@ -176,8 +159,6 @@ class ScoringJob:
         fields["explain_customer_ids"] = tuple(fields["explain_customer_ids"])
         for name in ("created_at", "started_at", "finished_at", "lease_expires_at"):
             fields[name] = (
-                datetime.fromisoformat(fields[name])
-                if fields[name] is not None
-                else None
+                datetime.fromisoformat(fields[name]) if fields[name] is not None else None
             )
         return cls(**fields)

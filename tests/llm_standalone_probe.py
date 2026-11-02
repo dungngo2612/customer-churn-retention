@@ -113,9 +113,7 @@ def main() -> None:
             archive.writestr("manifest.json", '{"format_version":1}')
             archive.writestr("bundle/model.pkl", b"never-unpickle")
         os.environ["CHURN_LLM_REFERENCE_ARTIFACT"] = str(old)
-        os.environ["CHURN_LLM_REFERENCE_SHA256"] = hashlib.sha256(
-            old.read_bytes()
-        ).hexdigest()
+        os.environ["CHURN_LLM_REFERENCE_SHA256"] = hashlib.sha256(old.read_bytes()).hexdigest()
 
     import streamlit as st
     from sklearn.compose import ColumnTransformer  # type: ignore[import-untyped]
@@ -204,10 +202,7 @@ def main() -> None:
     else:
         assert not at.error and len(at.selectbox) + len(at.number_input) == 19
         store = at.session_state[llm_input.RESOURCES_KEY].store
-        assert (
-            store.manifest.format_version == 2
-            and store.reference_version.startswith("rag-v2-")
-        )
+        assert store.manifest.format_version == 2 and store.reference_version.startswith("rag-v2-")
         at.run()
         assert len(loads) == 1 and not prompts
         if scenario == "lifecycle":
@@ -230,8 +225,7 @@ def main() -> None:
             assert not at.error and at.metric[0].value == "60%" and len(prompts) == 1
             result = at.session_state[llm_input.RESULT_KEY]
             assert (
-                result.reference_count == 5
-                and result.reference_version == store.reference_version
+                result.reference_count == 5 and result.reference_version == store.reference_version
             )
             assert result.provider == "Groq" and result.probability_calibrated is False
             assert any(result.reference_version in item.value for item in at.text)
@@ -262,11 +256,7 @@ def main() -> None:
                 assert not at.exception and not at.error and not at.metric
                 assert at.selectbox[0].value is None  # Never infer status from label=1.
                 at.selectbox[0].select("Đang hoạt động").run()
-                assert (
-                    not at.exception
-                    and not at.error
-                    and len(at.dataframe[0].value) == 1
-                )
+                assert not at.exception and not at.error and len(at.dataframe[0].value) == 1
                 at.number_input(key="llm_retention.budget").set_value(0.0).run()
                 assert not at.exception and not at.error
                 assert set(at.dataframe[0].value["action_code"]) == {"A0"}
@@ -279,15 +269,11 @@ def main() -> None:
                     field.select(values[field.key.removeprefix("llm_input.feature.")])
                 for number in at.number_input:
                     assert number.key is not None
-                    number.set_value(
-                        values[number.key.removeprefix("llm_input.feature.")]
-                    )
+                    number.set_value(values[number.key.removeprefix("llm_input.feature.")])
                 at.button[0].click().run()
                 assert not at.exception and not at.error and len(prompts) == 2
                 assert at.session_state[RECORD_KEY].record_id != accepted.record_id
-                assert (
-                    prompts[0] == prompts[1]
-                )  # No business metadata entered the prompt.
+                assert prompts[0] == prompts[1]  # No business metadata entered the prompt.
                 at.switch_page("retention_page.py").run()
                 at.radio[0].set_value("Kết quả LLM vừa gửi").run()
                 assert not at.error and at.selectbox[0].value is None
@@ -310,9 +296,7 @@ def main() -> None:
                 os.environ["CHURN_LLM_REFERENCE_SHA256"] = "0" * 64
                 at.run()
                 assert at.error and llm_input.RESOURCES_KEY not in at.session_state
-                assert (
-                    llm_input.RESULT_KEY not in at.session_state and len(prompts) == 2
-                )
+                assert llm_input.RESULT_KEY not in at.session_state and len(prompts) == 2
                 os.environ["CHURN_LLM_REFERENCE_SHA256"] = pin
                 at.run()
                 assert not at.error and len(loads) == 3
@@ -327,9 +311,7 @@ def main() -> None:
                 assert len(prompts) == 2
     expected_page = (root / "apps/streamlit/pages/2_Predict.py").resolve()
     expected_retention = (root / "apps/streamlit_llm/retention_page.py").resolve()
-    assert registries and all(
-        pages == (expected_page, expected_retention) for pages in registries
-    )
+    assert registries and all(pages == (expected_page, expected_retention) for pages in registries)
     if scenario != "project":
         for path in ("pages/1_Explain.py", "pages/scoring_page.py"):
             try:
@@ -339,9 +321,7 @@ def main() -> None:
             else:
                 raise AssertionError("Unregistered legacy page became navigable")
     assert at.session_state["active_scoring_context"] == {"protected": True}
-    assert not any(
-        name == p or name.startswith(p + ".") for name in sys.modules for p in blocked
-    )
+    assert not any(name == p or name.startswith(p + ".") for name in sys.modules for p in blocked)
     assert sys.modules[poison.__name__] is poison and not hasattr(poison, "__file__")
     for name, module in tuple(sys.modules.items()):
         module_file = getattr(module, "__file__", None)

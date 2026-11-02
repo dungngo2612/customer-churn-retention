@@ -139,9 +139,7 @@ class Campaign:
     def from_dict(cls, data: dict[str, Any]) -> Campaign:
         """Tái cấu trúc đối tượng Campaign từ từ điển."""
         status_val = data.get("status", CampaignStatus.SIMULATED.value)
-        status = (
-            CampaignStatus(status_val) if isinstance(status_val, str) else status_val
-        )
+        status = CampaignStatus(status_val) if isinstance(status_val, str) else status_val
         return cls(
             campaign_id=data["campaign_id"],
             name=data["name"],

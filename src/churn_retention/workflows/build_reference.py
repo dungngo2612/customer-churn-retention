@@ -43,20 +43,15 @@ def build_reference(
 ) -> ReferenceManifest:
     output = Path(output_path)
     if output.exists():
-        raise FileExistsError(
-            "Reference output already exists; use a new artifact path."
-        )
+        raise FileExistsError("Reference output already exists; use a new artifact path.")
     train_bytes = Path(train_path).read_bytes()
     split_bytes = Path(splits_path).read_bytes()
     bundle_dir = Path(bundle_path)
     bundle = {name: (bundle_dir / name).read_bytes() for name in sorted(BUNDLE_FILES)}
     if (bundle_dir / "effective_config.yaml").is_file():
-        bundle["effective_config.yaml"] = (
-            bundle_dir / "effective_config.yaml"
-        ).read_bytes()
+        bundle["effective_config.yaml"] = (bundle_dir / "effective_config.yaml").read_bytes()
     schema = [
-        FeatureColumn.model_validate(value)
-        for value in json.loads(bundle["feature_schema.json"])
+        FeatureColumn.model_validate(value) for value in json.loads(bundle["feature_schema.json"])
     ]
     preprocessor, categories, model_version = load_preprocessor(bundle, schema)
     frame = pd.read_csv(io.BytesIO(train_bytes), dtype={"customerID": "string"})
@@ -145,9 +140,7 @@ def build_reference(
                     archive.writestr(entry, data)
             handle.flush()
             os.fsync(handle.fileno())
-        ReferenceStore.load(
-            temporary, expected_reference_version=manifest.reference_version
-        )
+        ReferenceStore.load(temporary, expected_reference_version=manifest.reference_version)
         # Same-filesystem hard link publishes a complete file atomically and
         # refuses an existing destination, including a concurrent builder's file.
         os.link(temporary, output)
@@ -158,13 +151,9 @@ def build_reference(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Build a train-only customer reference artifact"
-    )
+    parser = argparse.ArgumentParser(description="Build a train-only customer reference artifact")
     parser.add_argument("--train", type=Path, default=Path("data/processed/train.csv"))
-    parser.add_argument(
-        "--splits", type=Path, default=Path("artifacts/splits/dataset_splits.csv")
-    )
+    parser.add_argument("--splits", type=Path, default=Path("artifacts/splits/dataset_splits.csv"))
     parser.add_argument("--bundle", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--reference-version")

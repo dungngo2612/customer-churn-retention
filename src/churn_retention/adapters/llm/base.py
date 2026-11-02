@@ -61,6 +61,4 @@ class LLMResponseValidationError(LLMProviderError):
             "response_too_large",
             "validator_error",
         }
-        self.code = (
-            code if isinstance(code, str) and code in allowed else "validator_error"
-        )
+        self.code = code if isinstance(code, str) and code in allowed else "validator_error"

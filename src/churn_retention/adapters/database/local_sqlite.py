@@ -15,9 +15,7 @@ def connect_local(path: str | Path) -> sqlite3.Connection:
     try:
         path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         parent = path.parent.stat()
-        if hasattr(os, "getuid") and (
-            parent.st_uid != os.getuid() or parent.st_mode & 0o022
-        ):
+        if hasattr(os, "getuid") and (parent.st_uid != os.getuid() or parent.st_mode & 0o022):
             raise LocalStateError(
                 "Thư mục dữ liệu cần thuộc người vận hành và không cho người khác ghi."
             )

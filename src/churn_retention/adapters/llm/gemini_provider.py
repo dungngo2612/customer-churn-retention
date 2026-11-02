@@ -71,9 +71,7 @@ class GeminiProvider:
             # Never expose SDK messages, response bodies, or request headers.
             status_code = exc.code if isinstance(exc.code, int) else None
             if status_code == 429:
-                raise LLMRateLimitError(
-                    "Gemini rate limit or quota exceeded (HTTP 429)."
-                ) from None
+                raise LLMRateLimitError("Gemini rate limit or quota exceeded (HTTP 429).") from None
             if status_code in (408, 504):
                 raise LLMTimeoutError("Gemini request timed out.") from None
             message = "Gemini API request failed."

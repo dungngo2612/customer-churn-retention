@@ -53,8 +53,7 @@ FEATURE_SCHEMA = tuple(
     )
     for name in NUMERIC_FEATURES
 ) + tuple(
-    FeatureColumn(name=name, kind="categorical", dtype="str")
-    for name in CATEGORICAL_FEATURES
+    FeatureColumn(name=name, kind="categorical", dtype="str") for name in CATEGORICAL_FEATURES
 )
 
 
@@ -77,21 +76,14 @@ def _json_value(value: Any) -> Any:
 
 
 def _train_ids(split_bytes: bytes) -> set[str]:
-    splits = pd.read_csv(
-        io.BytesIO(split_bytes), dtype={"customerID": "string", "split": "string"}
-    )
+    splits = pd.read_csv(io.BytesIO(split_bytes), dtype={"customerID": "string", "split": "string"})
     if list(splits.columns).count("customerID") != 1 or set(splits.columns) != {
         "customerID",
         "split",
     }:
-        raise ValueError(
-            "Split manifest requires exactly customerID and split columns."
-        )
+        raise ValueError("Split manifest requires exactly customerID and split columns.")
     ids = [validate_id(value) for value in splits.customerID]
-    if (
-        len(set(ids)) != len(ids)
-        or not splits.split.isin(["train", "val", "test"]).all()
-    ):
+    if len(set(ids)) != len(ids) or not splits.split.isin(["train", "val", "test"]).all():
         raise ValueError("Split membership must be unique and valid.")
     train_ids = set(splits.loc[splits.split.eq("train"), "customerID"])
     if not train_ids:
@@ -99,9 +91,7 @@ def _train_ids(split_bytes: bytes) -> set[str]:
     return train_ids
 
 
-def _describe(
-    transformer: Any, categories: Mapping[str, tuple[str, ...]]
-) -> dict[str, Any]:
+def _describe(transformer: Any, categories: Mapping[str, tuple[str, ...]]) -> dict[str, Any]:
     steps = {}
     for group in ("num", "cat"):
         for name, estimator in transformer.named_transformers_[group].steps:
@@ -160,9 +150,7 @@ class RAGPreprocessor:
     ) -> None:
         self._transformer = transformer
         self._categories = dict(categories)
-        self._output_names = tuple(
-            str(name) for name in transformer.get_feature_names_out()
-        )
+        self._output_names = tuple(str(name) for name in transformer.get_feature_names_out())
         self._metadata = {
             "fit": deepcopy(fit_metadata),
             "preprocessing": _describe(transformer, categories),
@@ -174,9 +162,7 @@ class RAGPreprocessor:
         }
 
     @classmethod
-    def fit_train(
-        cls, train_path: str | Path, splits_path: str | Path
-    ) -> "RAGPreprocessor":
+    def fit_train(cls, train_path: str | Path, splits_path: str | Path) -> "RAGPreprocessor":
         train_bytes = Path(train_path).read_bytes()
         split_bytes = Path(splits_path).read_bytes()
         expected_ids = _train_ids(split_bytes)
@@ -197,14 +183,10 @@ class RAGPreprocessor:
         for name in CATEGORICAL_FEATURES:
             values = frame[name].tolist()
             if any(not isinstance(value, str) or not value.strip() for value in values):
-                raise ValueError(
-                    "Training categorical values must be non-missing strings."
-                )
+                raise ValueError("Training categorical values must be non-missing strings.")
             categories[name] = tuple(sorted(set(values)))
         for row in frame[names].to_dict("records"):
-            clean_features(
-                {name: row[name] for name in names}, list(FEATURE_SCHEMA), categories
-            )
+            clean_features({name: row[name] for name in names}, list(FEATURE_SCHEMA), categories)
         # The CSV is already processed. Validate it, but fit its original values
         # and row order, just as the original feature-only transformer did.
         # In particular, fitting imputation and query cleaning are distinct:
@@ -228,9 +210,7 @@ class RAGPreprocessor:
                         [
                             (
                                 "imputer",
-                                SimpleImputer(
-                                    strategy="constant", fill_value="__MISSING__"
-                                ),
+                                SimpleImputer(strategy="constant", fill_value="__MISSING__"),
                             ),
                             ("onehot", OneHotEncoder(handle_unknown="ignore")),
                         ]
@@ -282,9 +262,7 @@ class RAGPreprocessor:
     def transform_one(self, customer: Mapping[str, object]) -> NDArray[np.float64]:
         return self.transform_many([customer])
 
-    def transform_many(
-        self, customers: Sequence[Mapping[str, object]]
-    ) -> NDArray[np.float64]:
+    def transform_many(self, customers: Sequence[Mapping[str, object]]) -> NDArray[np.float64]:
         if not isinstance(customers, Sequence) or isinstance(customers, (str, bytes)):
             raise TypeError("Customer batch must be a sequence of feature mappings.")
         if not customers:
@@ -300,7 +278,5 @@ class RAGPreprocessor:
             result.shape != (len(customers), len(self._output_names))
             or not np.isfinite(result).all()
         ):
-            raise ValueError(
-                "Expected a finite float64 matrix with stable feature dimensions."
-            )
+            raise ValueError("Expected a finite float64 matrix with stable feature dimensions.")
         return result

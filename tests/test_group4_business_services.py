@@ -63,9 +63,7 @@ def kwargs_for(adapter, run, budget=20.0):
     selected = allocations[allocations.action_code != "A0"]
     return {
         "name": "Synthetic campaign",
-        "dataset_id": hashlib.sha256(
-            customers.to_json(orient="records").encode()
-        ).hexdigest(),
+        "dataset_id": hashlib.sha256(customers.to_json(orient="records").encode()).hexdigest(),
         "model_version": run.predictor_ref,
         "scoring_run_id": run.run_id,
         "budget": budget,
@@ -102,17 +100,13 @@ def completed(setup):
 
 
 @pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf"), -1, True])
-@pytest.mark.parametrize(
-    "solver", [select_actions_under_budget, solve_optimal_budget_brute_force]
-)
+@pytest.mark.parametrize("solver", [select_actions_under_budget, solve_optimal_budget_brute_force])
 def test_invalid_budget_rejected(bad, solver):
     with pytest.raises(ValidationError):
         solver(*frames(), budget=bad)
 
 
-@pytest.mark.parametrize(
-    "field", ["contact_cost", "offer_cost", "acceptance_rate", "efficacy"]
-)
+@pytest.mark.parametrize("field", ["contact_cost", "offer_cost", "acceptance_rate", "efficacy"])
 @pytest.mark.parametrize("bad", [float("nan"), float("inf"), True])
 def test_action_config_rejects_nonfinite(field, bad):
     values = {
@@ -172,9 +166,7 @@ def test_manual_equations_alignment_and_observed_status():
     assert set(options.customerID) == set(active.customerID)
     for row in options.itertuples():
         customer = customers.set_index("customerID").loc[row.customerID]
-        probability = predictions.set_index("customer_id").loc[
-            row.customerID, "churn_prob"
-        ]
+        probability = predictions.set_index("customer_id").loc[row.customerID, "churn_prob"]
         action = next(a for a in default_actions() if a.code == row.action_code)
         value = customer.MonthlyCharges * 12 * 0.5
         cost = action.contact_cost + action.acceptance_rate * action.offer_cost
@@ -187,15 +179,11 @@ def test_manual_equations_alignment_and_observed_status():
     assert (recommend(customers, predictions).net_value >= 0).all()
 
 
-@pytest.mark.parametrize(
-    "budget", [0.0, 0.0000000001, 7.99, 8.0, 9.0, 19.0, 20.0, 100.0]
-)
+@pytest.mark.parametrize("budget", [0.0, 0.0000000001, 7.99, 8.0, 9.0, 19.0, 20.0, 100.0])
 def test_allocation_invariants_and_deterministic_order(budget):
     customers, predictions = frames()
     first = select_actions_under_budget(customers, predictions, budget)
-    second = select_actions_under_budget(
-        customers.iloc[::-1], predictions.iloc[::-1], budget
-    )
+    second = select_actions_under_budget(customers.iloc[::-1], predictions.iloc[::-1], budget)
     pd.testing.assert_frame_equal(first, second)
     assert first.customerID.is_unique and first.cost.sum() <= budget
     assert (first.net_value >= 0).all()
@@ -211,20 +199,14 @@ def test_zero_cost_positive_action_and_no_epsilon_overspend():
     result = select_actions_under_budget(customers, predictions, 0, actions)
     assert result.action_code.eq("FREE").all() and result.cost.sum() == 0
     tiny = (default_actions()[0], ActionConfig("TINY", "tiny", 5e-10, 0, 1, 1))
-    assert (
-        select_actions_under_budget(customers, predictions, 0, tiny)
-        .action_code.eq("A0")
-        .all()
-    )
+    assert select_actions_under_budget(customers, predictions, 0, tiny).action_code.eq("A0").all()
 
 
 @pytest.mark.parametrize("budget", [float("nan"), float("inf"), -1, True])
 def test_campaign_rejects_invalid_budget(tmp_path, budget):
     repo = SqliteCampaignRepository(tmp_path / "campaign.sqlite3")
     with pytest.raises(ValueError):
-        create_campaign(
-            "synthetic", "dataset", "model", "run", budget, {}, repository=repo
-        )
+        create_campaign("synthetic", "dataset", "model", "run", budget, {}, repository=repo)
     assert repo.list_all() == []
 
 
@@ -233,19 +215,13 @@ def test_campaign_end_to_end_duplicates_restart_and_export(setup):
     kwargs = kwargs_for(adapter, run)
     with ThreadPoolExecutor(max_workers=3) as pool:
         campaigns = list(pool.map(lambda _: ui.create_campaign(**kwargs), range(3)))
-    assert (
-        len({c.campaign_id for c in campaigns}) == 1 and len(ui.list_campaigns()) == 1
-    )
+    assert len({c.campaign_id for c in campaigns}) == 1 and len(ui.list_campaigns()) == 1
     campaign = campaigns[0]
     original = ui.get_campaign(campaign.campaign_id).to_dict()
     ui.export_campaign_csv(campaign.campaign_id)
-    assert (
-        ui.get_campaign(campaign.campaign_id).to_dict() == original
-    )  # render is read-only
+    assert ui.get_campaign(campaign.campaign_id).to_dict() == original  # render is read-only
     ui.mark_exported(campaign.campaign_id)
-    assert (
-        ui.create_campaign(**kwargs).status == CampaignStatus.EXPORTED
-    )  # never regress status
+    assert ui.create_campaign(**kwargs).status == CampaignStatus.EXPORTED  # never regress status
     reopened = SqliteCampaignRepository(ui._repo().db_path)
     saved = reopened.get(campaign.campaign_id)
     assert saved is not None and saved.scoring_run_id == run.run_id
@@ -290,9 +266,9 @@ def test_campaign_rejects_inconsistent_links_and_results(setup, problem):
             }[problem]
         ] = "wrong"
     elif problem in {"pin", "mode"}:
-        values["assumptions"][
-            {"pin": "reference_sha256", "mode": "execution_mode"}[problem]
-        ] = "wrong"
+        values["assumptions"][{"pin": "reference_sha256", "mode": "execution_mode"}[problem]] = (
+            "wrong"
+        )
     elif problem == "summary":
         values["results"]["summary"]["total_net_value"] += 1
     elif problem == "customer":
@@ -311,7 +287,10 @@ def test_campaign_rollback_on_database_failure(setup):
     repo = ui._repo()
     with sqlite3.connect(repo.db_path) as db:
         db.execute(
-            "CREATE TRIGGER fail_insert BEFORE INSERT ON campaigns BEGIN SELECT RAISE(ABORT, 'synthetic'); END;"
+            (
+                "CREATE TRIGGER fail_insert BEFORE INSERT ON campaigns BEGIN "
+                "SELECT RAISE(ABORT, 'synthetic'); END;"
+            )
         )
     with pytest.raises(sqlite3.IntegrityError):
         ui.create_campaign(**kwargs_for(adapter, run))
@@ -345,13 +324,9 @@ def test_csv_formulas_escaped_without_changing_identity(tmp_path, value):
         },
         repository=repo,
     )
-    frame = pd.read_csv(
-        StringIO(export_campaign_csv(campaign.campaign_id, repository=repo))
-    )
+    frame = pd.read_csv(StringIO(export_campaign_csv(campaign.campaign_id, repository=repo)))
     assert frame.customer_id[0] == "'" + value and frame.action_name[0] == "'" + value
-    assert (
-        repo.get(campaign.campaign_id).results["allocations"][0]["customer_id"] == value
-    )
+    assert repo.get(campaign.campaign_id).results["allocations"][0]["customer_id"] == value
 
 
 def test_queue_retry_budget_error_cleanup_and_collision(tmp_path):
@@ -361,9 +336,7 @@ def test_queue_retry_budget_error_cleanup_and_collision(tmp_path):
     )
     with pytest.raises(ValueError):
         queue.enqueue(
-            TaskJob.create(
-                JobType.CAMPAIGN_SIMULATION, "intent", {"id": 2}, max_retries=2
-            )
+            TaskJob.create(JobType.CAMPAIGN_SIMULATION, "intent", {"id": 2}, max_retries=2)
         )
     calls = Mock(
         side_effect=[
@@ -391,19 +364,14 @@ def test_worker_permanent_and_exhausted(tmp_path):
         (TransientError("synthetic"), 2),
     ):
         job = queue.enqueue(
-            TaskJob.create(
-                JobType.CAMPAIGN_SIMULATION, str(expected_calls), {}, max_retries=1
-            )
+            TaskJob.create(JobType.CAMPAIGN_SIMULATION, str(expected_calls), {}, max_retries=1)
         )
         calls = Mock(side_effect=error)
         worker = JobWorker(queue, handlers={JobType.CAMPAIGN_SIMULATION: calls})
         for _ in range(expected_calls):
             result = worker.process_one(job.job_id)
         assert result.status == JobStatus.FAILED
-        assert (
-            worker.process_one(job.job_id) is None
-            and calls.call_count == expected_calls
-        )
+        assert worker.process_one(job.job_id) is None and calls.call_count == expected_calls
 
 
 def test_atomic_recovery_rollback_fencing_and_partial_results(setup):
@@ -423,14 +391,15 @@ def test_atomic_recovery_rollback_fencing_and_partial_results(setup):
     adapter.store.outcome(
         run.run_id,
         ui.synthetic_frame().customerID[0],
-        mock_prediction(
-            adapter.resources.store, ui.synthetic_frame().iloc[0].to_dict()
-        ),
+        mock_prediction(adapter.resources.store, ui.synthetic_frame().iloc[0].to_dict()),
     )
     adapter.store.begin_attempt(run.run_id, ui.synthetic_frame().customerID[1])
     with adapter.store.connect() as db:
         db.execute(
-            "CREATE TRIGGER recovery_abort BEFORE UPDATE ON task_jobs BEGIN SELECT RAISE(ABORT, 'synthetic'); END;"
+            (
+                "CREATE TRIGGER recovery_abort BEFORE UPDATE ON task_jobs BEG"
+                "IN SELECT RAISE(ABORT, 'synthetic'); END;"
+            )
         )
     with pytest.raises(sqlite3.IntegrityError):
         adapter.store.recover_interrupted_job(job.job_id)
@@ -439,9 +408,7 @@ def test_atomic_recovery_rollback_fencing_and_partial_results(setup):
     with adapter.store.connect() as db:
         db.execute("DROP TRIGGER recovery_abort")
     assert adapter.store.recover_interrupted_job(job.job_id)
-    assert not queue.complete_claim(
-        claim.with_status(JobStatus.SUCCESS), claim.updated_at
-    )
+    assert not queue.complete_claim(claim.with_status(JobStatus.SUCCESS), claim.updated_at)
     assert not adapter.store.recover_interrupted_job(job.job_id)
     assert queue.get_job(job.job_id).status == JobStatus.FAILED
     assert adapter.store.get(run.run_id).status == "PARTIAL"
@@ -460,9 +427,7 @@ def test_recover_job_after_run_committed_never_predicts_again(setup):
     adapter, run, calls = completed(setup)
     queue = SqliteTaskQueue(adapter.store.path)
     job = queue.enqueue(
-        TaskJob.create(
-            JobType.SCORING, "after-commit", {"run_id": run.run_id}, max_retries=0
-        )
+        TaskJob.create(JobType.SCORING, "after-commit", {"run_id": run.run_id}, max_retries=0)
     )
     queue.claim_next(job.job_id)
     assert adapter.store.recover_interrupted_job(job.job_id)
@@ -470,9 +435,7 @@ def test_recover_job_after_run_committed_never_predicts_again(setup):
     assert adapter.store.get(run.run_id).status == "COMPLETE" and calls.call_count == 4
 
 
-def test_all_tabs_zero_budget_campaign_repeat_and_no_prediction_rerun(
-    setup, monkeypatch
-):
+def test_all_tabs_zero_budget_campaign_repeat_and_no_prediction_rerun(setup, monkeypatch):
     _adapter, run, calls = completed(setup)
     monkeypatch.setenv("CHURN_DASHBOARD_DEMO_RUN", run.run_id)
     guard = Mock(side_effect=AssertionError("No inference on business operations"))
@@ -496,9 +459,7 @@ def test_all_tabs_zero_budget_campaign_repeat_and_no_prediction_rerun(
     guard.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "scenario", ["inactive", "new-customers", "zero-value", "free-actions"]
-)
+@pytest.mark.parametrize("scenario", ["inactive", "new-customers", "zero-value", "free-actions"])
 def test_dashboard_business_edge_scenarios(setup, monkeypatch, scenario):
     adapter, calls = setup
     frame = ui.synthetic_frame()
@@ -528,9 +489,7 @@ def test_dashboard_business_edge_scenarios(setup, monkeypatch, scenario):
     guard.assert_not_called()
 
 
-def test_dashboard_save_failure_is_safe_and_preserves_previous_campaign(
-    setup, monkeypatch
-):
+def test_dashboard_save_failure_is_safe_and_preserves_previous_campaign(setup, monkeypatch):
     adapter, run, _calls = completed(setup)
     existing = ui.create_campaign(**kwargs_for(adapter, run))
     monkeypatch.setenv("CHURN_DASHBOARD_DEMO_RUN", run.run_id)
@@ -548,9 +507,7 @@ def test_dashboard_save_failure_is_safe_and_preserves_previous_campaign(
 
 def test_old_running_job_visible_for_recovery(tmp_path):
     queue = SqliteTaskQueue(tmp_path / "queue.sqlite3")
-    first = queue.enqueue(
-        TaskJob.create(JobType.CAMPAIGN_SIMULATION, "older-running", {})
-    )
+    first = queue.enqueue(TaskJob.create(JobType.CAMPAIGN_SIMULATION, "older-running", {}))
     queue.claim_next(first.job_id)
     for index in range(6):
         queue.enqueue(TaskJob.create(JobType.CAMPAIGN_SIMULATION, f"new-{index}", {}))

@@ -16,9 +16,7 @@ MAX_REASON_CHARS = 300
 
 
 class LLMChurnResponse(BaseModel):
-    model_config = ConfigDict(
-        strict=True, extra="forbid", frozen=True, allow_inf_nan=False
-    )
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True, allow_inf_nan=False)
 
     churn_prediction: StrictInt = Field(ge=0, le=1)
     churn_probability: StrictInt | StrictFloat = Field(ge=0, le=1)

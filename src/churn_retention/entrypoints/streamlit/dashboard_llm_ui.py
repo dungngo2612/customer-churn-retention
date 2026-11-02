@@ -78,9 +78,7 @@ def runtime_path() -> Path:
     return Path(
         os.environ.get(
             "CHURN_DASHBOARD_STATE",
-            str(
-                Path(__file__).resolve().parents[4] / ".dashboard-preview/state.sqlite3"
-            ),
+            str(Path(__file__).resolve().parents[4] / ".dashboard-preview/state.sqlite3"),
         )
     )
 
@@ -95,9 +93,7 @@ def _resources(path: str, fingerprint: object, pin: str) -> LLMInputResources:
 
 def resources() -> LLMInputResources:
     path = reference_artifact_path()
-    return _resources(
-        str(path), reference_fingerprint(path), reference_artifact_sha256()
-    )
+    return _resources(str(path), reference_fingerprint(path), reference_artifact_sha256())
 
 
 def synthetic_frame() -> pd.DataFrame:
@@ -125,9 +121,7 @@ def execute(adapter: DashboardLLMAdapter, run: SavedRun) -> TaskJob | None:
     )
     worker = JobWorker(
         queue,
-        handlers={
-            JobType.SCORING: lambda item: adapter.process(str(item.payload["run_id"]))
-        },
+        handlers={JobType.SCORING: lambda item: adapter.process(str(item.payload["run_id"]))},
         sanitize_errors=True,
     )
     return worker.process_one(job.job_id) or queue.get_job(job.job_id)
@@ -145,37 +139,52 @@ def prediction_controls() -> DashboardView | None:
         return _prediction_controls()
     except Exception:  # noqa: BLE001 -- Database and validation details must not reach UI/logs.
         st.error(
-            "Không thể đọc dữ liệu Dashboard an toàn. Không gọi lại API hoặc tạo lại database tự động."
+            (
+                "Không thể đọc dữ liệu Dashboard an toàn. Không gọi lại API h"
+                "oặc tạo lại database tự động."
+            )
         )
         return None
 
 
 def _prediction_controls() -> DashboardView | None:
     st.info(
-        "Demo một quản trị viên: run ledger và archive campaign dùng chung giữa các phiên trình duyệt; phiên không phải tài khoản riêng."
+        (
+            "Demo một quản trị viên: run ledger và archive campaign dùng "
+            "chung giữa các phiên trình duyệt; phiên không phải tài khoản"
+            " riêng."
+        )
     )
     st.warning(
-        "Chỉ dự đoán khi Submit được xác nhận. Xác suất LLM chưa hiệu chuẩn; kinh tế/ROI chỉ là mô phỏng. Chế độ của kết quả đã lưu được ghi riêng."
+        (
+            "Chỉ dự đoán khi Submit được xác nhận. Xác suất LLM chưa hiệu"
+            " chuẩn; kinh tế/ROI chỉ là mô phỏng. Chế độ của kết quả đã l"
+            "ưu được ghi riêng."
+        )
     )
     try:
         form = resources()
         pin = reference_artifact_sha256()
     except Exception:  # noqa: BLE001 -- No artifact contents/paths in UI.
         st.error(
-            "Reference Artifact v2 không hợp lệ hoặc không đáng tin cậy. Không fallback về model bundle."
+            (
+                "Reference Artifact v2 không hợp lệ hoặc không đáng tin cậy. "
+                "Không fallback về model bundle."
+            )
         )
         return None
     ledger = DashboardRunStore(runtime_path())
     if REQUEST_KEY not in st.session_state:
         st.session_state[REQUEST_KEY] = str(uuid4())
-    if ACTIVE_RUN_KEY not in st.session_state and os.environ.get(
-        "CHURN_DASHBOARD_DEMO_RUN"
-    ):
+    if ACTIVE_RUN_KEY not in st.session_state and os.environ.get("CHURN_DASHBOARD_DEMO_RUN"):
         st.session_state[ACTIVE_RUN_KEY] = os.environ["CHURN_DASHBOARD_DEMO_RUN"]
     with st.sidebar:
         st.subheader("Dự đoán hỗ trợ: LLM + RAG v2")
         st.caption(
-            "Chấm đơn hoặc batch tối đa 5 ID; không tự chấm toàn CSV. Live chỉ xuất hiện khi được bật trên server."
+            (
+                "Chấm đơn hoặc batch tối đa 5 ID; không tự chấm toàn CSV. Liv"
+                "e chỉ xuất hiện khi được bật trên server."
+            )
         )
         uploaded = st.file_uploader(
             "CSV: 19 feature + customerID + Churn đã quan sát",
@@ -202,9 +211,7 @@ def _prediction_controls() -> DashboardView | None:
             if uploaded is not None
             else "synthetic_customers.csv (DỮ LIỆU GIẢ)"
         )
-        st.caption(
-            f"Đã nạp {len(frame)} dòng; đây là dữ liệu đầu vào, chưa tự tạo dự đoán."
-        )
+        st.caption(f"Đã nạp {len(frame)} dòng; đây là dữ liệu đầu vào, chưa tự tạo dự đoán.")
         mode = st.radio(
             "Phạm vi gửi",
             ["Một khách hàng", "Batch nhỏ (tối đa 5)"],
@@ -242,12 +249,13 @@ def _prediction_controls() -> DashboardView | None:
             st.info("MOCK provider: đầu ra mô phỏng; không gửi API thật.")
         else:
             st.warning(
-                "LIVE API: gửi dữ liệu đã chọn đến Groq/Gemini khi Submit; có thể phát sinh phí, gồm hedge/fallback."
+                (
+                    "LIVE API: gửi dữ liệu đã chọn đến Groq/Gemini khi Submit; có"
+                    " thể phát sinh phí, gồm hedge/fallback."
+                )
             )
         selected_frame = (
-            frame.set_index("customerID", drop=False)
-            .loc[selected]
-            .reset_index(drop=True)
+            frame.set_index("customerID", drop=False).loc[selected].reset_index(drop=True)
         )
         confirmation_context = (
             provider_mode,
@@ -269,7 +277,11 @@ def _prediction_controls() -> DashboardView | None:
             key="cuong_llm.confirm",
         )
         st.caption(
-            "Live service hiện có: tối đa 120s mỗi dòng (gồm hedge/fallback); batch 5 dòng tối đa khoảng 600s. Không retry ngoài Router."
+            (
+                "Live service hiện có: tối đa 120s mỗi dòng (gồm hedge/fallba"
+                "ck); batch 5 dòng tối đa khoảng 600s. Không retry ngoài Rout"
+                "er."
+            )
         )
         if st.button(
             "Dự đoán và lưu qua Queue/Worker",
@@ -278,14 +290,10 @@ def _prediction_controls() -> DashboardView | None:
         ):
             try:
                 selected_frame = (
-                    frame.set_index("customerID", drop=False)
-                    .loc[selected]
-                    .reset_index(drop=True)
+                    frame.set_index("customerID", drop=False).loc[selected].reset_index(drop=True)
                 )
                 adapter = DashboardLLMAdapter(form, pin, ledger, mode=provider_mode)
-                run = adapter.prepare(
-                    selected_frame, source_name, st.session_state[REQUEST_KEY]
-                )
+                run = adapter.prepare(selected_frame, source_name, st.session_state[REQUEST_KEY])
                 st.session_state[LAST_ATTEMPT_KEY] = run.run_id
                 with st.spinner(f"Đang chạy LLM/RAG {provider_mode} và lưu kết quả…"):
                     job = execute(adapter, run)
@@ -295,15 +303,31 @@ def _prediction_controls() -> DashboardView | None:
                     st.session_state[ACTIVE_RUN_KEY] = run.run_id
                 if current.status != "COMPLETE":
                     st.warning(
-                        f"Run {current.status}: chỉ các dòng thành công được dùng; chưa chấm các dòng còn lại. Không tự retry."
+                        (
+                            "Run "
+                            f"{current.status}"
+                            ": chỉ các dòng thành công được dùng; chưa chấm các dòng còn "
+                            "lại. Không tự retry."
+                        )
                     )
                 else:
                     st.success(
-                        f"Đã lưu {len(customers)} dự đoán {provider_mode.upper()}; job {job.status.value if job else 'không nhận'}."
+                        (
+                            "Đã lưu "
+                            f"{len(customers)}"
+                            " dự đoán "
+                            f"{provider_mode.upper()}"
+                            "; job "
+                            f"{(job.status.value if job else 'không nhận')}"
+                            "."
+                        )
                     )
             except Exception:  # noqa: BLE001 -- No provider/DB/CSV contents in errors.
                 st.error(
-                    "Không thể hoàn tất lượt dự đoán; không tự gọi lại LLM. Kết quả đã lưu trước đó được giữ."
+                    (
+                        "Không thể hoàn tất lượt dự đoán; không tự gọi lại LLM. Kết q"
+                        "uả đã lưu trước đó được giữ."
+                    )
                 )
         if st.button(
             "Tạo lượt mới để chủ động dự đoán lại",
@@ -328,9 +352,7 @@ def _prediction_controls() -> DashboardView | None:
             )
         running = SqliteTaskQueue(ledger.path).list_running_jobs()
         if running:
-            st.caption(
-                "Job bị ngắt không tự retry. Chỉ đóng khi chắc chắn worker đã dừng."
-            )
+            st.caption("Job bị ngắt không tự retry. Chỉ đóng khi chắc chắn worker đã dừng.")
             selected_job = st.selectbox(
                 "Job cần khôi phục",
                 [job.job_id for job in running],
@@ -358,9 +380,7 @@ def _prediction_controls() -> DashboardView | None:
                         interrupted_id = str(job.payload["run_id"])
                         if not ledger.frames(interrupted_id)[0].empty:
                             st.session_state[ACTIVE_RUN_KEY] = interrupted_id
-                        st.success(
-                            "Đã khôi phục trạng thái từ dữ liệu đã lưu; không gọi lại LLM."
-                        )
+                        st.success("Đã khôi phục trạng thái từ dữ liệu đã lưu; không gọi lại LLM.")
                 except Exception:  # noqa: BLE001 -- Do not expose database payloads.
                     st.error("Không thể khôi phục job; dữ liệu được giữ nguyên.")
     last_attempt = st.session_state.get(LAST_ATTEMPT_KEY)
@@ -368,19 +388,22 @@ def _prediction_controls() -> DashboardView | None:
         attempted = ledger.get(last_attempt)
         if attempted.status in {"PARTIAL", "FAILED"}:
             st.error(
-                f"Lần Submit gần nhất: {attempted.status}. {failure_message(ledger.error_code(last_attempt))} Không tự retry; các dòng chưa chạy không có kết quả thành công."
+                (
+                    "Lần Submit gần nhất: "
+                    f"{attempted.status}"
+                    ". "
+                    f"{failure_message(ledger.error_code(last_attempt))}"
+                    " Không tự retry; các dòng chưa chạy không có kết quả thành c"
+                    "ông."
+                )
             )
             try:
-                st.dataframe(
-                    safe_export_frame(ledger.progress(last_attempt)), hide_index=True
-                )
+                st.dataframe(safe_export_frame(ledger.progress(last_attempt)), hide_index=True)
             except (ValueError, TypeError, KeyError):
                 st.info(failure_message("snapshot"))
     run_id = st.session_state.get(ACTIVE_RUN_KEY)
     if not run_id:
-        st.info(
-            "Chọn khách hàng và bấm Dự đoán để mở Dashboard. Không có inference khi rerun."
-        )
+        st.info("Chọn khách hàng và bấm Dự đoán để mở Dashboard. Không có inference khi rerun.")
         return None
     run = ledger.get(run_id)
     if run.execution_mode not in ("mock", "live") or run.reference_sha256 != pin:
@@ -391,7 +414,17 @@ def _prediction_controls() -> DashboardView | None:
         st.info("Run chưa có kết quả thành công để hiển thị.")
         return None
     st.caption(
-        f"Đang hiển thị snapshot đã lưu: {len(customers)}/{len(json.loads(run.cohort_json))} dòng · {run.status} · run {run.run_id}. Bản nháp CSV không thay kết quả này."
+        (
+            "Đang hiển thị snapshot đã lưu: "
+            f"{len(customers)}"
+            "/"
+            f"{len(json.loads(run.cohort_json))}"
+            " dòng · "
+            f"{run.status}"
+            " · run "
+            f"{run.run_id}"
+            ". Bản nháp CSV không thay kết quả này."
+        )
     )
     provider_label = (
         f"LIVE ({', '.join(sorted(set(predictions['provider'])))})"
@@ -407,9 +440,7 @@ def _prediction_controls() -> DashboardView | None:
 
 
 def _repo() -> SqliteCampaignRepository:
-    return SqliteCampaignRepository(
-        runtime_path().with_name("campaigns-preview.sqlite3")
-    )
+    return SqliteCampaignRepository(runtime_path().with_name("campaigns-preview.sqlite3"))
 
 
 def create_campaign(**kwargs) -> Campaign:
@@ -419,9 +450,7 @@ def create_campaign(**kwargs) -> Campaign:
         raise ValueError("Campaign requires accepted predictions")
     customers, predictions = ledger.frames(run.run_id)
     assumptions = kwargs["assumptions"]
-    dataset_id = hashlib.sha256(
-        customers.to_json(orient="records").encode()
-    ).hexdigest()
+    dataset_id = hashlib.sha256(customers.to_json(orient="records").encode()).hexdigest()
     required = {
         "prediction_source": "llm-rag-v2",
         "execution_mode": run.execution_mode,
@@ -452,11 +481,7 @@ def create_campaign(**kwargs) -> Campaign:
     else:
         try:
             wanted = expected.sort_values("customerID").reset_index(drop=True)
-            given = (
-                actual[expected.columns]
-                .sort_values("customerID")
-                .reset_index(drop=True)
-            )
+            given = actual[expected.columns].sort_values("customerID").reset_index(drop=True)
             if len(wanted) != len(given):
                 raise ValueError("Campaign allocation count differs")
             for left, right in zip(
@@ -464,9 +489,7 @@ def create_campaign(**kwargs) -> Campaign:
             ):
                 for column in expected.columns:
                     want, got = left[column], right[column]
-                    if pd.isna(want) or (
-                        isinstance(want, Real) and not math.isfinite(want)
-                    ):
+                    if pd.isna(want) or (isinstance(want, Real) and not math.isfinite(want)):
                         valid = pd.isna(got)
                     elif isinstance(want, Real):
                         valid = (
@@ -522,5 +545,8 @@ def mark_exported(campaign_id: str) -> None:
         _repo().save(get_campaign(campaign_id).with_status(CampaignStatus.EXPORTED))
     except Exception:  # noqa: BLE001 -- Callback errors must not expose raw archive data.
         st.error(
-            "Không thể ghi nhận xuất CSV. Trạng thái chiến dịch chưa được xác nhận; dữ liệu được giữ nguyên."
+            (
+                "Không thể ghi nhận xuất CSV. Trạng thái chiến dịch chưa được"
+                " xác nhận; dữ liệu được giữ nguyên."
+            )
         )

@@ -53,18 +53,14 @@ FAKE = "unit-test-group5-secret-only"
 
 
 class Provider:
-    def __init__(
-        self, prompts, *, error=False, reason="Giải thích tổng hợp; chưa hiệu chuẩn."
-    ):
+    def __init__(self, prompts, *, error=False, reason="Giải thích tổng hợp; chưa hiệu chuẩn."):
         self.prompts, self.error, self.reason = prompts, error, reason
 
     async def generate(self, prompt):
         self.prompts.append(prompt)
         if self.error:
             raise LLMConnectionError("Synthetic provider failure " + FAKE)
-        return json.dumps(
-            {"churn_prediction": 1, "churn_probability": 0.7, "reason": self.reason}
-        )
+        return json.dumps({"churn_prediction": 1, "churn_probability": 0.7, "reason": self.reason})
 
 
 def routed(
@@ -99,9 +95,7 @@ def query_frame(count):
 
 @pytest.mark.parametrize("count", [1, 5])
 @pytest.mark.parametrize("fallback", [False, True])
-def test_csv_rag_router_queue_sqlite_dashboard_campaign_export(
-    setup, monkeypatch, count, fallback
-):
+def test_csv_rag_router_queue_sqlite_dashboard_campaign_export(setup, monkeypatch, count, fallback):
     base, _ = setup
     frame = query_frame(count)
     # SQL-looking ID remains opaque metadata, never a path or an instruction.
@@ -113,9 +107,7 @@ def test_csv_rag_router_queue_sqlite_dashboard_campaign_export(
             store, data, primary, secondary, primary_error=fallback
         )
     )
-    adapter = DashboardLLMAdapter(
-        base.resources, base.pin, base.store, predict_one=calls
-    )
+    adapter = DashboardLLMAdapter(base.resources, base.pin, base.store, predict_one=calls)
     run = adapter.prepare(loaded, "../../.env", "e2e-" + str(count))
     assert run.source_name == ".env"  # display basename only; never opened
     job = ui.execute(adapter, run)
@@ -143,24 +135,17 @@ def test_csv_rag_router_queue_sqlite_dashboard_campaign_export(
         assert db.execute("PRAGMA foreign_key_check").fetchall() == []
     for prompt in primary + secondary:
         payload = json.loads(
-            prompt.split("\nBEGIN_CUSTOMER_DATA_JSON\n")[1].split(
-                "\nEND_CUSTOMER_DATA_JSON\n"
-            )[0]
+            prompt.split("\nBEGIN_CUSTOMER_DATA_JSON\n")[1].split("\nEND_CUSTOMER_DATA_JSON\n")[0]
         )
         assert set(payload["customer_to_predict"]) == set(FEATURE_NAMES)
         assert len(payload["reference_customers"]) == payload["reference_count"] == 5
         assert all(
-            set(ref) == {"features", "Churn"}
-            and set(ref["features"]) == set(FEATURE_NAMES)
+            set(ref) == {"features", "Churn"} and set(ref["features"]) == set(FEATURE_NAMES)
             for ref in payload["reference_customers"]
         )
         assert not any(cid in prompt for cid in loaded.customerID)
-        assert not any(
-            record.customer_id in prompt for record in base.resources.store.records
-        )
-        assert not any(
-            word in prompt for word in ["held-out-val", "held-out-test", FAKE]
-        )
+        assert not any(record.customer_id in prompt for record in base.resources.store.records)
+        assert not any(word in prompt for word in ["held-out-val", "held-out-test", FAKE])
     monkeypatch.setenv("CHURN_DASHBOARD_DEMO_RUN", run.run_id)
     guard = Mock(side_effect=AssertionError("No inference from business UI"))
     monkeypatch.setattr(DashboardLLMAdapter, "process", guard)
@@ -181,9 +166,7 @@ def test_csv_rag_router_queue_sqlite_dashboard_campaign_export(
 
 
 @pytest.mark.parametrize("partial", [False, True])
-def test_failed_or_partial_never_fakes_success_or_repeats(
-    setup, monkeypatch, partial, caplog
-):
+def test_failed_or_partial_never_fakes_success_or_repeats(setup, monkeypatch, partial, caplog):
     base, _ = setup
     monkeypatch.setenv("GROQ_API_KEY", FAKE)
     primary, secondary, calls = [], [], []
@@ -193,9 +176,7 @@ def test_failed_or_partial_never_fakes_success_or_repeats(
         calls.append(1)
         return routed(store, data, primary, secondary, both_error=fail)
 
-    adapter = DashboardLLMAdapter(
-        base.resources, base.pin, base.store, predict_one=predict
-    )
+    adapter = DashboardLLMAdapter(base.resources, base.pin, base.store, predict_one=predict)
     run = adapter.prepare(query_frame(5), "synthetic.csv", "partial-security")
     job = ui.execute(adapter, run)
     assert job.status == JobStatus.FAILED
@@ -213,25 +194,19 @@ def test_failed_or_partial_never_fakes_success_or_repeats(
             customers.customerID
         )
     monkeypatch.setenv("CHURN_DASHBOARD_DEMO_RUN", run.run_id)
-    monkeypatch.setattr(
-        DashboardLLMAdapter, "process", Mock(side_effect=AssertionError("No API"))
-    )
+    monkeypatch.setattr(DashboardLLMAdapter, "process", Mock(side_effect=AssertionError("No API")))
     at = AppTest.from_file(str(PAGE), default_timeout=40)
     at.session_state[ui.LAST_ATTEMPT_KEY] = run.run_id
     at.run()
     assert not at.exception and at.error
-    assert FAKE not in caplog.text + str(job.error_reason) + "\n".join(
-        e.value for e in at.error
-    )
+    assert FAKE not in caplog.text + str(job.error_reason) + "\n".join(e.value for e in at.error)
     assert FAKE.encode() not in adapter.store.path.read_bytes()
 
 
 @pytest.mark.parametrize(
     "field", ["customerID", "source_name", "reason", "job_payload", "campaign_name"]
 )
-def test_configured_keys_cannot_reach_persistence_or_exports(
-    setup, monkeypatch, field, caplog
-):
+def test_configured_keys_cannot_reach_persistence_or_exports(setup, monkeypatch, field, caplog):
     adapter, _ = setup
     monkeypatch.setenv("GROQ_API_KEY", FAKE)
     frame = query_frame(1)
@@ -247,18 +222,13 @@ def test_configured_keys_cannot_reach_persistence_or_exports(
         with pytest.raises(SecurityBoundaryError):
             queue.enqueue(TaskJob.create(JobType.SCORING, "key", {"run_id": FAKE}))
     else:
-        adapter.predict_one = lambda store, data: mock_prediction(
-            store, data
-        ).model_copy(
+        adapter.predict_one = lambda store, data: mock_prediction(store, data).model_copy(
             update={"reason": FAKE if field == "reason" else "Giải thích tổng hợp."}
         )
         run = adapter.prepare(frame, "synthetic.csv", "key")
         job = ui.execute(adapter, run)
         if field == "reason":
-            assert (
-                job.status == JobStatus.FAILED
-                and adapter.store.frames(run.run_id)[1].empty
-            )
+            assert job.status == JobStatus.FAILED and adapter.store.frames(run.run_id)[1].empty
         else:
             values = kwargs_for(adapter, run)
             values["name"] = FAKE
@@ -279,9 +249,7 @@ def test_credential_guard_nested_and_static_error(monkeypatch, value):
     assert value not in str(caught.value)
 
 
-@pytest.mark.parametrize(
-    "malformation", ["extra", "missing", "nul", "unclosed", "wide-header"]
-)
+@pytest.mark.parametrize("malformation", ["extra", "missing", "nul", "unclosed", "wide-header"])
 def test_strict_csv_prevents_ambiguous_or_hostile_parse(setup, malformation):
     adapter, calls = setup
     lines = query_frame(1).to_csv(index=False).splitlines()
@@ -335,9 +303,7 @@ def test_reference_prompt_injection_is_inert_json_not_extra_instructions(tmp_pat
     )
     assert "</system>" not in prompt and "`attack`" not in prompt
     payload = json.loads(
-        prompt.split("\nBEGIN_CUSTOMER_DATA_JSON\n")[1].split(
-            "\nEND_CUSTOMER_DATA_JSON\n"
-        )[0]
+        prompt.split("\nBEGIN_CUSTOMER_DATA_JSON\n")[1].split("\nEND_CUSTOMER_DATA_JSON\n")[0]
     )
     assert payload["reference_customers"][0]["features"]["PaymentMethod"] == attack
     # Demonstrates framing, not semantic immunity of a real LLM.
@@ -350,21 +316,15 @@ def test_reference_prompt_injection_is_inert_json_not_extra_instructions(tmp_pat
 @pytest.mark.parametrize(
     "column", ["customerID", "customer_id", "action_name", "reason", "provider"]
 )
-@pytest.mark.parametrize(
-    "value", ["=1+1", " +SUM(1)", "@SUM(1)", "\t=1", "\r=1", "\n=1"]
-)
+@pytest.mark.parametrize("value", ["=1+1", " +SUM(1)", "@SUM(1)", "\t=1", "\r=1", "\n=1"])
 def test_all_spreadsheet_text_paths_escape_formulas(column, value):
-    frame = pd.DataFrame(
-        {column: [value], "probability": [0.7], "nullable": [float("nan")]}
-    )
+    frame = pd.DataFrame({column: [value], "probability": [0.7], "nullable": [float("nan")]})
     safe = safe_export_frame(frame)
     assert safe.iloc[0][column] == "'" + value and frame.iloc[0][column] == value
     assert safe.probability[0] == 0.7 and pd.isna(safe.nullable[0])
 
 
-@pytest.mark.parametrize(
-    "factory", [DashboardRunStore, SqliteTaskQueue, SqliteCampaignRepository]
-)
+@pytest.mark.parametrize("factory", [DashboardRunStore, SqliteTaskQueue, SqliteCampaignRepository])
 def test_sqlite_owner_only_permissions_under_default_umask(tmp_path, factory):
     old = os.umask(0o022)
     try:
@@ -416,9 +376,7 @@ def test_corrupt_state_is_safe_ui_error_never_recreated(setup, monkeypatch, capl
 def test_live_requires_server_optin_and_cannot_run_after_revocation(setup, monkeypatch):
     base, calls = setup
     with pytest.raises(ValueError):
-        DashboardLLMAdapter(
-            base.resources, base.pin, base.store, mode="live", predict_one=calls
-        )
+        DashboardLLMAdapter(base.resources, base.pin, base.store, mode="live", predict_one=calls)
     monkeypatch.delenv("CHURN_DASHBOARD_PREVIEW", raising=False)
     monkeypatch.setenv("CHURN_DASHBOARD_ALLOW_LIVE", "1")
     adapter = DashboardLLMAdapter(
@@ -434,9 +392,7 @@ def test_concurrent_duplicate_e2e_generates_one_prediction(setup):
     base, _ = setup
     primary = []
     predict = Mock(side_effect=lambda store, data: routed(store, data, primary, []))
-    adapter = DashboardLLMAdapter(
-        base.resources, base.pin, base.store, predict_one=predict
-    )
+    adapter = DashboardLLMAdapter(base.resources, base.pin, base.store, predict_one=predict)
 
     def once(_):
         run = adapter.prepare(query_frame(1), "synthetic.csv", "concurrent")
@@ -528,17 +484,13 @@ def test_input_filename_is_never_opened_and_reference_ids_are_train_only(
     run = adapter.prepare(query_frame(1), "../../.env", "no-file-read")
     ui.execute(adapter, run)
     assert run.source_name == ".env"
-    assert {r.customer_id for r in adapter.resources.store.records} == set(
-        source.frame.customerID
-    )
+    assert {r.customer_id for r in adapter.resources.store.records} == set(source.frame.customerID)
     assert not {"held-out-val", "held-out-test"} & {
         r.customer_id for r in adapter.resources.store.records
     }
 
 
-def test_dataframe_downloads_use_safe_copies_without_changing_join_ids(
-    setup, monkeypatch
-):
+def test_dataframe_downloads_use_safe_copies_without_changing_join_ids(setup, monkeypatch):
     adapter, _ = setup
     frame = query_frame(1)
     frame.loc[0, "customerID"] = "=SUM(1)"
@@ -585,9 +537,7 @@ def test_private_reference_identifier_is_rejected_before_persistence(setup, sour
 
         return asyncio.run(once())
 
-    adapter = DashboardLLMAdapter(
-        base.resources, base.pin, base.store, predict_one=predict
-    )
+    adapter = DashboardLLMAdapter(base.resources, base.pin, base.store, predict_one=predict)
     run = adapter.prepare(frame, "synthetic.csv", "private-ref")
     assert ui.execute(adapter, run).status == JobStatus.SUCCESS
     assert len(primary) == len(fallback) == 1

@@ -69,8 +69,9 @@ def clean_and_split_features(
     # Chuẩn hóa cột TotalCharges
     if "TotalCharges" in df_clean.columns:
         # Thay thế khoảng trắng rỗng hoặc chuỗi trống thành NaN
-        tc_series = df_clean["TotalCharges"].replace(r"^\s*$", np.nan, regex=True)
-        tc_numeric = pd.to_numeric(tc_series, errors="coerce").replace([np.inf, -np.inf], np.nan)
+        tc_numeric = pd.to_numeric(df_clean["TotalCharges"], errors="coerce").replace(
+            [np.inf, -np.inf], np.nan
+        )
 
         # Điều kiện nghiệp vụ: Nếu tenure == 0 và TotalCharges rỗng -> điền 0.0
         if "tenure" in df_clean.columns:

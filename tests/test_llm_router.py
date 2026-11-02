@@ -46,9 +46,7 @@ class Clock:
         self.now = 0.0
         self.timers: list[Timer] = []
 
-    def call_later(
-        self, delay: float, callback: Callable[..., None], *args: object
-    ) -> Timer:
+    def call_later(self, delay: float, callback: Callable[..., None], *args: object) -> Timer:
         timer = Timer(self.now + delay, callback, args)
         self.timers.append(timer)
         return timer
@@ -172,9 +170,7 @@ def test_fast_primary_does_not_call_fallback(clock: Clock) -> None:
         LLMAPIError(SECRET),
     ],
 )
-def test_primary_error_starts_fallback_immediately(
-    clock: Clock, error: Exception
-) -> None:
+def test_primary_error_starts_fallback_immediately(clock: Clock, error: Exception) -> None:
     async def case() -> None:
         primary, fallback = Provider(clock), Provider(clock)
         primary.fail(error)
@@ -212,9 +208,7 @@ def test_hedge_at_60_seconds_keeps_primary_running(clock: Clock) -> None:
 
 @pytest.mark.parametrize("winner", ["primary", "fallback"])
 @pytest.mark.parametrize("late_failure", [False, True])
-def test_winner_returns_before_loser_cleanup(
-    clock: Clock, winner: str, late_failure: bool
-) -> None:
+def test_winner_returns_before_loser_cleanup(clock: Clock, winner: str, late_failure: bool) -> None:
     async def case() -> None:
         primary = Provider(clock, delayed_cleanup=winner == "fallback")
         fallback = Provider(clock, delayed_cleanup=winner == "primary")
@@ -243,9 +237,7 @@ def test_winner_returns_before_loser_cleanup(
 
 
 @pytest.mark.parametrize("failing", ["primary", "fallback"])
-def test_parallel_error_keeps_waiting_for_other_provider(
-    clock: Clock, failing: str
-) -> None:
+def test_parallel_error_keeps_waiting_for_other_provider(clock: Clock, failing: str) -> None:
     async def case() -> None:
         primary, fallback = Provider(clock), Provider(clock)
         async with LLMRouter(primary, fallback) as router:
@@ -279,9 +271,7 @@ def test_both_failures_are_distinct_and_sanitized(
         assert isinstance(error.fallback_error, LLMAPIError)
         assert error.fallback_error.status_code == 503
         assert not error.deadline_exceeded
-        assert SECRET not in str(error) + repr(error.primary_error) + repr(
-            error.fallback_error
-        )
+        assert SECRET not in str(error) + repr(error.primary_error) + repr(error.fallback_error)
         assert SECRET not in "".join(traceback.format_exception(error))
         assert error.__cause__ is None
         assert SECRET not in caplog.text
@@ -327,9 +317,7 @@ def test_fallback_is_called_once_when_primary_fails_after_hedge(clock: Clock) ->
 
 
 @pytest.mark.parametrize("hedged", [False, True])
-def test_caller_cancellation_cancels_all_started_providers(
-    clock: Clock, hedged: bool
-) -> None:
+def test_caller_cancellation_cancels_all_started_providers(clock: Clock, hedged: bool) -> None:
     async def case() -> None:
         primary, fallback = Provider(clock), Provider(clock)
         async with LLMRouter(primary, fallback) as router:
@@ -418,9 +406,7 @@ def test_deadline_preserves_failure_of_provider_already_finished(clock: Clock) -
 
 
 @pytest.mark.parametrize("invalid", [None, "", " \t\n", 42])
-def test_invalid_primary_response_triggers_fallback(
-    clock: Clock, invalid: object
-) -> None:
+def test_invalid_primary_response_triggers_fallback(clock: Clock, invalid: object) -> None:
     async def case() -> None:
         primary, fallback = Provider(clock), Provider(clock)
         primary.succeed(cast(str, invalid))
@@ -500,9 +486,7 @@ def test_deadline_and_caller_cancellation_do_not_wait_for_slow_cleanup(
 
 
 @pytest.mark.parametrize("first", ["primary", "fallback"])
-def test_first_valid_completion_wins_when_both_finish_in_one_turn(
-    clock: Clock, first: str
-) -> None:
+def test_first_valid_completion_wins_when_both_finish_in_one_turn(clock: Clock, first: str) -> None:
     async def case() -> None:
         primary, fallback = Provider(clock), Provider(clock)
         async with LLMRouter(primary, fallback) as router:
@@ -577,9 +561,7 @@ def test_invalid_prompt_makes_no_provider_calls(clock: Clock, invalid: object) -
         (60, 30),
     ],
 )
-def test_invalid_router_timeouts_are_rejected(
-    clock: Clock, hedge: float, total: float
-) -> None:
+def test_invalid_router_timeouts_are_rejected(clock: Clock, hedge: float, total: float) -> None:
     async def case() -> None:
         with pytest.raises(LLMConfigurationError):
             LLMRouter(
@@ -596,9 +578,7 @@ def test_custom_hedge_delay_and_zero_delay(clock: Clock) -> None:
     async def case() -> None:
         for delay in (0, 10):
             primary, fallback = Provider(clock), Provider(clock)
-            async with LLMRouter(
-                primary, fallback, hedge_delay_seconds=delay
-            ) as router:
+            async with LLMRouter(primary, fallback, hedge_delay_seconds=delay) as router:
                 request = asyncio.create_task(router.generate("prompt"))
                 await primary.started.wait()
                 clock.advance(delay)
@@ -669,9 +649,7 @@ def test_factory_rejects_primary_timeout_that_disables_hedge(
     clock: Clock, primary_timeout: float
 ) -> None:
     async def case() -> None:
-        with patch(
-            "churn_retention.adapters.llm.groq_provider.GroqProvider"
-        ) as primary:
+        with patch("churn_retention.adapters.llm.groq_provider.GroqProvider") as primary:
             with pytest.raises(LLMConfigurationError):
                 async with groq_gemini_router(primary_timeout_seconds=primary_timeout):
                     pytest.fail("Invalid configuration must not create clients")

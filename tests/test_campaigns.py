@@ -2,21 +2,19 @@
 
 Kiểm thử toàn diện các yêu cầu:
 1. Tạo và truy xuất chiến dịch với đầy đủ các trường:
-   campaign_id, name, dataset_id, model_version, scoring_run_id, budget, assumptions, status, results, created_at.
+campaign_id, name, dataset_id, model_version, scoring_run_id, budget, assumptions, status,
+results, created_at.
 2. Lưu trữ bền vững (Persistence): Đóng và mở lại kết nối SQLite dữ liệu vẫn nguyên vẹn.
-3. Tính bất biến (Immutability): Đổi mô hình/scoring run mới tạo chiến dịch mới, chiến dịch cũ giữ nguyên.
-4. Xuất danh sách CSV: customer_id, hành động, chi phí, lợi ích kỳ vọng; chuyển trạng thái sang EXPORTED.
+3. Tính bất biến (Immutability): Đổi mô hình/scoring run mới tạo chiến dịch mới, chiến
+dịch cũ giữ nguyên.
+4. Xuất danh sách CSV: customer_id, hành động, chi phí, lợi ích kỳ vọng; chuyển trạng thái
+sang EXPORTED.
 5. Xử lý lỗi và xác thực đầu vào (ngân sách âm, ID không tồn tại).
 """
 
-import sys
 import tempfile
 import unittest
 from pathlib import Path
-
-SRC_DIR = Path(__file__).resolve().parent.parent / "src"
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
 
 from churn_retention.adapters.database.campaigns.repository import (
     SqliteCampaignRepository,
@@ -141,7 +139,7 @@ class TestCampaignManagement(unittest.TestCase):
         self.assertEqual(len(reopened_camp.results["allocations"]), 3)
 
     def test_immutability_on_new_model_version(self):
-        """3. Kiểm tra tính bất biến: Đổi model mới thì tạo chiến dịch mới, không đổi chiến dịch cũ."""
+        "3. Kiểm tra tính bất biến: Đổi model mới thì tạo chiến dịch mới, không đổi chiến dịch cũ."
         camp_v1 = create_campaign(
             name="Campaign with Model V1",
             dataset_id="dataset-001",
@@ -149,15 +147,11 @@ class TestCampaignManagement(unittest.TestCase):
             scoring_run_id="run-seed42-01",
             budget=2000.0,
             assumptions=self.sample_assumptions,
-            results={
-                "allocations": [
-                    {"customer_id": "CUST-A", "cost": 8.0, "net_value": 20.0}
-                ]
-            },
+            results={"allocations": [{"customer_id": "CUST-A", "cost": 8.0, "net_value": 20.0}]},
             repository=self.repo,
         )
 
-        # Người dùng chuyển sang mô hình mới (ví dụ XGBoost hoặc CatBoost seed 99) và chạy mô phỏng mới
+        # Chuyển mô hình (ví dụ XGBoost/CatBoost seed 99) rồi chạy mô phỏng mới.
         camp_v2 = create_campaign(
             name="Campaign with Model V2",
             dataset_id="dataset-001",
@@ -165,11 +159,7 @@ class TestCampaignManagement(unittest.TestCase):
             scoring_run_id="run-seed99-02",
             budget=3000.0,
             assumptions=self.sample_assumptions,
-            results={
-                "allocations": [
-                    {"customer_id": "CUST-B", "cost": 19.0, "net_value": 50.0}
-                ]
-            },
+            results={"allocations": [{"customer_id": "CUST-B", "cost": 19.0, "net_value": 50.0}]},
             repository=self.repo,
         )
 
@@ -181,9 +171,7 @@ class TestCampaignManagement(unittest.TestCase):
         self.assertEqual(original_camp_v1.model_version, "catboost-seed42-v1")
         self.assertEqual(original_camp_v1.scoring_run_id, "run-seed42-01")
         self.assertEqual(original_camp_v1.budget, 2000.0)
-        self.assertEqual(
-            original_camp_v1.results["allocations"][0]["customer_id"], "CUST-A"
-        )
+        self.assertEqual(original_camp_v1.results["allocations"][0]["customer_id"], "CUST-A")
 
         # Danh sách phải có cả 2 chiến dịch
         all_camps = list_campaigns(repository=self.repo)

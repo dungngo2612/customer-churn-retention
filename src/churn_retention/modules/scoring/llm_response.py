@@ -29,17 +29,13 @@ def _reject_constant(value: str) -> None:
 
 def parse_churn_response(text: str) -> LLMChurnResponse:
     if not isinstance(text, str):
-        raise LLMResponseValidationError(
-            "Response must be JSON text.", code="invalid_json"
-        )
+        raise LLMResponseValidationError("Response must be JSON text.", code="invalid_json")
     if len(text) > MAX_RESPONSE_CHARS:
         raise LLMResponseValidationError(
             "Response exceeds the size limit.", code="response_too_large"
         )
     try:
-        data = json.loads(
-            text, object_pairs_hook=_unique_object, parse_constant=_reject_constant
-        )
+        data = json.loads(text, object_pairs_hook=_unique_object, parse_constant=_reject_constant)
     except LLMResponseValidationError:
         raise
     except (ValueError, RecursionError):
@@ -48,9 +44,7 @@ def parse_churn_response(text: str) -> LLMChurnResponse:
             code="invalid_json",
         ) from None
     if not isinstance(data, dict):
-        raise LLMResponseValidationError(
-            "Response root must be an object.", code="invalid_object"
-        )
+        raise LLMResponseValidationError("Response root must be an object.", code="invalid_object")
     if set(data) != {"churn_prediction", "churn_probability", "reason"}:
         raise LLMResponseValidationError(
             "Response must contain exactly the three required keys.",

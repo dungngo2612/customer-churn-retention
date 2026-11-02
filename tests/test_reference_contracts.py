@@ -31,10 +31,7 @@ BASELINE = json.loads((ROOT / "tests/fixtures/llm_rag_v1_golden.json").read_text
 
 @pytest.fixture
 def schema() -> list[FeatureColumn]:
-    return [
-        FeatureColumn.model_validate(column)
-        for column in BASELINE["preprocessing"]["schema"]
-    ]
+    return [FeatureColumn.model_validate(column) for column in BASELINE["preprocessing"]["schema"]]
 
 
 @pytest.fixture
@@ -64,9 +61,7 @@ def customer(categories: dict[str, tuple[str, ...]]) -> dict[str, object]:
         "churn_retention.modules.scoring.llm_prompt",
     ],
 )
-def test_fresh_import_without_sklearn_adapters_or_model_files(
-    tmp_path: Path, module: str
-) -> None:
+def test_fresh_import_without_sklearn_adapters_or_model_files(tmp_path: Path, module: str) -> None:
     script = r"""
 import importlib
 import importlib.abc
@@ -211,9 +206,7 @@ def test_shared_records_keep_id_free_projection_and_vector_repr(
     customer: dict[str, object],
 ) -> None:
     features = clean_features(customer, schema, categories)
-    stored = StoredRecord(
-        customer_id="synthetic-reference", features=features, churn="No"
-    )
+    stored = StoredRecord(customer_id="synthetic-reference", features=features, churn="No")
     reference = ReferenceRecord(features, stored.churn, stored.customer_id)
     similar = SimilarCustomer(features, stored.churn, stored.customer_id, 0.25)
     query = PreparedQuery(features, np.zeros((1, 45)), "synthetic-query")
@@ -231,10 +224,7 @@ def test_shared_records_keep_id_free_projection_and_vector_repr(
 
 def test_canonical_serialization_and_hash_semantics() -> None:
     assert json_bytes({"b": "Việt", "a": 1}) == '{"a":1,"b":"Việt"}'.encode()
-    assert (
-        sha256(b"abc")
-        == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-    )
+    assert sha256(b"abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
     with pytest.raises(ValueError):
         json_bytes({"value": float("nan")})
 

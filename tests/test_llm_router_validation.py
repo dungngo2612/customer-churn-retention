@@ -58,11 +58,7 @@ def test_validated_primary_wins_with_request_local_metadata(clock: Clock) -> Non
             primary, fallback, primary_provider="Groq", fallback_provider="Gemini"
         ) as router:
             result = await router.generate_result("prompt", response_validator=validate)
-        assert (
-            result.content == VALID
-            and result.role == "primary"
-            and result.provider == "Groq"
-        )
+        assert result.content == VALID and result.role == "primary" and result.provider == "Groq"
         assert not fallback.calls
 
     run_case(case())
@@ -88,9 +84,7 @@ def test_both_invalid_errors_keep_validation_codes(clock: Clock) -> None:
     async def case() -> None:
         primary, fallback = Provider(clock), Provider(clock)
         primary.succeed("bad JSON")
-        fallback.succeed(
-            json.dumps({"churn_prediction": 1, "churn_probability": 2, "reason": "x"})
-        )
+        fallback.succeed(json.dumps({"churn_prediction": 1, "churn_probability": 2, "reason": "x"}))
         async with LLMRouter(primary, fallback) as router:
             with pytest.raises(LLMRouterError) as caught:
                 await router.generate("prompt", response_validator=validate)
@@ -121,10 +115,7 @@ def test_format_and_api_errors_remain_distinguishable_and_safe(
         assert isinstance(caught.value.primary_error, LLMResponseValidationError)
         assert isinstance(caught.value.fallback_error, LLMAPIError)
         assert caught.value.fallback_error.status_code == 503
-        assert (
-            secret
-            not in json.dumps(caught.value.to_dict()) + str(caught.value) + caplog.text
-        )
+        assert secret not in json.dumps(caught.value.to_dict()) + str(caught.value) + caplog.text
 
     run_case(case())
 
@@ -148,9 +139,7 @@ def test_invalid_hedged_response_never_defeats_pending_valid_provider(
             await settle()
             assert not request.done() and not winner.cancelled.is_set()
             winner.succeed(VALID)
-            assert (await request).role == (
-                "fallback" if invalid == "primary" else "primary"
-            )
+            assert (await request).role == ("fallback" if invalid == "primary" else "primary")
         assert len(primary.calls) == len(fallback.calls) == 1
 
     run_case(case())
@@ -261,13 +250,8 @@ def test_factory_declares_real_provider_labels_and_keeps_timeouts(clock: Clock) 
             ) as gemini,
         ):
             async with groq_gemini_router() as router:
-                result = await router.generate_result(
-                    "prompt", response_validator=validate
-                )
-                assert (
-                    router.hedge_delay_seconds == 60
-                    and router.total_timeout_seconds == 120
-                )
+                result = await router.generate_result("prompt", response_validator=validate)
+                assert router.hedge_delay_seconds == 60 and router.total_timeout_seconds == 120
             groq.assert_called_once_with(timeout=90.0)
             gemini.assert_called_once_with(timeout=30.0)
             assert result.provider == "Groq"

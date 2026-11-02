@@ -57,9 +57,7 @@ def demo_inputs() -> tuple[tuple[PredictionRecord, CustomerContext], ...]:
         result.append(
             (
                 record,
-                CustomerContext(
-                    customer_ref=f"DEMO-{index:03}", observed_active=active
-                ),
+                CustomerContext(customer_ref=f"DEMO-{index:03}", observed_active=active),
             )
         )
     return tuple(result)

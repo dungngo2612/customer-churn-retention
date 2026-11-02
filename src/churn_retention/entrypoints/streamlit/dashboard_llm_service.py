@@ -46,12 +46,13 @@ def validate_frame(frame: pd.DataFrame, resources: LLMInputResources) -> pd.Data
     required = {*FEATURE_NAMES, "customerID", "Churn"}
     if set(frame.columns) != required or frame.columns.duplicated().any():
         raise ValueError(
-            "CSV cần đúng 19 feature, customerID và Churn đã quan sát; không được thừa/thiếu/trùng cột."
+            (
+                "CSV cần đúng 19 feature, customerID và Churn đã quan sát; kh"
+                "ông được thừa/thiếu/trùng cột."
+            )
         )
     if frame.empty or len(frame) > MAX_UPLOAD_ROWS:
-        raise ValueError(
-            "CSV cần từ 1 đến 1.000 dòng. Mỗi lượt chỉ chấm tối đa 5 dòng được chọn."
-        )
+        raise ValueError("CSV cần từ 1 đến 1.000 dòng. Mỗi lượt chỉ chấm tối đa 5 dòng được chọn.")
     reject_credentials(frame.to_dict(orient="records"))
     rows = []
     seen: set[str] = set()
@@ -82,9 +83,7 @@ def validate_frame(frame: pd.DataFrame, resources: LLMInputResources) -> pd.Data
                 "Churn phải là trạng thái đã quan sát Yes/No hoặc 0/1; không dùng nhãn LLM."
             )
         try:
-            clean = validate_customer(
-                resources, {name: row[name] for name in FEATURE_NAMES}
-            )
+            clean = validate_customer(resources, {name: row[name] for name in FEATURE_NAMES})
         except ValueError as error:
             raise ValueError(f"CSV có feature không hợp lệ: {error}") from None
         rows.append({"customerID": cid, "Churn": observed, **clean})
@@ -111,9 +110,7 @@ def read_csv(content: bytes, resources: LLMInputResources) -> pd.DataFrame:
                 raise ValueError("CSV vượt giới hạn 1.000 dòng.")
         if len(header) != len(set(header)):
             raise ValueError("CSV có cột trùng tên.")
-        frame = pd.read_csv(
-            io.StringIO(text), dtype={"customerID": str}, keep_default_na=False
-        )
+        frame = pd.read_csv(io.StringIO(text), dtype={"customerID": str}, keep_default_na=False)
     except (
         UnicodeError,
         csv.Error,
@@ -141,14 +138,14 @@ class MockProvider:
             {
                 "churn_prediction": int(probability >= 0.5),
                 "churn_probability": probability,
-                "reason": "MOCK provider: đầu ra mô phỏng, không gửi API và không phải dự đoán thực tế.",
+                "reason": (
+                    "MOCK provider: đầu ra mô phỏng, không gửi API và không phải dự đoán thực tế."
+                ),
             }
         )
 
 
-def mock_prediction(
-    store: ReferenceStore, snapshot: Mapping[str, object]
-) -> LLMChurnPrediction:
+def mock_prediction(store: ReferenceStore, snapshot: Mapping[str, object]) -> LLMChurnPrediction:
     async def once() -> LLMChurnPrediction:
         async with LLMRouter(
             MockProvider(),
@@ -181,17 +178,11 @@ class DashboardLLMAdapter:
         ):
             raise ValueError("Live LLM disabled. Preview uses only mock providers.")
         self.resources, self.pin, self.store, self.mode = resources, pin, store, mode
-        self.predict_one = predict_one or (
-            mock_prediction if mode == "mock" else predict_customer
-        )
+        self.predict_one = predict_one or (mock_prediction if mode == "mock" else predict_customer)
 
-    def prepare(
-        self, frame: pd.DataFrame, source_name: str, request_id: str
-    ) -> SavedRun:
+    def prepare(self, frame: pd.DataFrame, source_name: str, request_id: str) -> SavedRun:
         if not 1 <= len(frame) <= MAX_BATCH:
-            raise ValueError(
-                "Mỗi lượt dự đoán đơn/batch cần 1–5 khách hàng được chọn rõ ràng."
-            )
+            raise ValueError("Mỗi lượt dự đoán đơn/batch cần 1–5 khách hàng được chọn rõ ràng.")
         clean = validate_frame(frame, self.resources)
         source_name = safe_source_name(source_name)
         return self.store.reserve(
@@ -229,8 +220,7 @@ class DashboardLLMAdapter:
             if (
                 not isinstance(snapshot, list)
                 or not 1 <= len(snapshot) <= MAX_BATCH
-                or hashlib.sha256(canonical(snapshot).encode()).hexdigest()
-                != run.dataset_digest
+                or hashlib.sha256(canonical(snapshot).encode()).hexdigest() != run.dataset_digest
             ):
                 raise ValueError("Invalid saved snapshot")
         except (ValueError, TypeError):
@@ -261,9 +251,7 @@ class DashboardLLMAdapter:
             except Exception as error:  # noqa: BLE001 -- Persist only allowlisted failure codes.
                 code = (
                     error.code
-                    if isinstance(
-                        error, (DashboardPredictionError, LLMPredictionServiceError)
-                    )
+                    if isinstance(error, (DashboardPredictionError, LLMPredictionServiceError))
                     else "invalid_response"
                     if isinstance(error, ValidationError)
                     else "prediction_failed"

@@ -12,13 +12,6 @@ Kiểm thử toàn diện các yêu cầu của Task 1 (Chọn can thiệp theo 
 9. Ghi nhận rõ: Đây là thuật toán heuristic xấp xỉ bài toán Ba-lô đa lựa chọn (MCKP).
 """
 
-import sys
-from pathlib import Path
-
-SRC_DIR = Path(__file__).resolve().parent.parent / "src"
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
-
 import unittest
 
 import pandas as pd
@@ -86,7 +79,9 @@ class TestBudgetOptimization(unittest.TestCase):
         self.assertEqual(res["net_value"].sum(), 0.0)
 
     def test_budget_small_insufficient_for_all(self):
-        """2. Kiểm tra ngân sách nhỏ (B = 8.0 USD): Chỉ đủ cho đúng 1 hành động rẻ nhất (A1 cost=8.0)."""
+        """2. Kiểm tra ngân sách nhỏ (B = 8.0 USD): Chỉ đủ cho đúng 1 hành động rẻ nhất (A1
+        cost=8.0).
+        """
         res = select_actions_under_budget(
             customers=self.customers,
             predictions=self.predictions,
@@ -214,7 +209,9 @@ class TestBudgetOptimization(unittest.TestCase):
             )
 
     def test_brute_force_comparison_and_optimality_gap(self):
-        """8. Đối chiếu trên bộ 6 khách (tập 5-10 khách): So sánh Greedy với Nghiệm tối ưu toàn cục (Brute-Force)."""
+        """8. Đối chiếu trên bộ 6 khách (tập 5-10 khách): So sánh Greedy với Nghiệm tối ưu
+        toàn cục (Brute-Force).
+        """
         # Thử nghiệm trên ngân sách B = 25.0 USD
         budget = 25.0
         comparison = compare_greedy_vs_optimal(

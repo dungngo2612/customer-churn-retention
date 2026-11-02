@@ -37,9 +37,7 @@ def make_source(directory: Path, n: int = 5) -> Source:
                 "tenure": i,
                 "MonthlyCharges": float(20 + i),
                 "TotalCharges": float(i * (20 + i)),
-                **{
-                    name: values[i % len(values)] for name, values in CATEGORIES.items()
-                },
+                **{name: values[i % len(values)] for name, values in CATEGORIES.items()},
             }
             for i in range(n)
         ]

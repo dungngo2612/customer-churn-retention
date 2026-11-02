@@ -58,9 +58,7 @@ class ModelExplanation(ExplanationList):
         names = [column.name for column in self.feature_schema]
         actual = [item.feature_name for item in self.contributions]
         if len(set(names)) != len(names) or sorted(actual) != sorted(names):
-            raise ValueError(
-                "Contributions must match the unique original feature_schema"
-            )
+            raise ValueError("Contributions must match the unique original feature_schema")
         for item in self.contributions:
             if (
                 item.explained_output != self.output_type
@@ -68,23 +66,15 @@ class ModelExplanation(ExplanationList):
                 or item.base_value != self.base_value
                 or not math.isfinite(item.contribution)
             ):
-                raise ValueError(
-                    "Contribution units, calibration and base must match wrapper"
-                )
+                raise ValueError("Contribution units, calibration and base must match wrapper")
             details = [
-                d
-                for d in self.detailed_contributions
-                if d.source_feature == item.feature_name
+                d for d in self.detailed_contributions if d.source_feature == item.feature_name
             ]
             if not math.isclose(
                 sum(d.contribution for d in details), item.contribution, abs_tol=1e-6
             ):
-                raise ValueError(
-                    "Detailed contributions must sum to each original feature"
-                )
-        if any(
-            item.source_feature not in names for item in self.detailed_contributions
-        ):
+                raise ValueError("Detailed contributions must sum to each original feature")
+        if any(item.source_feature not in names for item in self.detailed_contributions):
             raise ValueError("Detailed contributions must map to feature_schema")
         total = self.base_value + sum(item.contribution for item in self.contributions)
         if not math.isclose(total, self.log_odds, abs_tol=1e-6):

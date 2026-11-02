@@ -42,9 +42,7 @@ def input_fixture(tmp_path_factory: pytest.TempPathFactory):
     source.build()
     store = ReferenceStore.load(source.output, trusted=True)
     values = {
-        key: value
-        for key, value in query(source).items()
-        if key not in {"customerID", "Churn"}
+        key: value for key, value in query(source).items() if key not in {"customerID", "Churn"}
     }
     return form_resources(store), values
 
@@ -59,9 +57,7 @@ def no_inference(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         (GroqProvider, "generate"),
         (GeminiProvider, "generate"),
     ]:
-        blocked = AsyncMock(
-            side_effect=AssertionError("UI tests mock prediction service")
-        )
+        blocked = AsyncMock(side_effect=AssertionError("UI tests mock prediction service"))
         monkeypatch.setattr(cls, method, blocked)
         calls.append(blocked)
     for cls, method in [
@@ -125,14 +121,10 @@ def test_page_initializes_with_19_fields_in_three_groups(page, prediction) -> No
     at.run()
     assert not at.exception and not at.error
     assert at.title[0].value == "Dự đoán khách hàng rời bỏ bằng LLM"
-    assert [item.value for item in at.subheader] == [
-        label for label, _ in FEATURE_GROUPS
-    ]
+    assert [item.value for item in at.subheader] == [label for label, _ in FEATURE_GROUPS]
     widgets = list(at.selectbox) + list(at.number_input)
     assert len(widgets) == 19
-    assert {widget.key.removeprefix(WIDGET_PREFIX) for widget in widgets} == set(
-        FEATURE_LABELS
-    )
+    assert {widget.key.removeprefix(WIDGET_PREFIX) for widget in widgets} == set(FEATURE_LABELS)
     assert at.button[0].label == "Dự đoán bằng LLM"
     assert not at.metric and not at.dataframe and not at.success
     assert VALIDATED_INPUT_KEY not in at.session_state
@@ -140,9 +132,7 @@ def test_page_initializes_with_19_fields_in_three_groups(page, prediction) -> No
     prediction.assert_not_called()
 
 
-def test_category_choices_use_store_values_with_vietnamese_labels(
-    page, input_fixture
-) -> None:
+def test_category_choices_use_store_values_with_vietnamese_labels(page, input_fixture) -> None:
     at, _ = page
     resources, _ = input_fixture
     at.run()
@@ -153,9 +143,7 @@ def test_category_choices_use_store_values_with_vietnamese_labels(
     assert at.selectbox(WIDGET_PREFIX + "SeniorCitizen").options == ["Không", "Có"]
 
 
-def test_valid_submit_saves_only_clean_19_feature_snapshot(
-    page, input_fixture, prediction
-) -> None:
+def test_valid_submit_saves_only_clean_19_feature_snapshot(page, input_fixture, prediction) -> None:
     at, _ = page
     _, values = input_fixture
     at.run()
@@ -235,9 +223,7 @@ def test_invalid_resubmit_clears_old_success_and_snapshot(page, input_fixture) -
     assert RESULT_KEY not in at.session_state
 
 
-def test_form_keeps_scoring_context_and_does_not_store_keys_or_clients(
-    page, input_fixture
-) -> None:
+def test_form_keeps_scoring_context_and_does_not_store_keys_or_clients(page, input_fixture) -> None:
     at, _ = page
     _, values = input_fixture
     original_context = {"existing-scoring-page": "untouched"}
@@ -272,9 +258,7 @@ def test_existing_scoring_and_shap_pages_still_initialize() -> None:
     from importlib import import_module
 
     import_module("churn_retention.ml.explainability")
-    at = AppTest.from_file(
-        str(ROOT / "apps/streamlit/scoring_page.py"), default_timeout=30
-    ).run()
+    at = AppTest.from_file(str(ROOT / "apps/streamlit/scoring_page.py"), default_timeout=30).run()
     assert not at.exception and at.title[0].value == "Chấm điểm churn"
     assert len(at.text_input) == 2
     at.switch_page("pages/1_Explain.py").run()
@@ -325,9 +309,7 @@ def test_result_displays_actual_fields_and_uncalibrated_warning(
     assert at.success[0].value == message
     assert at.metric[0].label == "Xác suất do LLM ước lượng"
     assert at.metric[0].value == "60%"
-    assert any(
-        "chưa được hiệu chuẩn thành xác suất thống kê" in w.value for w in at.warning
-    )
+    assert any("chưa được hiệu chuẩn thành xác suất thống kê" in w.value for w in at.warning)
     assert result.reason in [item.value for item in at.text]
     captions = [item.value for item in at.caption]
     assert f"Provider: {provider_label}" in captions
@@ -337,15 +319,11 @@ def test_result_displays_actual_fields_and_uncalibrated_warning(
     assert not any("Groq đã lỗi" in item for item in captions)
 
 
-def test_reason_is_literal_text_not_rendered_markdown(
-    page, input_fixture, prediction
-) -> None:
+def test_reason_is_literal_text_not_rendered_markdown(page, input_fixture, prediction) -> None:
     at, _ = page
     _, values = input_fixture
     literal = "[không chắc chắn](https://invalid.example) <script>test</script>"
-    prediction.return_value = prediction.return_value.model_copy(
-        update={"reason": literal}
-    )
+    prediction.return_value = prediction.return_value.model_copy(update={"reason": literal})
     at.run()
     fill(at, values)
     at.button[0].click().run()
@@ -364,9 +342,7 @@ def test_prediction_failure_shows_safe_error_without_old_result(
     at.button[0].click().run()
     assert at.success
     prediction.side_effect = (
-        llm_prediction_service.LLMPredictionServiceError(
-            "Dịch vụ LLM hết thời gian chờ."
-        )
+        llm_prediction_service.LLMPredictionServiceError("Dịch vụ LLM hết thời gian chờ.")
         if safe
         else RuntimeError("PRIVATE_SECRET_PROMPT_OR_RESPONSE")
     )
@@ -374,9 +350,7 @@ def test_prediction_failure_shows_safe_error_without_old_result(
     assert not at.exception and len(at.error) == 1
     assert "PRIVATE" not in at.error[0].value
     assert not at.success and not at.metric
-    assert (
-        RESULT_KEY not in at.session_state and RESULT_INPUT_KEY not in at.session_state
-    )
+    assert RESULT_KEY not in at.session_state and RESULT_INPUT_KEY not in at.session_state
     assert prediction.call_count == 2
     at.run()
     assert prediction.call_count == 2
@@ -424,10 +398,7 @@ def test_fingerprint_change_reloads_store_and_discards_old_result(
     monkeypatch.setattr(llm_input, "reference_fingerprint", Mock(return_value=updated))
     at.run()
     assert not at.exception and not at.success and loader.call_count == 2
-    assert (
-        RESULT_KEY not in at.session_state
-        and VALIDATED_INPUT_KEY not in at.session_state
-    )
+    assert RESULT_KEY not in at.session_state and VALIDATED_INPUT_KEY not in at.session_state
     assert at.session_state[FINGERPRINT_KEY] == (
         updated,
         llm_input.reference_artifact_sha256(),
@@ -459,17 +430,13 @@ def test_reference_replaced_during_load_is_not_cached(page, monkeypatch) -> None
         ReferenceFingerprint("unit-artifact", 1, 2, 3, 4, 5),
         ReferenceFingerprint("unit-artifact", 1, 2, 3, 4, 6),
     ]
-    monkeypatch.setattr(
-        llm_input, "reference_fingerprint", Mock(side_effect=fingerprints)
-    )
+    monkeypatch.setattr(llm_input, "reference_fingerprint", Mock(side_effect=fingerprints))
     at.run()
     assert not at.exception and at.error
     assert RESOURCES_KEY not in at.session_state and not at.button
 
 
-def test_result_and_snapshot_have_no_keys_clients_tasks_or_identifiers(
-    page, input_fixture
-) -> None:
+def test_result_and_snapshot_have_no_keys_clients_tasks_or_identifiers(page, input_fixture) -> None:
     at, _ = page
     _, values = input_fixture
     at.run()

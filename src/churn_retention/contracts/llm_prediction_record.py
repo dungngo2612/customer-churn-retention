@@ -51,9 +51,7 @@ class PredictionRecord(BaseModel):
     Synthetic records are explicitly distinguished from LLM service outputs.
     """
 
-    model_config = ConfigDict(
-        strict=True, frozen=True, extra="forbid", allow_inf_nan=False
-    )
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid", allow_inf_nan=False)
 
     schema_version: Literal[1] = 1
     record_id: UUID = Field(default_factory=uuid4)
@@ -70,9 +68,7 @@ class PredictionRecord(BaseModel):
         cls, value: tuple[tuple[str, FeatureValue], ...]
     ) -> tuple[tuple[str, FeatureValue], ...]:
         if tuple(name for name, _ in value) != FEATURE_NAMES:
-            raise ValueError(
-                "PredictionRecord requires the canonical 19 features only."
-            )
+            raise ValueError("PredictionRecord requires the canonical 19 features only.")
         numeric = {"SeniorCitizen", "tenure", "MonthlyCharges", "TotalCharges"}
         for name, item in value:
             if name in numeric:
@@ -110,9 +106,7 @@ class PredictionRecord(BaseModel):
             or self.prediction.provider is not None
             or self.prediction.reference_count != 0
         ):
-            raise ValueError(
-                "Synthetic records must not claim real RAG/provider provenance."
-            )
+            raise ValueError("Synthetic records must not claim real RAG/provider provenance.")
         return self
 
     @classmethod
@@ -129,9 +123,7 @@ class PredictionRecord(BaseModel):
         return cls.model_validate(
             {
                 "origin": origin,
-                "input_snapshot": tuple(
-                    (name, snapshot[name]) for name in FEATURE_NAMES
-                ),
+                "input_snapshot": tuple((name, snapshot[name]) for name in FEATURE_NAMES),
                 "prediction": prediction,
                 "reference_sha256": reference_sha256,
                 "config_id": "synthetic-demo-v1"

@@ -20,9 +20,7 @@ from churn_retention.workflows.score_dataset import BatchScoringService, get_job
 
 
 def register_commands(commands: Any) -> None:
-    score = commands.add_parser(
-        "score-batch", help="Score CSV chunks using an in-process worker"
-    )
+    score = commands.add_parser("score-batch", help="Score CSV chunks using an in-process worker")
     score.add_argument("--dataset", required=True, type=Path)
     score.add_argument(
         "--dataset-id",

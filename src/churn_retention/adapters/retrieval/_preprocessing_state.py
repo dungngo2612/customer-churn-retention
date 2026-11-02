@@ -196,9 +196,7 @@ def _decode(value: Any, budget: list[int], depth: int = 0) -> Any:
             raise ReferenceV2Error("Invalid preprocessing sequence.")
         items = [child(item) for item in value["items"]]
         if kind == "slice":
-            if len(items) != 3 or any(
-                item is not None and type(item) is not int for item in items
-            ):
+            if len(items) != 3 or any(item is not None and type(item) is not int for item in items):
                 raise ReferenceV2Error("Invalid preprocessing slice.")
             return slice(*items)
         return tuple(items) if kind == "tuple" else items
@@ -218,8 +216,7 @@ def _decode(value: Any, budget: list[int], depth: int = 0) -> Any:
         items = child(value["items"])
         array = np.asarray(items, dtype=_dtype(value["dtype"]))
         if list(array.shape) != shape or (
-            array.dtype.kind == "O"
-            and any(type(item) is not str for item in array.flat)
+            array.dtype.kind == "O" and any(type(item) is not str for item in array.flat)
         ):
             raise ReferenceV2Error("Invalid preprocessing array values.")
         return array
@@ -254,12 +251,9 @@ def _validate_recipe(transformer: Any, fit_rows: int) -> None:
         ("cat", list(CATEGORICAL_FEATURES)),
     ]
     if (
-        [(name, list(cols)) for name, _, cols in transformer.transformers_]
-        != expected_columns
-        or [(name, list(cols)) for name, _, cols in transformer.transformers]
-        != expected_columns
-        or list(transformer.feature_names_in_)
-        != list(NUMERIC_FEATURES + CATEGORICAL_FEATURES)
+        [(name, list(cols)) for name, _, cols in transformer.transformers_] != expected_columns
+        or [(name, list(cols)) for name, _, cols in transformer.transformers] != expected_columns
+        or list(transformer.feature_names_in_) != list(NUMERIC_FEATURES + CATEGORICAL_FEATURES)
         or transformer.remainder != "drop"
         or transformer.sparse_threshold != 0.3
         or transformer.n_jobs is not None
@@ -319,11 +313,7 @@ def _validate_recipe(transformer: Any, fit_rows: int) -> None:
             or not np.isfinite(value).all()
         ):
             raise ReferenceV2Error("Invalid numerical fitted statistics.")
-    if (
-        np.any(scaler.var_ < 0)
-        or np.any(scaler.scale_ <= 0)
-        or len(encoder.categories_) != 15
-    ):
+    if np.any(scaler.var_ < 0) or np.any(scaler.scale_ <= 0) or len(encoder.categories_) != 15:
         raise ReferenceV2Error("Invalid scaling or category statistics.")
     for values in encoder.categories_:
         if (
@@ -357,9 +347,7 @@ def load_preprocessing(data: bytes) -> RAGPreprocessor:
         for name, values in zip(CATEGORICAL_FEATURES, encoder.categories_, strict=True)
     }
     if categories != actual_categories:
-        raise ReferenceV2Error(
-            "Category validation vocabulary differs from the fitted encoder."
-        )
+        raise ReferenceV2Error("Category validation vocabulary differs from the fitted encoder.")
     preprocessor = RAGPreprocessor(transformer, categories, expected["fit"])
     if preprocessor.metadata != expected:
         raise ReferenceV2Error("Restored preprocessing does not match its metadata.")

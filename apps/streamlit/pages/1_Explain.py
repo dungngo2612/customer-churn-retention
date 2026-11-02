@@ -29,12 +29,8 @@ if context is None:
 else:
     st.write(f"Model đang dùng khi scoring: {context.bundle.model_version}")
     st.caption(f"Bundle: {context.bundle_path}")
-    background_path = st.text_input(
-        "Background chỉ từ train.csv", value="data/processed/train.csv"
-    )
-    st.caption(
-        "Lấy tối đa 200 dòng train, seed 42. Global importance mô tả mẫu nền này."
-    )
+    background_path = st.text_input("Background chỉ từ train.csv", value="data/processed/train.csv")
+    st.caption("Lấy tối đa 200 dòng train, seed 42. Global importance mô tả mẫu nền này.")
 
     try:
         customer_id = st.selectbox(
@@ -44,9 +40,7 @@ else:
             background = load_train_background(background_path)
             global_result = explain_global(context.bundle, background)
             row = select_customer(context.dataset, customer_id)
-            local = ModelExplanation.model_validate(
-                explain_one(context.bundle, row, background)
-            )
+            local = ModelExplanation.model_validate(explain_one(context.bundle, row, background))
 
             st.subheader("Toàn cục: mean |SHAP| theo feature gốc")
             st.bar_chart(
@@ -71,12 +65,8 @@ else:
                 sort=False,
             )
             st.dataframe(frame, hide_index=True)
-            total = local.base_value + sum(
-                item.contribution for item in local.contributions
-            )
-            st.caption(
-                f"Base + tổng contribution = {total:.9f}; log-odds = {local.log_odds:.9f}."
-            )
+            total = local.base_value + sum(item.contribution for item in local.contributions)
+            st.caption(f"Base + tổng contribution = {total:.9f}; log-odds = {local.log_odds:.9f}.")
             with st.expander("Chi tiết cột sau preprocessing / one-hot"):
                 st.dataframe(
                     [item.model_dump() for item in local.detailed_contributions],

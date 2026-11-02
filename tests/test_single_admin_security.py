@@ -42,9 +42,7 @@ def test_port_fail_closed(launch_env, port):
         demo.configure(port, None, False)
 
 
-def test_default_overrides_inherited_live_and_removes_keys(
-    launch_env, monkeypatch, tmp_path
-):
+def test_default_overrides_inherited_live_and_removes_keys(launch_env, monkeypatch, tmp_path):
     monkeypatch.setenv("CHURN_DASHBOARD_ALLOW_LIVE", "1")
     monkeypatch.setenv("GROQ_API_KEY", "synthetic-unit-test-only")
     monkeypatch.setenv("CHURN_DASHBOARD_DEMO_RUN", "production-run")
@@ -86,9 +84,7 @@ def test_live_requires_exact_terminal_confirmation(launch_env, monkeypatch, answ
         demo.configure(8501, None, True)
 
 
-def test_confirmed_live_still_requires_existing_ui_consent(
-    launch_env, monkeypatch, tmp_path
-):
+def test_confirmed_live_still_requires_existing_ui_consent(launch_env, monkeypatch, tmp_path):
     monkeypatch.setattr("builtins.input", lambda _: "ENABLE LIVE API")
     policy = demo.configure(8501, str(tmp_path / "demo"), True)
     assert policy.live and os.environ["CHURN_DASHBOARD_PREVIEW"] == "0"

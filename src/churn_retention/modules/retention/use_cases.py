@@ -53,7 +53,7 @@ _OPS = {
 
 @dataclass(frozen=True)
 class Condition:
-    """Một điều kiện trên một cột dữ liệu thật, ví dụ Condition("Contract", "eq", "Month-to-month")."""
+    'Một điều kiện trên một cột dữ liệu thật, ví dụ Condition("Contract", "eq", "Month-to-month").'
 
     column: str
     op: str
@@ -61,9 +61,7 @@ class Condition:
 
     def __post_init__(self):
         if self.op not in _OPS:
-            raise ValidationError(
-                f"Toán tử '{self.op}' không hỗ trợ; chọn trong {sorted(_OPS)}"
-            )
+            raise ValidationError(f"Toán tử '{self.op}' không hỗ trợ; chọn trong {sorted(_OPS)}")
 
     def mask(self, df: pd.DataFrame) -> pd.Series:
         return _OPS[self.op](df[self.column], self.value)
@@ -91,11 +89,7 @@ class ActionConfig:
             self.acceptance_rate,
             self.efficacy,
         ):
-            if (
-                isinstance(value, bool)
-                or not isinstance(value, Real)
-                or not isfinite(value)
-            ):
+            if isinstance(value, bool) or not isinstance(value, Real) or not isfinite(value):
                 raise ValidationError("Tham số hành động phải là số hữu hạn")
         if not isfinite(self.expected_cost):
             raise ValidationError("Chi phí kỳ vọng phải hữu hạn")
@@ -106,14 +100,9 @@ class ActionConfig:
             ("efficacy", self.efficacy),
         ):
             if not 0.0 <= v <= 1.0:
-                raise ValidationError(
-                    f"{self.code}: {label} phải trong [0, 1], nhận {v}"
-                )
+                raise ValidationError(f"{self.code}: {label} phải trong [0, 1], nhận {v}")
         if self.is_no_action and (
-            self.expected_cost != 0
-            or self.effective_reduction != 0
-            or self.all_of
-            or self.any_of
+            self.expected_cost != 0 or self.effective_reduction != 0 or self.all_of or self.any_of
         ):
             raise ValidationError(
                 f"{self.code}: phương án không can thiệp phải có chi phí 0, "
@@ -181,9 +170,7 @@ def actions_from_dicts(items: Iterable[Mapping]) -> tuple:
         for c in d.get(key, []):
             v = c["value"]
             out.append(
-                Condition(
-                    c["column"], c["op"], tuple(v) if isinstance(v, (list, set)) else v
-                )
+                Condition(c["column"], c["op"], tuple(v) if isinstance(v, (list, set)) else v)
             )
         return tuple(out)
 
@@ -216,35 +203,25 @@ def validate_actions(actions: Sequence[ActionConfig]) -> None:
     if len(set(codes)) != len(codes):
         raise ValidationError(f"Mã hành động bị trùng: {codes}")
     if sum(a.is_no_action for a in actions) != 1:
-        raise ValidationError(
-            "Cần đúng một phương án không can thiệp (is_no_action=True)"
-        )
+        raise ValidationError("Cần đúng một phương án không can thiệp (is_no_action=True)")
 
 
 def _sample(values, n=5) -> str:
     vals = list(values)
-    return ", ".join(map(str, vals[:n])) + (
-        f" ... (+{len(vals) - n})" if len(vals) > n else ""
-    )
+    return ", ".join(map(str, vals[:n])) + (f" ... (+{len(vals) - n})" if len(vals) > n else "")
 
 
 # bool aliases True/False share the integer keys 1/0.
 _CHURN_MAP = {"Yes": 1, "No": 0, 1: 1, 0: 0, "1": 1, "0": 0}
 
 
-def _prepare(
-    customers: pd.DataFrame, predictions: pd.DataFrame, actions
-) -> pd.DataFrame:
+def _prepare(customers: pd.DataFrame, predictions: pd.DataFrame, actions) -> pd.DataFrame:
     """Kiểm tra đầu vào, lọc khách đang hoạt động, ghép prediction THEO customer_id."""
-    if not isinstance(customers, pd.DataFrame) or not isinstance(
-        predictions, pd.DataFrame
-    ):
+    if not isinstance(customers, pd.DataFrame) or not isinstance(predictions, pd.DataFrame):
         raise ValidationError("customers và predictions phải là DataFrame")
 
     cond_cols = {c.column for a in actions for c in (*a.all_of, *a.any_of)}
-    needed = list(
-        dict.fromkeys([*REQUIRED_COLUMNS, *FILTER_COLUMNS, *sorted(cond_cols)])
-    )
+    needed = list(dict.fromkeys([*REQUIRED_COLUMNS, *FILTER_COLUMNS, *sorted(cond_cols)]))
     missing = [c for c in needed if c not in customers.columns]
     if missing:
         raise ValidationError(f"Thiếu cột bắt buộc trong dữ liệu khách hàng: {missing}")
@@ -292,9 +269,7 @@ def _prepare(
     for col in needed:
         nulls = active.loc[active[col].isna(), "customerID"]
         if len(nulls):
-            raise ValidationError(
-                f"Cột '{col}' có giá trị thiếu ở khách: {_sample(nulls)}"
-            )
+            raise ValidationError(f"Cột '{col}' có giá trị thiếu ở khách: {_sample(nulls)}")
 
     pred = predictions[list(PREDICTION_COLUMNS)].copy()
     if pred["customer_id"].isna().any():
@@ -315,9 +290,7 @@ def _prepare(
         )
     no_pred = sorted(set(active["customerID"]) - set(pred["customer_id"]))
     if no_pred:
-        raise ValidationError(
-            f"Thiếu prediction cho khách đang hoạt động: {_sample(no_pred)}"
-        )
+        raise ValidationError(f"Thiếu prediction cho khách đang hoạt động: {_sample(no_pred)}")
 
     return active.merge(
         pred.rename(columns={"customer_id": "customerID"}),
@@ -354,9 +327,7 @@ def _check_params(margin: float, horizon_months: int) -> None:
         or int(horizon_months) != horizon_months
         or horizon_months <= 0
     ):
-        raise ValidationError(
-            f"horizon_months phải là số nguyên dương, nhận {horizon_months}"
-        )
+        raise ValidationError(f"horizon_months phải là số nguyên dương, nhận {horizon_months}")
 
 
 OPTION_COLUMNS = [
@@ -395,9 +366,7 @@ def evaluate_actions(
 
     frames = []
     for a in actions:
-        sub = base.loc[
-            _eligible_mask(base, a), ["customerID", "churn_prob", "proxy_value"]
-        ].copy()
+        sub = base.loc[_eligible_mask(base, a), ["customerID", "churn_prob", "proxy_value"]].copy()
         sub["action_code"], sub["action_name"], sub["is_no_action"] = (
             a.code,
             a.name,
@@ -405,11 +374,7 @@ def evaluate_actions(
         )
         sub["cost"], sub["reduction"] = a.expected_cost, a.effective_reduction
         frames.append(sub)
-    out = (
-        pd.concat(frames, ignore_index=True)
-        if frames
-        else pd.DataFrame(columns=OPTION_COLUMNS)
-    )
+    out = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=OPTION_COLUMNS)
     if out.empty:
         return pd.DataFrame(columns=OPTION_COLUMNS)
 
@@ -418,11 +383,7 @@ def evaluate_actions(
     out["net_value"] = out["benefit"] - out["cost"]
     denom = out["reduction"] * out["proxy_value"]
     out["breakeven_prob"] = out["cost"] / denom.where(denom > 0)
-    return (
-        out[OPTION_COLUMNS]
-        .sort_values(["customerID", "action_code"])
-        .reset_index(drop=True)
-    )
+    return out[OPTION_COLUMNS].sort_values(["customerID", "action_code"]).reset_index(drop=True)
 
 
 RANK_COLUMNS = [
@@ -460,13 +421,11 @@ def recommend(
     )
     best = cand.drop_duplicates("customerID", keep="first")
     baseline = options[options["is_no_action"]].drop_duplicates("customerID")
-    chosen = pd.concat(
-        [best, baseline[~baseline["customerID"].isin(best["customerID"])]]
-    )
+    chosen = pd.concat([best, baseline[~baseline["customerID"].isin(best["customerID"])]])
 
-    chosen = chosen.sort_values(
-        ["net_value", "customerID"], ascending=[False, True]
-    ).reset_index(drop=True)
+    chosen = chosen.sort_values(["net_value", "customerID"], ascending=[False, True]).reset_index(
+        drop=True
+    )
     chosen["rank"] = range(1, len(chosen) + 1)
     return chosen[RANK_COLUMNS]
 

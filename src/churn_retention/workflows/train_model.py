@@ -155,15 +155,9 @@ def _validate_split_separation(train_df: pd.DataFrame, val_df: pd.DataFrame) -> 
     val_id_columns = [col for col in id_columns if col in val_df.columns]
     if train_id_columns and val_id_columns:
         train_ids = {
-            str(value).strip()
-            for col in train_id_columns
-            for value in train_df[col].dropna()
+            str(value).strip() for col in train_id_columns for value in train_df[col].dropna()
         }
-        val_ids = {
-            str(value).strip()
-            for col in val_id_columns
-            for value in val_df[col].dropna()
-        }
+        val_ids = {str(value).strip() for col in val_id_columns for value in val_df[col].dropna()}
         train_ids.discard("")
         val_ids.discard("")
         if shared_ids := train_ids & val_ids:
@@ -176,17 +170,12 @@ def _validate_split_separation(train_df: pd.DataFrame, val_df: pd.DataFrame) -> 
 
     # Align columns and dtypes, ignore row indices and any remaining ID columns.
     rows = pd.concat(
-        [
-            frame.drop(columns=list(id_columns), errors="ignore")
-            for frame in (train_df, val_df)
-        ],
+        [frame.drop(columns=list(id_columns), errors="ignore") for frame in (train_df, val_df)],
         ignore_index=True,
         sort=True,
     )
     hashes = pd.util.hash_pandas_object(rows, index=False)
-    matching_rows = int(
-        hashes.iloc[len(train_df) :].isin(hashes.iloc[: len(train_df)]).sum()
-    )
+    matching_rows = int(hashes.iloc[len(train_df) :].isin(hashes.iloc[: len(train_df)]).sum())
     val_rows = len(val_df)
     if val_rows and matching_rows / val_rows >= _MIN_VAL_ROW_OVERLAP_RATIO:
         raise ValueError(

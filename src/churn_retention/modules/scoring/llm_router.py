@@ -42,9 +42,7 @@ class LLMRouterError(LLMProviderError):
         self.fallback_error = fallback_error
         self.deadline_exceeded = deadline_exceeded
         reason = (
-            "LLM request deadline exceeded"
-            if deadline_exceeded
-            else "Both LLM providers failed"
+            "LLM request deadline exceeded" if deadline_exceeded else "Both LLM providers failed"
         )
         super().__init__(
             f"{reason}: primary={type(primary_error).__name__}; "
@@ -72,9 +70,7 @@ def _safe_error(error: Exception) -> LLMProviderError:
     """Copy only allowlisted categories and HTTP codes, never exception text."""
     message = "Provider request failed."
     if isinstance(error, LLMResponseValidationError):
-        return LLMResponseValidationError(
-            "Provider response failed validation.", code=error.code
-        )
+        return LLMResponseValidationError("Provider response failed validation.", code=error.code)
     if isinstance(error, LLMAPIError):
         code = error.status_code
         code = code if type(code) is int and 100 <= code <= 599 else None
@@ -98,15 +94,11 @@ def _validate_time(value: float, name: str, *, allow_zero: bool = False) -> None
         )
 
 
-def _validate_deadline(
-    hedge_delay_seconds: float, total_timeout_seconds: float
-) -> None:
+def _validate_deadline(hedge_delay_seconds: float, total_timeout_seconds: float) -> None:
     _validate_time(hedge_delay_seconds, "hedge_delay_seconds", allow_zero=True)
     _validate_time(total_timeout_seconds, "total_timeout_seconds")
     if total_timeout_seconds <= hedge_delay_seconds:
-        raise LLMConfigurationError(
-            "total_timeout_seconds must exceed hedge_delay_seconds."
-        )
+        raise LLMConfigurationError("total_timeout_seconds must exceed hedge_delay_seconds.")
 
 
 @dataclass(frozen=True)
@@ -150,9 +142,7 @@ class LLMRouter:
             name is not None and name not in ("Groq", "Gemini")
             for name in (primary_provider, fallback_provider)
         ):
-            raise LLMConfigurationError(
-                "Provider labels must be Groq, Gemini, or None."
-            )
+            raise LLMConfigurationError("Provider labels must be Groq, Gemini, or None.")
         self._primary = primary
         self._fallback = fallback
         self._primary_provider = primary_provider
@@ -199,9 +189,7 @@ class LLMRouter:
                 except Exception:  # noqa: BLE001 -- Never expose arbitrary validator errors.
                     raise LLMResponseValidationError(code="validator_error") from None
         except asyncio.CancelledError:
-            events.put_nowait(
-                _Outcome(role, error=LLMProviderError("Provider request cancelled."))
-            )
+            events.put_nowait(_Outcome(role, error=LLMProviderError("Provider request cancelled.")))
             raise
         except Exception as error:  # noqa: BLE001 -- Any provider failure must permit fallback.
             events.put_nowait(_Outcome(role, error=_safe_error(error)))
@@ -216,9 +204,7 @@ class LLMRouter:
         events: asyncio.Queue[_Event] = asyncio.Queue()
         loop = get_running_loop()
         hedge = loop.call_later(self.hedge_delay_seconds, events.put_nowait, "hedge")
-        deadline = loop.call_later(
-            self.total_timeout_seconds, events.put_nowait, "deadline"
-        )
+        deadline = loop.call_later(self.total_timeout_seconds, events.put_nowait, "deadline")
         children: list[asyncio.Task[None]] = []
         failures: dict[_Role, LLMProviderError] = {}
         fallback_started = False
@@ -227,9 +213,7 @@ class LLMRouter:
             children.append(
                 self._track(
                     asyncio.create_task(
-                        self._invoke(
-                            role, provider, prompt, events, response_validator
-                        ),
+                        self._invoke(role, provider, prompt, events, response_validator),
                         name=f"llm-router:{role}",
                     )
                 )
@@ -274,9 +258,7 @@ class LLMRouter:
                     if event.role == "primary":
                         start_fallback()
                     if len(failures) == 2:
-                        raise LLMRouterError(
-                            failures["primary"], failures["fallback"]
-                        ) from None
+                        raise LLMRouterError(failures["primary"], failures["fallback"]) from None
         finally:
             hedge.cancel()
             deadline.cancel()
@@ -287,9 +269,7 @@ class LLMRouter:
         self, prompt: str, *, response_validator: ResponseValidator | None = None
     ) -> str:
         """Keep the default string API; validation is optional and per request."""
-        return (
-            await self.generate_result(prompt, response_validator=response_validator)
-        ).content
+        return (await self.generate_result(prompt, response_validator=response_validator)).content
 
     async def generate_result(
         self, prompt: str, *, response_validator: ResponseValidator | None = None
@@ -308,13 +288,9 @@ class LLMRouter:
                 getattr(response_validator, "__call__", None)  # noqa: B004 -- Inspect async callable instances, not callability.
             )
         ):
-            raise LLMConfigurationError(
-                "response_validator must be a synchronous callable."
-            )
+            raise LLMConfigurationError("response_validator must be a synchronous callable.")
         request = self._track(
-            asyncio.create_task(
-                self._race(prompt, response_validator), name="llm-router:request"
-            )
+            asyncio.create_task(self._race(prompt, response_validator), name="llm-router:request")
         )
         return await request
 
@@ -341,9 +317,7 @@ class LLMRouter:
         """
         self._closed = True
         if self._close_task is None:
-            self._close_task = asyncio.create_task(
-                self._drain(), name="llm-router:close"
-            )
+            self._close_task = asyncio.create_task(self._drain(), name="llm-router:close")
         cancelled = False
         while not self._close_task.done():
             try:
@@ -381,9 +355,7 @@ async def groq_gemini_router(
     _validate_time(primary_timeout_seconds, "primary_timeout_seconds")
     _validate_time(fallback_timeout_seconds, "fallback_timeout_seconds")
     if primary_timeout_seconds <= hedge_delay_seconds:
-        raise LLMConfigurationError(
-            "primary_timeout_seconds must exceed hedge_delay_seconds."
-        )
+        raise LLMConfigurationError("primary_timeout_seconds must exceed hedge_delay_seconds.")
 
     # Keep concrete SDK dependencies out of the injected router's import path.
     from churn_retention.adapters.llm.gemini_provider import GeminiProvider

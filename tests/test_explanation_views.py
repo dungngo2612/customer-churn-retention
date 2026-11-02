@@ -68,8 +68,7 @@ def explanation_result():
             "probability": 0.5,
             "background": {"seed": 42, "rows": 1, "customer_ids": ["train-a"]},
             "feature_schema": [
-                {"name": name, "kind": "numeric", "dtype": "float64"}
-                for name in ["x", "y"]
+                {"name": name, "kind": "numeric", "dtype": "float64"} for name in ["x", "y"]
             ],
             "contributions": [
                 {

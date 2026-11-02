@@ -35,16 +35,12 @@ def accepted() -> PredictionRecord:
             "reference_version": "rag-v2-synthetic-test",
         }
     )
-    return PredictionRecord.capture(
-        sample.features(), prediction, reference_sha256="a" * 64
-    )
+    return PredictionRecord.capture(sample.features(), prediction, reference_sha256="a" * 64)
 
 
 def test_record_is_deeply_immutable_and_round_trips() -> None:
     record = accepted()
-    assert (
-        isinstance(record.record_id, UUID) and record.created_at.utcoffset() is not None
-    )
+    assert isinstance(record.record_id, UUID) and record.created_at.utcoffset() is not None
     with pytest.raises(ValidationError):
         record.origin = "synthetic"  # type: ignore[misc]
     with pytest.raises(ValidationError):
@@ -57,9 +53,7 @@ def test_record_is_deeply_immutable_and_round_trips() -> None:
     assert PredictionRecord.model_validate_json(record.model_dump_json()) == record
 
 
-@pytest.mark.parametrize(
-    "extra", [{"customerID": "fake"}, {"Churn": "Yes"}, {"api_key": "fake"}]
-)
+@pytest.mark.parametrize("extra", [{"customerID": "fake"}, {"Churn": "Yes"}, {"api_key": "fake"}])
 def test_snapshot_does_not_accept_identity_labels_or_credentials(extra) -> None:
     record = accepted()
     with pytest.raises(ValueError):
@@ -89,13 +83,8 @@ def test_record_requires_v2_provenance_and_synthetic_records_cannot_claim_it() -
     with pytest.raises(ValueError):
         PredictionRecord.capture(record.features(), record.prediction)
     with pytest.raises(ValueError):
-        PredictionRecord.capture(
-            record.features(), record.prediction, origin="synthetic"
-        )
-    assert all(
-        r.origin == "synthetic" and r.prediction.provider is None
-        for r, _ in demo_inputs()
-    )
+        PredictionRecord.capture(record.features(), record.prediction, origin="synthetic")
+    assert all(r.origin == "synthetic" and r.prediction.provider is None for r, _ in demo_inputs())
 
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), -1.0, True, "70"])
@@ -174,21 +163,15 @@ def test_budget_and_ordering_are_deterministic_and_records_unchanged(budget) -> 
     assert len(result.allocations) == 2  # Inactive and zero-tenure cases are excluded.
     assert result.allocations["cost"].sum() <= budget + 1e-9
     assert result.allocations["customerID"].is_unique
-    pd.testing.assert_frame_equal(
-        result.allocations, simulate(inputs, config).allocations
-    )
+    pd.testing.assert_frame_equal(result.allocations, simulate(inputs, config).allocations)
     assert before == [r.model_dump_json() for r, _ in inputs]
-    assert result.synthetic and all(
-        r.prediction.probability_calibrated is False for r, _ in inputs
-    )
+    assert result.synthetic and all(r.prediction.probability_calibrated is False for r, _ in inputs)
 
 
 def test_all_a0_and_empty_inputs_are_valid_scenarios() -> None:
     result = simulate(demo_inputs(), RetentionScenario(contact_cost_multiplier=1000.0))
     assert set(result.allocations["action_code"]) == {"A0"}
-    assert (
-        result.allocations["cost"].sum() == result.allocations["net_value"].sum() == 0
-    )
+    assert result.allocations["cost"].sum() == result.allocations["net_value"].sum() == 0
     assert simulate([], RetentionScenario()).allocations.empty
 
 
@@ -210,9 +193,7 @@ def test_finite_inputs_cannot_overflow_economic_outputs() -> None:
             [
                 (
                     huge,
-                    CustomerContext(
-                        customer_ref="synthetic-overflow", observed_active=True
-                    ),
+                    CustomerContext(customer_ref="synthetic-overflow", observed_active=True),
                 )
             ],
             RetentionScenario(),

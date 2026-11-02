@@ -47,9 +47,7 @@ def _read_payloads(data: bytes) -> tuple[ReferenceManifestV2, dict[str, bytes]]:
         infos = archive.infolist()
         names = [info.filename for info in infos]
         if len(names) != len(PAYLOAD_LIMITS) or set(names) != set(PAYLOAD_LIMITS):
-            raise ReferenceV2Error(
-                "Unexpected, missing, duplicate or unsafe ZIP payloads."
-            )
+            raise ReferenceV2Error("Unexpected, missing, duplicate or unsafe ZIP payloads.")
         if sum(info.file_size for info in infos) > MAX_TOTAL_BYTES:
             raise ReferenceV2Error("Archive exceeds the total expanded size limit.")
         for info in infos:
@@ -62,36 +60,22 @@ def _read_payloads(data: bytes) -> tuple[ReferenceManifestV2, dict[str, bytes]]:
                 or info.compress_type not in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED}
                 or info.file_size > 200 * max(1, info.compress_size)
             ):
-                raise ReferenceV2Error(
-                    "ZIP payload exceeds limits or uses unsupported attributes."
-                )
-        manifest = ReferenceManifestV2.model_validate(
-            strict_json(archive.read("manifest.json"))
-        )
-        if (
-            set(manifest.files) != PAYLOAD_NAMES
-            or manifest.libraries != runtime_versions()
-        ):
-            raise ReferenceV2Error(
-                "Invalid payload inventory or incompatible libraries."
-            )
-        if (
-            manifest.row_count * manifest.transformed_feature_count
-            > MAX_MATRIX_ELEMENTS
-        ):
+                raise ReferenceV2Error("ZIP payload exceeds limits or uses unsupported attributes.")
+        manifest = ReferenceManifestV2.model_validate(strict_json(archive.read("manifest.json")))
+        if set(manifest.files) != PAYLOAD_NAMES or manifest.libraries != runtime_versions():
+            raise ReferenceV2Error("Invalid payload inventory or incompatible libraries.")
+        if manifest.row_count * manifest.transformed_feature_count > MAX_MATRIX_ELEMENTS:
             raise ReferenceV2Error("Matrix exceeds the element limit.")
         payloads = {name: archive.read(name) for name in PAYLOAD_NAMES}
     # Verify every payload BEFORE fitted-state restoration or NPY decoding.
     if any(sha256(payloads[name]) != digest for name, digest in manifest.files.items()):
         raise ReferenceV2Error("Artifact payload checksum verification failed.")
     if (
-        manifest.reference_version
-        != reference_version(manifest.files, manifest.libraries)
+        manifest.reference_version != reference_version(manifest.files, manifest.libraries)
         or manifest.schema_sha256 != manifest.files["schema.json"]
         or manifest.preprocessing_sha256 != manifest.files["preprocessing/state.json"]
         or manifest.split_sha256 != manifest.files["splits.csv"]
-        or manifest.output_feature_names_sha256
-        != sha256(json_bytes(manifest.output_feature_names))
+        or manifest.output_feature_names_sha256 != sha256(json_bytes(manifest.output_feature_names))
     ):
         raise ReferenceV2Error("Manifest hashes or reference version disagree.")
     return manifest, payloads
@@ -101,13 +85,9 @@ def _matrix(data: bytes, manifest: ReferenceManifestV2) -> NDArray[np.float64]:
     buffer = io.BytesIO(data)
     version = np.lib.format.read_magic(buffer)
     if version == (1, 0):
-        shape, fortran, dtype = np.lib.format.read_array_header_1_0(
-            buffer, max_header_size=10_000
-        )
+        shape, fortran, dtype = np.lib.format.read_array_header_1_0(buffer, max_header_size=10_000)
     elif version == (2, 0):
-        shape, fortran, dtype = np.lib.format.read_array_header_2_0(
-            buffer, max_header_size=10_000
-        )
+        shape, fortran, dtype = np.lib.format.read_array_header_2_0(buffer, max_header_size=10_000)
     else:
         raise ReferenceV2Error("Unsupported NPY header version.")
     if (
@@ -123,9 +103,7 @@ def _matrix(data: bytes, manifest: ReferenceManifestV2) -> NDArray[np.float64]:
         or sha256(np.asarray(result, dtype="<f8", order="C").tobytes())
         != manifest.matrix_values_sha256
     ):
-        raise ReferenceV2Error(
-            "Matrix has non-finite values or a mismatched value hash."
-        )
+        raise ReferenceV2Error("Matrix has non-finite values or a mismatched value hash.")
     return result
 
 
@@ -192,9 +170,7 @@ class VerificationReferenceV2:
                 expected_artifact_sha256 is not None
                 and sha256(archive_bytes) != expected_artifact_sha256
             ):
-                raise ReferenceV2Error(
-                    "Artifact does not match the externally pinned hash."
-                )
+                raise ReferenceV2Error("Artifact does not match the externally pinned hash.")
             manifest, payloads = _read_payloads(archive_bytes)
             if (
                 expected_reference_version is not None
@@ -207,8 +183,7 @@ class VerificationReferenceV2:
                     "Artifact does not match the requested reference or dataset hash."
                 )
             schema = [
-                FeatureColumn.model_validate(item)
-                for item in strict_json(payloads["schema.json"])
+                FeatureColumn.model_validate(item) for item in strict_json(payloads["schema.json"])
             ]
             if schema != list(FEATURE_SCHEMA):
                 raise ReferenceV2Error(
@@ -233,10 +208,8 @@ class VerificationReferenceV2:
             if (
                 preprocessor.metadata["fit"] != manifest.fit.model_dump()
                 or preprocessor.metadata["libraries"] != manifest.libraries
-                or list(preprocessor.output_feature_names)
-                != manifest.output_feature_names
-                or len(manifest.output_feature_names)
-                != manifest.transformed_feature_count
+                or list(preprocessor.output_feature_names) != manifest.output_feature_names
+                or len(manifest.output_feature_names) != manifest.transformed_feature_count
             ):
                 raise ReferenceV2Error("Fitted preprocessing and manifest disagree.")
             lines = payloads["records.jsonl"].splitlines()
@@ -245,18 +218,13 @@ class VerificationReferenceV2:
             stored = [StoredRecord.model_validate(strict_json(line)) for line in lines]
             ids = [validate_id(row.customer_id) for row in stored]
             if ids != sorted(train_ids):
-                raise ReferenceV2Error(
-                    "Reference records must be sorted and exactly train-only."
-                )
+                raise ReferenceV2Error("Reference records must be sorted and exactly train-only.")
             cleaned = [preprocessor.clean(row.features) for row in stored]
             if any(
-                row.features != clean
-                or set(row.features) != set(preprocessor.input_feature_names)
+                row.features != clean or set(row.features) != set(preprocessor.input_feature_names)
                 for row, clean in zip(stored, cleaned, strict=True)
             ):
-                raise ReferenceV2Error(
-                    "Reference records must contain canonical features only."
-                )
+                raise ReferenceV2Error("Reference records must contain canonical features only.")
             matrix = _matrix(payloads["matrix.npy"], manifest)
             if not np.array_equal(matrix, preprocessor.transform_many(cleaned)):
                 raise ReferenceV2Error(
@@ -279,11 +247,7 @@ class VerificationReferenceV2:
     ) -> PreparedQuery:
         if not isinstance(query, Mapping):
             raise TypeError("Query must be a mapping of customer features.")
-        ids = [
-            validate_id(query[name])
-            for name in ("customerID", "customer_id")
-            if name in query
-        ]
+        ids = [validate_id(query[name]) for name in ("customerID", "customer_id") if name in query]
         if customer_id is not None:
             ids.append(validate_id(customer_id))
         if len(set(ids)) > 1:
@@ -291,9 +255,7 @@ class VerificationReferenceV2:
         features = self.clean_features(query)
         vector = self.preprocessor.transform_one(query)
         vector.setflags(write=False)
-        return PreparedQuery(
-            MappingProxyType(features), vector, ids[0] if ids else None
-        )
+        return PreparedQuery(MappingProxyType(features), vector, ids[0] if ids else None)
 
     def clean_features(self, query: Mapping[str, object]) -> dict[str, Scalar]:
         return self.preprocessor.clean(query)

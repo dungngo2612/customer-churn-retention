@@ -85,9 +85,7 @@ def make_source(directory: Path, n: int = 5) -> Source:
                 "tenure": i,
                 "MonthlyCharges": 20.0 + i,
                 "TotalCharges": float(i * (20 + i)),
-                **{
-                    name: values[i % len(values)] for name, values in CATEGORIES.items()
-                },
+                **{name: values[i % len(values)] for name, values in CATEGORIES.items()},
             }
         )
     frame = pd.DataFrame(rows)
@@ -113,9 +111,7 @@ def make_source(directory: Path, n: int = 5) -> Source:
                     [
                         (
                             "imputer",
-                            SimpleImputer(
-                                strategy="constant", fill_value="__MISSING__"
-                            ),
+                            SimpleImputer(strategy="constant", fill_value="__MISSING__"),
                         ),
                         ("onehot", OneHotEncoder(handle_unknown="ignore")),
                     ]
@@ -124,9 +120,7 @@ def make_source(directory: Path, n: int = 5) -> Source:
             ),
         ]
     ).fit(X)
-    pipeline = Pipeline(
-        [("preprocessor", preprocessor), ("model", LogisticRegression())]
-    )
+    pipeline = Pipeline([("preprocessor", preprocessor), ("model", LogisticRegression())])
     bundle = directory / "logistic-unit-fixture"
     save_bundle(
         pipeline,
@@ -148,9 +142,7 @@ def make_source(directory: Path, n: int = 5) -> Source:
             "split": ["train"] * n + ["val", "test"],
         }
     ).to_csv(splits, index=False)
-    return Source(
-        train, bundle, splits, directory / "reference.zip", frame, preprocessor
-    )
+    return Source(train, bundle, splits, directory / "reference.zip", frame, preprocessor)
 
 
 @pytest.fixture
@@ -175,9 +167,7 @@ def rewrite_archive(path: Path, change, *, resign: bool = False) -> None:
     if resign:
         manifest = json.loads(payloads["manifest.json"])
         manifest["files"] = {
-            name: sha256(value)
-            for name, value in payloads.items()
-            if name != "manifest.json"
+            name: sha256(value) for name, value in payloads.items() if name != "manifest.json"
         }
         payloads["manifest.json"] = json.dumps(manifest).encode()
     with zipfile.ZipFile(path, "w") as archive:
@@ -192,9 +182,7 @@ def test_builder_produces_consistent_artifact(source: Source) -> None:
     )
     assert manifest.row_count == len(source.frame) == len(store.records)
     assert len(manifest.feature_schema) == 19
-    assert (
-        manifest.dataset_sha256 == hashlib.sha256(source.train.read_bytes()).hexdigest()
-    )
+    assert manifest.dataset_sha256 == hashlib.sha256(source.train.read_bytes()).hexdigest()
     assert manifest.split_sha256 == sha256(source.splits.read_bytes())
     assert manifest.split_counts == {"train": 5, "val": 1, "test": 1}
     assert manifest.reference_split == "train"
@@ -205,10 +193,7 @@ def test_builder_produces_consistent_artifact(source: Source) -> None:
     )
     with zipfile.ZipFile(source.output) as archive:
         assert set(archive.namelist()) == set(manifest.files) | {"manifest.json"}
-        assert all(
-            sha256(archive.read(name)) == digest
-            for name, digest in manifest.files.items()
-        )
+        assert all(sha256(archive.read(name)) == digest for name, digest in manifest.files.items())
 
 
 @pytest.mark.parametrize("id_value", ["held-out-val", "held-out-test", "unknown"])
@@ -241,9 +226,7 @@ def test_builder_rejects_invalid_labels(source: Source, invalid: object) -> None
 def test_builder_rejects_invalid_ids(source: Source, kind: str) -> None:
     frame = source.frame.copy()
     frame.loc[0, "customerID"] = (
-        frame.loc[1, "customerID"]
-        if kind == "duplicate"
-        else (" " if kind == "empty" else None)
+        frame.loc[1, "customerID"] if kind == "duplicate" else (" " if kind == "empty" else None)
     )
     frame.to_csv(source.train, index=False)
     with pytest.raises(ValueError):
@@ -287,9 +270,7 @@ def test_never_refits_or_mutates_preprocessing_or_classifier(
     for _ in range(3):
         retriever.retrieve(query(source))
     assert pickle.dumps(store._preprocessor) == state
-    assert {
-        p: sha256(p.read_bytes()) for p in source.bundle.iterdir()
-    } == original_files
+    assert {p: sha256(p.read_bytes()) for p in source.bundle.iterdir()} == original_files
 
 
 def test_query_uses_exact_existing_transform_and_feature_order(
@@ -323,9 +304,7 @@ def test_top_k_matches_independent_euclidean_calculation(
     )[:3]
     result = SimilarCustomerRetriever(store, k=3).retrieve(row)
     assert [r.customer_id for r in result] == [r.customer_id for _, r in expected]
-    np.testing.assert_allclose(
-        [r.distance for r in result], [d for d, _ in expected], atol=1e-7
-    )
+    np.testing.assert_allclose([r.distance for r in result], [d for d, _ in expected], atol=1e-7)
     assert [r.distance for r in result] == sorted(r.distance for r in result)
 
 
@@ -342,9 +321,7 @@ def test_query_labels_and_nonmember_ids_have_no_effect_on_distance(
     )
 
 
-def test_reference_labels_are_not_encoded_into_matrix(
-    source: Source, tmp_path: Path
-) -> None:
+def test_reference_labels_are_not_encoded_into_matrix(source: Source, tmp_path: Path) -> None:
     source.build()
     original = ReferenceStore.load(source.output)
     frame = source.frame.copy()
@@ -366,16 +343,12 @@ def test_same_customer_is_excluded_and_large_k_is_clamped(
     assert len({r.customer_id for r in result}) == len(result)
 
 
-def test_explicit_customer_id_alias_and_conflicts(
-    source: Source, store: ReferenceStore
-) -> None:
+def test_explicit_customer_id_alias_and_conflicts(source: Source, store: ReferenceStore) -> None:
     row = query(source)
     own_id = row.pop("customerID")
     assert isinstance(own_id, str)
     retriever = SimilarCustomerRetriever(store)
-    assert all(
-        r.customer_id != own_id for r in retriever.retrieve(row, customer_id=own_id)
-    )
+    assert all(r.customer_id != own_id for r in retriever.retrieve(row, customer_id=own_id))
     assert retriever.retrieve({**row, "customer_id": own_id}) == retriever.retrieve(
         row, customer_id=own_id
     )
@@ -387,17 +360,12 @@ def test_only_self_reference_returns_empty(tmp_path: Path) -> None:
     source = make_source(tmp_path, n=1)
     source.build()
     assert (
-        SimilarCustomerRetriever(ReferenceStore.load(source.output)).retrieve(
-            query(source)
-        )
-        == []
+        SimilarCustomerRetriever(ReferenceStore.load(source.output)).retrieve(query(source)) == []
     )
 
 
 @pytest.mark.parametrize("k", [0, -1, True, 1.5, "5"])
-def test_invalid_k_is_rejected(
-    source: Source, store: ReferenceStore, k: object
-) -> None:
+def test_invalid_k_is_rejected(source: Source, store: ReferenceStore, k: object) -> None:
     with pytest.raises(ValueError, match="positive integer"):
         SimilarCustomerRetriever(store, k=cast(int, k))
     with pytest.raises(ValueError, match="positive integer"):
@@ -405,9 +373,7 @@ def test_invalid_k_is_rejected(
 
 
 @pytest.mark.parametrize("column", ["gender", "tenure", "TotalCharges"])
-def test_missing_features_are_rejected(
-    source: Source, store: ReferenceStore, column: str
-) -> None:
+def test_missing_features_are_rejected(source: Source, store: ReferenceStore, column: str) -> None:
     row = query(source)
     row.pop(column)
     with pytest.raises(ValueError, match="missing"):
@@ -482,12 +448,8 @@ def test_no_disk_reads_or_full_train_transforms_per_request(
 
     monkeypatch.setattr(store._preprocessor, "transform", transform_query_only)
     with (
-        patch.object(
-            pd, "read_csv", side_effect=AssertionError("No CSV reads at request time")
-        ),
-        patch.object(
-            zipfile, "ZipFile", side_effect=AssertionError("No archive reloads")
-        ),
+        patch.object(pd, "read_csv", side_effect=AssertionError("No CSV reads at request time")),
+        patch.object(zipfile, "ZipFile", side_effect=AssertionError("No archive reloads")),
         patch.object(Path, "read_bytes", side_effect=AssertionError("No disk reads")),
     ):
         for _ in range(3):
@@ -532,9 +494,9 @@ def test_deterministic_bytes_and_results(source: Source, tmp_path: Path) -> None
     first, repeated = ReferenceStore.load(source.output), ReferenceStore.load(second)
     retriever = SimilarCustomerRetriever(first)
     assert retriever.retrieve(query(source)) == retriever.retrieve(query(source))
-    assert retriever.retrieve(query(source)) == SimilarCustomerRetriever(
-        repeated
-    ).retrieve(query(source))
+    assert retriever.retrieve(query(source)) == SimilarCustomerRetriever(repeated).retrieve(
+        query(source)
+    )
 
 
 def test_global_ties_have_deterministic_id_order(source: Source) -> None:
@@ -603,9 +565,7 @@ def test_incompatible_manifest_is_rejected(source: Source, field: str) -> None:
 
 def test_checksums_are_checked_before_unpickling(source: Source) -> None:
     source.build()
-    rewrite_archive(
-        source.output, lambda p: p.__setitem__("bundle/model.pkl", b"corrupt")
-    )
+    rewrite_archive(source.output, lambda p: p.__setitem__("bundle/model.pkl", b"corrupt"))
     with (
         patch.object(
             pickle,
@@ -618,9 +578,7 @@ def test_checksums_are_checked_before_unpickling(source: Source) -> None:
 
 
 @pytest.mark.parametrize("kind", ["nan", "wrong_shape", "wrong_alignment", "object"])
-def test_invalid_matrix_is_rejected_even_with_updated_checksum(
-    source: Source, kind: str
-) -> None:
+def test_invalid_matrix_is_rejected_even_with_updated_checksum(source: Source, kind: str) -> None:
     source.build()
 
     def change(payloads):
@@ -699,9 +657,7 @@ def test_unfitted_preprocessing_is_rejected_without_fitting(source: Source) -> N
         ("gender", None),
     ],
 )
-def test_builder_rejects_unclean_values(
-    source: Source, column: str, value: Any
-) -> None:
+def test_builder_rejects_unclean_values(source: Source, column: str, value: Any) -> None:
     frame = source.frame.copy()
     frame.loc[0, column] = value
     frame.to_csv(source.train, index=False)
@@ -741,9 +697,7 @@ def test_atomic_publish_refuses_a_concurrent_destination(
     assert not list(source.output.parent.glob(f".{source.output.name}.*.tmp"))
 
 
-def test_query_cleaning_does_not_mutate_input(
-    source: Source, store: ReferenceStore
-) -> None:
+def test_query_cleaning_does_not_mutate_input(source: Source, store: ReferenceStore) -> None:
     row = {**query(source), "TotalCharges": None, "tenure": "0"}
     prepared = store.prepare_query(row)
     assert row["TotalCharges"] is None and row["tenure"] == "0"

@@ -60,9 +60,7 @@ def setup(source, tmp_path, monkeypatch):
 
     monkeypatch.setattr(demo_security, "require_safe_runtime", lambda: None)
     pin = hashlib.sha256(source.output.read_bytes()).hexdigest()
-    form = form_resources(
-        ReferenceStore.load(source.output, expected_artifact_sha256=pin)
-    )
+    form = form_resources(ReferenceStore.load(source.output, expected_artifact_sha256=pin))
     monkeypatch.setenv("CHURN_LLM_REFERENCE_ARTIFACT", str(source.output))
     monkeypatch.setenv("CHURN_LLM_REFERENCE_SHA256", pin)
     monkeypatch.setenv("CHURN_DASHBOARD_STATE", str(tmp_path / "preview.sqlite3"))
@@ -87,15 +85,9 @@ def test_upload_selected_rows_persist_alignment_and_retention(setup) -> None:
     assert job.status == JobStatus.SUCCESS and calls.call_count == 2
     assert adapter.store.get(run.run_id).status == "COMPLETE"
     for call in calls.call_args_list:
-        assert len(call.args[1]) == 19 and not {"Churn", "customerID"} & set(
-            call.args[1]
-        )
+        assert len(call.args[1]) == 19 and not {"Churn", "customerID"} & set(call.args[1])
     customers, predictions = adapter.store.frames(run.run_id)
-    assert (
-        customers.customerID.tolist()
-        == predictions.customer_id.tolist()
-        == ["0002", "0001"]
-    )
+    assert customers.customerID.tolist() == predictions.customer_id.tolist() == ["0002", "0001"]
     assert predictions.churn_prediction.tolist() == [0, 1]
     assert customers.Churn.tolist() == [
         "No",
@@ -122,10 +114,7 @@ def test_same_request_is_idempotent_different_payload_and_new_request_get_new_ru
     changed = frame.copy()
     changed["MonthlyCharges"] = 80.0
     assert adapter.prepare(changed, "same.csv", "same-request").run_id != first.run_id
-    assert (
-        adapter.prepare(frame, "same.csv", "explicit-new-request").run_id
-        != first.run_id
-    )
+    assert adapter.prepare(frame, "same.csv", "explicit-new-request").run_id != first.run_id
 
 
 def test_run_id_collision_is_error_not_silent_old_result(setup) -> None:
@@ -203,12 +192,8 @@ def test_large_batch_and_live_preview_are_blocked(setup, monkeypatch) -> None:
     with pytest.raises(ValueError, match="disabled"):
         DashboardLLMAdapter(adapter.resources, adapter.pin, adapter.store, mode="live")
     monkeypatch.setenv("CHURN_DASHBOARD_PREVIEW", "0")
-    live = DashboardLLMAdapter(
-        adapter.resources, adapter.pin, adapter.store, mode="live"
-    )
-    assert (
-        live.predict_one is predict_customer
-    )  # Wiring verified; never invoke the real API.
+    live = DashboardLLMAdapter(adapter.resources, adapter.pin, adapter.store, mode="live")
+    assert live.predict_one is predict_customer  # Wiring verified; never invoke the real API.
     calls.assert_not_called()
 
 
@@ -248,9 +233,7 @@ def test_worker_atomic_claim_only_once_and_only_requested_job(tmp_path) -> None:
         return {"ok": True}
 
     def process(_):
-        return JobWorker(queue, handlers={JobType.SCORING: handler}).process_one(
-            target.job_id
-        )
+        return JobWorker(queue, handlers={JobType.SCORING: handler}).process_one(target.job_id)
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         list(pool.map(process, range(2)))
@@ -327,9 +310,7 @@ def test_dashboard_preserves_tabs_persistence_campaigns_and_no_inference_on_reru
     assert calls.call_count == 4
 
 
-def test_dashboard_submit_single_and_repeated_click_is_idempotent(
-    setup, monkeypatch
-) -> None:
+def test_dashboard_submit_single_and_repeated_click_is_idempotent(setup, monkeypatch) -> None:
     adapter, _ = setup
     monkeypatch.setattr(ui, "resources", lambda: adapter.resources)
     calls = Mock(wraps=mock_prediction)
@@ -340,20 +321,13 @@ def test_dashboard_submit_single_and_repeated_click_is_idempotent(
     assert not at.exception and not at.tabs and not calls.called
     at.checkbox(key="cuong_llm.confirm").check().run()
     at.button(key="cuong_llm.submit").click().run()
-    assert (
-        not at.exception
-        and not at.error
-        and len(at.tabs) == 4
-        and calls.call_count == 1
-    )
+    assert not at.exception and not at.error and len(at.tabs) == 4 and calls.call_count == 1
     at.button(key="cuong_llm.submit").click().run()
     at.slider(key="e2e_budget_slider").set_value(1000).run()
     assert not at.exception and calls.call_count == 1
 
 
-def test_uploaded_batch_uses_uploaded_bytes_and_only_selected_rows(
-    setup, monkeypatch
-) -> None:
+def test_uploaded_batch_uses_uploaded_bytes_and_only_selected_rows(setup, monkeypatch) -> None:
     adapter, _ = setup
     monkeypatch.setattr(ui, "resources", lambda: adapter.resources)
     frame = ui.synthetic_frame().iloc[:3].copy()
@@ -363,9 +337,7 @@ def test_uploaded_batch_uses_uploaded_bytes_and_only_selected_rows(
     monkeypatch.setattr(ui.st, "file_uploader", Mock(return_value=upload))
     at = AppTest.from_file(str(PAGE), default_timeout=30).run()
     at.radio(key="cuong_llm.scope").set_value("Batch nhỏ (tối đa 5)").run()
-    at.multiselect(key="cuong_llm.selected_ids").set_value(
-        ["UPLOAD-002", "UPLOAD-001"]
-    ).run()
+    at.multiselect(key="cuong_llm.selected_ids").set_value(["UPLOAD-002", "UPLOAD-001"]).run()
     at.checkbox(key="cuong_llm.confirm").check().run()
     at.button(key="cuong_llm.submit").click().run()
     assert not at.exception and not at.error
@@ -375,9 +347,7 @@ def test_uploaded_batch_uses_uploaded_bytes_and_only_selected_rows(
     assert adapter.store.get(run_id).source_name == "uploaded.csv"
 
 
-def test_bad_upload_blocks_dashboard_instead_of_using_default_dataset(
-    setup, monkeypatch
-) -> None:
+def test_bad_upload_blocks_dashboard_instead_of_using_default_dataset(setup, monkeypatch) -> None:
     adapter, calls = setup
     monkeypatch.setattr(ui, "resources", lambda: adapter.resources)
     upload = BytesIO(b"bad,columns\n1,2\n")
@@ -448,9 +418,7 @@ def test_primary_dashboard_in_clean_minimal_deployment(source, tmp_path) -> None
     )
 
 
-def test_dashboard_uses_existing_prediction_service_with_mock_router(
-    setup, monkeypatch
-) -> None:
+def test_dashboard_uses_existing_prediction_service_with_mock_router(setup, monkeypatch) -> None:
     from contextlib import asynccontextmanager
 
     from churn_retention.entrypoints.streamlit import llm_prediction_service

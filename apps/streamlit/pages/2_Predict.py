@@ -65,9 +65,7 @@ except Exception:  # noqa: BLE001 -- Never render artifact/preprocessor error co
     clear_submission()
     st.session_state.pop(RESOURCES_KEY, None)
     st.session_state.pop(FINGERPRINT_KEY, None)
-    st.error(
-        "Không thể nạp dữ liệu tham chiếu hợp lệ. Vui lòng liên hệ người quản trị."
-    )
+    st.error("Không thể nạp dữ liệu tham chiếu hợp lệ. Vui lòng liên hệ người quản trị.")
     st.stop()
 
 resources = st.session_state[RESOURCES_KEY]
@@ -97,9 +95,7 @@ with st.form("llm_customer_input"):
                     key=key,
                 )
             elif name == "tenure":
-                customer[name] = st.number_input(
-                    label, min_value=0, value=None, step=1, key=key
-                )
+                customer[name] = st.number_input(label, min_value=0, value=None, step=1, key=key)
             else:
                 customer[name] = st.number_input(
                     label,
@@ -128,9 +124,7 @@ if submitted:
         try:
             with st.spinner("Đang truy xuất dữ liệu tham chiếu và dự đoán bằng LLM…"):
                 result = predict_customer(resources.store, snapshot)
-            capture_submission(
-                st.session_state, snapshot, result, fingerprint[1], fingerprint
-            )
+            capture_submission(st.session_state, snapshot, result, fingerprint[1], fingerprint)
             st.session_state[RESULT_KEY] = result
             st.session_state[RESULT_INPUT_KEY] = dict(customer)
         except LLMPredictionServiceError as error:
@@ -144,9 +138,7 @@ if ERROR_KEY in st.session_state:
     st.error(st.session_state[ERROR_KEY])
 elif RESULT_KEY in st.session_state:
     if customer != st.session_state.get(RESULT_INPUT_KEY):
-        st.info(
-            "Dữ liệu trong form đã thay đổi. Hãy gửi lại để có dự đoán cho dữ liệu mới."
-        )
+        st.info("Dữ liệu trong form đã thay đổi. Hãy gửi lại để có dự đoán cho dữ liệu mới.")
     else:
         result = st.session_state[RESULT_KEY]
         st.caption(
@@ -164,9 +156,7 @@ elif RESULT_KEY in st.session_state:
         )
         st.subheader("Giải thích")
         st.text(result.reason)
-        provider = {"Groq": "Groq/Qwen", "Gemini": "Gemini"}.get(
-            result.provider, "Không xác định"
-        )
+        provider = {"Groq": "Groq/Qwen", "Gemini": "Gemini"}.get(result.provider, "Không xác định")
         st.caption(f"Provider: {provider}")
         st.caption(f"Số khách hàng tham chiếu: {result.reference_count}")
         st.text(f"Reference version: {result.reference_version}")

@@ -14,9 +14,7 @@ DEFAULT_REFERENCE_PATH = (
     Path(__file__).resolve().parents[4] / "artifacts/references/telco-train-v2.zip"
 )
 # Approved local artifact from step 7.5; the pin is external to the ZIP manifest.
-DEFAULT_REFERENCE_SHA256 = (
-    "c85e61be7edfd0e91b248e0e353088677a345a378e64840b1613b51194b40bf8"
-)
+DEFAULT_REFERENCE_SHA256 = "c85e61be7edfd0e91b248e0e353088677a345a378e64840b1613b51194b40bf8"
 
 
 def reference_artifact_path() -> Path:

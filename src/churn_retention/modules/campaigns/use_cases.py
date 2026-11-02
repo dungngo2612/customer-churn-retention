@@ -77,9 +77,7 @@ def create_campaign(
             raise ValueError("Campaign idempotency key cannot be empty")
         campaign = replace(
             campaign,
-            campaign_id=str(
-                uuid.uuid5(uuid.NAMESPACE_URL, "churn-campaign:" + idempotency_key)
-            ),
+            campaign_id=str(uuid.uuid5(uuid.NAMESPACE_URL, "churn-campaign:" + idempotency_key)),
         )
         existing = repo.get(campaign.campaign_id)
         if existing is not None:
@@ -88,9 +86,7 @@ def create_campaign(
         repo.save(campaign)
     except ValueError:
         # A concurrent identical intent may have won after the initial read.
-        existing = (
-            repo.get(campaign.campaign_id) if idempotency_key is not None else None
-        )
+        existing = repo.get(campaign.campaign_id) if idempotency_key is not None else None
         if existing is None:
             raise
         repo.save(replace(campaign, created_at=existing.created_at))
@@ -178,15 +174,16 @@ def export_campaign_csv(
     only_interventions: bool = True,
     repository: CampaignRepository | None = None,
 ) -> str:
-    """Xuất danh sách khách hàng được chọn can thiệp ra định dạng CSV và chuyển trạng thái sang EXPORTED.
+    """Xuất danh sách khách hàng được chọn can thiệp ra định dạng CSV và chuyển trạng thái
+    sang EXPORTED.
 
     Cột đầu ra chuẩn:
-        customer_id: Mã định danh khách hàng
-        action_code: Mã hành động
-        action_name: Tên hành động can thiệp
-        cost: Chi phí can thiệp kỳ vọng ($)
-        benefit: Lợi ích kinh tế kỳ vọng ($)
-        net_value: Giá trị ròng kỳ vọng ($)
+    customer_id: Mã định danh khách hàng
+    action_code: Mã hành động
+    action_name: Tên hành động can thiệp
+    cost: Chi phí can thiệp kỳ vọng ($)
+    benefit: Lợi ích kinh tế kỳ vọng ($)
+    net_value: Giá trị ròng kỳ vọng ($)
     """
     repo = repository or get_default_repository()
     campaign = get_campaign(campaign_id, repo)

@@ -16,9 +16,7 @@ from churn_retention.contracts.reference import (
 )
 
 SCHEMA_VERSION: Literal["telco-19-v1"] = "telco-19-v1"
-PREPROCESSING_VERSION: Literal["rag-sklearn-state-json-v1"] = (
-    "rag-sklearn-state-json-v1"
-)
+PREPROCESSING_VERSION: Literal["rag-sklearn-state-json-v1"] = "rag-sklearn-state-json-v1"
 PAYLOAD_LIMITS = {
     "manifest.json": 64 * 1024,
     "schema.json": 16 * 1024,
@@ -38,9 +36,7 @@ class ReferenceV2Error(ReferenceArtifactError):
 
 
 class StrictContract(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid", strict=True, frozen=True, allow_inf_nan=False
-    )
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True, allow_inf_nan=False)
 
 
 class FitProvenance(StrictContract):
@@ -66,8 +62,8 @@ class ReferenceManifestV2(StrictContract):
     row_count: int = Field(gt=0, le=100_000)
     input_feature_count: Literal[19] = 19
     transformed_feature_count: int = Field(gt=0, le=1024)
-    output_feature_names: list[Annotated[str, Field(min_length=1, max_length=256)]] = (
-        Field(min_length=1, max_length=1024)
+    output_feature_names: list[Annotated[str, Field(min_length=1, max_length=256)]] = Field(
+        min_length=1, max_length=1024
     )
     output_feature_names_sha256: Digest
     matrix_dtype: Literal["float64"] = "float64"
@@ -90,9 +86,7 @@ def runtime_versions() -> dict[str, str]:
 def reference_version(files: dict[str, str], libraries: dict[str, str]) -> str:
     return (
         "rag-v2-"
-        + sha256(
-            json_bytes({"format_version": 2, "files": files, "libraries": libraries})
-        )[:20]
+        + sha256(json_bytes({"format_version": 2, "files": files, "libraries": libraries}))[:20]
     )
 
 

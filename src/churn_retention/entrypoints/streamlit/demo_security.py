@@ -90,9 +90,7 @@ class LoopbackOnly:
             if scope["type"] == "websocket":
                 await send({"type": "websocket.close", "code": 1008})
             else:
-                await send(
-                    {"type": "http.response.start", "status": 403, "headers": []}
-                )
+                await send({"type": "http.response.start", "status": 403, "headers": []})
                 await send({"type": "http.response.body", "body": b"Local demo only."})
             return
         await self.app(scope, receive, send)

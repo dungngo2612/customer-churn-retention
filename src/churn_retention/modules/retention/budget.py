@@ -155,9 +155,7 @@ def select_actions_under_budget(
 
     assigned_rows = list(assigned.values())
     unassigned_cids = set(options["customerID"]) - set(assigned.keys())
-    unassigned_rows = baseline[baseline["customerID"].isin(unassigned_cids)].to_dict(
-        "records"
-    )
+    unassigned_rows = baseline[baseline["customerID"].isin(unassigned_cids)].to_dict("records")
 
     all_rows = assigned_rows + unassigned_rows
     result = pd.DataFrame(all_rows)
@@ -251,9 +249,7 @@ def compute_optimality_gap(greedy_net_value: float, optimal_net_value: float) ->
     """
     if optimal_net_value <= 1e-9:
         return 0.0
-    return max(
-        0.0, round((optimal_net_value - greedy_net_value) / optimal_net_value, 4)
-    )
+    return max(0.0, round((optimal_net_value - greedy_net_value) / optimal_net_value, 4))
 
 
 def compare_greedy_vs_optimal(

@@ -73,9 +73,7 @@ def app(reference_source, sdk, monkeypatch: pytest.MonkeyPatch):
 
     monkeypatch.setattr(LLMChurnPredictor, "predict", counted_predict)
     monkeypatch.setattr(SimilarCustomerRetriever, "retrieve", observed_retrieve)
-    at = AppTest.from_file(
-        str(ROOT / "apps/streamlit/scoring_page.py"), default_timeout=20
-    ).run()
+    at = AppTest.from_file(str(ROOT / "apps/streamlit/scoring_page.py"), default_timeout=20).run()
     assert not at.exception and at.title[0].value == "Chấm điểm churn"
     at.session_state["active_scoring_context"] = {"protected": "existing context"}
     at.switch_page("pages/2_Predict.py").run()
@@ -102,16 +100,10 @@ def submit(app) -> AppTest:
 
 def prompt_data(client) -> dict:
     kwargs = client.request.call_args.kwargs
-    prompt = (
-        kwargs["messages"][0]["content"]
-        if client.role == "Groq"
-        else kwargs["contents"]
-    )
+    prompt = kwargs["messages"][0]["content"] if client.role == "Groq" else kwargs["contents"]
     assert "customerID" not in prompt and "customer_id" not in prompt
     return json.loads(
-        prompt.split("\nBEGIN_CUSTOMER_DATA_JSON\n", 1)[1].split(
-            "\nEND_CUSTOMER_DATA_JSON\n", 1
-        )[0]
+        prompt.split("\nBEGIN_CUSTOMER_DATA_JSON\n", 1)[1].split("\nEND_CUSTOMER_DATA_JSON\n", 1)[0]
     )
 
 
@@ -129,12 +121,8 @@ def test_navigation_and_invalid_input_never_create_clients(app, sdk) -> None:
 
 
 @pytest.mark.parametrize("prediction", [0, 1])
-def test_qwen_result_flows_through_real_rag_and_json_validation(
-    app, sdk, prediction
-) -> None:
-    sdk.outcomes["Groq"] = json.dumps(
-        {**json.loads(VALID), "churn_prediction": prediction}
-    )
+def test_qwen_result_flows_through_real_rag_and_json_validation(app, sdk, prediction) -> None:
+    sdk.outcomes["Groq"] = json.dumps({**json.loads(VALID), "churn_prediction": prediction})
     at = submit(app)
     assert not at.exception and not at.error
     app.calls.assert_called_once_with()
@@ -171,9 +159,7 @@ def test_qwen_result_flows_through_real_rag_and_json_validation(
     assert data["reference_customers"] == [item.to_prompt_data() for item in references]
     assert result.reference_version == store.reference_version
     assert store.manifest.reference_split == "train"
-    assert at.session_state["active_scoring_context"] == {
-        "protected": "existing context"
-    }
+    assert at.session_state["active_scoring_context"] == {"protected": "existing context"}
     assert not at.dataframe and not at.get("progress")
 
 
@@ -181,9 +167,7 @@ def test_qwen_result_flows_through_real_rag_and_json_validation(
 def test_fallback_crosses_entire_ui_pipeline_once(app, sdk, kind: str) -> None:
     request = httpx.Request("POST", "https://groq.invalid")
     sdk.outcomes["Groq"] = {
-        "429": RateLimitError(
-            PRIVATE, response=httpx.Response(429, request=request), body={}
-        ),
+        "429": RateLimitError(PRIVATE, response=httpx.Response(429, request=request), body={}),
         "timeout": APITimeoutError(request=request),
         "connection": APIConnectionError(message=PRIVATE, request=request),
         "invalid_json": PRIVATE,
@@ -213,11 +197,7 @@ def test_both_provider_failures_reach_safe_ui_error(app, sdk, kind: str) -> None
     assert PRIVATE not in at.error[0].value
     assert RESULT_KEY not in at.session_state
     assert all(client.request.await_count == 1 for client in sdk.clients)
-    assert (
-        "quota" in at.error[0].value
-        if kind == "quota"
-        else "JSON hợp lệ" in at.error[0].value
-    )
+    assert "quota" in at.error[0].value if kind == "quota" else "JSON hợp lệ" in at.error[0].value
     at.run()
     app.calls.assert_called_once_with()
 
@@ -227,9 +207,7 @@ def test_reruns_drafts_and_second_submit_reuse_store_without_duplicate_requests(
 ) -> None:
     at = submit(app)
     store = at.session_state[RESOURCES_KEY].store
-    monkeypatch.setattr(
-        pd, "read_csv", Mock(side_effect=AssertionError("No CSV reread"))
-    )
+    monkeypatch.setattr(pd, "read_csv", Mock(side_effect=AssertionError("No CSV reread")))
     for _ in range(2):
         at.run()
     at.session_state["llm_input.feature.tenure"] = app.values["tenure"] + 1
@@ -261,9 +239,7 @@ def test_missing_keys_do_not_open_clients(app, sdk, monkeypatch, missing) -> Non
     sdk.gemini.assert_not_called()
 
 
-def test_hedge_at_60_seconds_returns_gemini_and_cleans_up_qwen(
-    app, sdk, monkeypatch
-) -> None:
+def test_hedge_at_60_seconds_returns_gemini_and_cleans_up_qwen(app, sdk, monkeypatch) -> None:
     clock = Clock()
     monkeypatch.setattr(llm_router, "get_running_loop", lambda: clock)
 
@@ -276,19 +252,13 @@ def test_hedge_at_60_seconds_returns_gemini_and_cleans_up_qwen(
     assert not at.exception and not at.error
     assert at.session_state[RESULT_KEY].provider == "Gemini"
     assert sdk.clients[0].cancelled and not sdk.clients[0].active
-    assert all(
-        client.http.is_closed and client.loop.is_closed() for client in sdk.clients
-    )
-    assert not [
-        timer for timer in clock.timers if not timer.cancelled and not timer.fired
-    ]
+    assert all(client.http.is_closed and client.loop.is_closed() for client in sdk.clients)
+    assert not [timer for timer in clock.timers if not timer.cancelled and not timer.fired]
     app.calls.assert_called_once_with()
 
 
 @pytest.mark.parametrize("tenure,valid", [(0, True), (1, False)])
-def test_total_charges_cleaning_runs_before_any_provider_call(
-    app, sdk, tenure, valid
-) -> None:
+def test_total_charges_cleaning_runs_before_any_provider_call(app, sdk, tenure, valid) -> None:
     app.values.update(tenure=tenure, TotalCharges=None)
     at = submit(app)
     assert not at.exception
@@ -312,9 +282,7 @@ def test_project_artifact_and_validation_row_offline(sdk, monkeypatch) -> None:
     validation = pd.read_csv(ROOT / "data/processed/val.csv")
     loader = Mock(wraps=llm_input.load_form_resources)
     monkeypatch.setattr(llm_input, "load_form_resources", loader)
-    at = AppTest.from_file(
-        str(ROOT / "apps/streamlit/scoring_page.py"), default_timeout=30
-    ).run()
+    at = AppTest.from_file(str(ROOT / "apps/streamlit/scoring_page.py"), default_timeout=30).run()
     at.switch_page("pages/2_Predict.py").run()
     if at.exception or at.error:
         pytest.fail("Project reference page initialization failed.", pytrace=False)
@@ -324,9 +292,7 @@ def test_project_artifact_and_validation_row_offline(sdk, monkeypatch) -> None:
     values = {name: row[name] for name in names}
     validation_ids = set(validation["customerID"].astype(str))
     reference_ids = {record.customer_id for record in store.records}
-    monkeypatch.setattr(
-        pd, "read_csv", Mock(side_effect=AssertionError("No CSV reread"))
-    )
+    monkeypatch.setattr(pd, "read_csv", Mock(side_effect=AssertionError("No CSV reread")))
     fill(at, values)
     at.button[0].click().run()
     if at.exception or at.error or RESULT_KEY not in at.session_state:
@@ -335,9 +301,7 @@ def test_project_artifact_and_validation_row_offline(sdk, monkeypatch) -> None:
     primary, fallback = sdk.clients
     prompt = primary.request.call_args.kwargs["messages"][0]["content"]
     data = json.loads(
-        prompt.split("\nBEGIN_CUSTOMER_DATA_JSON\n", 1)[1].split(
-            "\nEND_CUSTOMER_DATA_JSON\n", 1
-        )[0]
+        prompt.split("\nBEGIN_CUSTOMER_DATA_JSON\n", 1)[1].split("\nEND_CUSTOMER_DATA_JSON\n", 1)[0]
     )
     checks = {
         "reference_rows": len(store.records) == 4930,
@@ -346,9 +310,7 @@ def test_project_artifact_and_validation_row_offline(sdk, monkeypatch) -> None:
         "19_query_features": len(data["customer_to_predict"]) == 19,
         "no_query_label": "Churn" not in data["customer_to_predict"],
         "no_identifiers": "customerID" not in prompt and "customer_id" not in prompt,
-        "five_references": len(data["reference_customers"])
-        == result.reference_count
-        == 5,
+        "five_references": len(data["reference_customers"]) == result.reference_count == 5,
         "provider": result.provider == "Groq",
         "version": result.reference_version == store.reference_version,
         "one_primary_request": primary.request.await_count == 1,

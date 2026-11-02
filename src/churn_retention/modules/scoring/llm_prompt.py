@@ -102,13 +102,10 @@ class ChurnPromptBuilder:
         if not isinstance(feature_schema, Sequence) or not all(
             isinstance(column, FeatureColumn) for column in feature_schema
         ):
-            raise TypeError(
-                "feature_schema must contain the official FeatureColumn objects."
-            )
+            raise TypeError("feature_schema must contain the official FeatureColumn objects.")
         # Revalidate and copy; do not retain mutable lists supplied by callers.
         self._schema = tuple(
-            FeatureColumn.model_validate(column.model_dump())
-            for column in feature_schema
+            FeatureColumn.model_validate(column.model_dump()) for column in feature_schema
         )
         validate_schema(list(self._schema))
         _bounded_integer(max_examples, "max_examples", 0, _MAX_EXAMPLES)
@@ -116,17 +113,13 @@ class ChurnPromptBuilder:
         self._max_examples = max_examples
         self._max_prompt_chars = max_prompt_chars
 
-    def _features(
-        self, values: Mapping[str, object], *, query: bool
-    ) -> dict[str, Scalar]:
+    def _features(self, values: Mapping[str, object], *, query: bool) -> dict[str, Scalar]:
         if not isinstance(values, Mapping):
             raise TypeError("Customer features must be a mapping.")
         names = {column.name for column in self._schema}
         permitted = names | QUERY_METADATA if query else names
         if names - values.keys() or set(values) - permitted:
-            raise ValueError(
-                "Customer features must match the official 19-feature schema."
-            )
+            raise ValueError("Customer features must match the official 19-feature schema.")
         projected: dict[str, Scalar] = {}
         for column in self._schema:
             value = values[column.name]
@@ -138,17 +131,13 @@ class ChurnPromptBuilder:
                 projected[column.name] = value
             else:
                 if isinstance(value, bool) or not isinstance(value, (int, float)):
-                    raise TypeError(
-                        "Numerical features must be numbers, not booleans or strings."
-                    )
+                    raise TypeError("Numerical features must be numbers, not booleans or strings.")
                 try:
                     number = float(value)
                 except OverflowError:
                     raise ValueError("Numerical features must be finite.") from None
                 if not math.isfinite(number) or number < 0:
-                    raise ValueError(
-                        "Numerical features must be finite and non-negative."
-                    )
+                    raise ValueError("Numerical features must be finite and non-negative.")
                 if column.name in {"SeniorCitizen", "tenure"}:
                     if not number.is_integer():
                         raise ValueError("SeniorCitizen and tenure must be integers.")
@@ -163,9 +152,18 @@ class ChurnPromptBuilder:
     def _render(query: dict[str, Scalar], references: list[dict[str, object]]) -> str:
         count = len(references)
         note = (
-            f"Có {count} khách hàng tham chiếu trong reference_customers; đây là các ví dụ, không phải toàn bộ dataset."
+            (
+                "Có "
+                f"{count}"
+                " khách hàng tham chiếu trong reference_customers; đây là các"
+                " ví dụ, không phải toàn bộ dataset."
+            )
             if count
-            else "Không có khách hàng tham chiếu. Chỉ sử dụng feature của khách hàng mới; phải nêu rõ bằng chứng hạn chế và sự không chắc chắn, không tự tạo ví dụ."
+            else (
+                "Không có khách hàng tham chiếu. Chỉ sử dụng feature của khác"
+                "h hàng mới; phải nêu rõ bằng chứng hạn chế và sự không chắc "
+                "chắn, không tự tạo ví dụ."
+            )
         )
         payload = {
             "customer_to_predict": query,
@@ -207,23 +205,22 @@ class ChurnPromptBuilder:
                 raise TypeError("references must contain SimilarCustomer results.")
             data = reference.to_prompt_data()
             if not isinstance(data, dict) or set(data) != {"features", "Churn"}:
-                raise ValueError(
-                    "Reference projection must contain only features and Churn."
-                )
+                raise ValueError("Reference projection must contain only features and Churn.")
             features, label = data["features"], data["Churn"]
             if not isinstance(features, Mapping):
                 raise TypeError("Reference features must be a mapping.")
             if not isinstance(label, str) or label not in {"Yes", "No"}:
                 raise ValueError("Reference Churn must be Yes or No.")
-            examples.append(
-                {"features": self._features(features, query=False), "Churn": label}
-            )
+            examples.append({"features": self._features(features, query=False), "Churn": label})
         while True:
             prompt = self._render(customer, examples)
             if len(prompt) <= self._max_prompt_chars:
                 return BuiltChurnPrompt(prompt, len(examples))
             if not examples:
                 raise ValueError(
-                    "Query and required instructions exceed max_prompt_chars; increase the budget within the hard limit."
+                    (
+                        "Query and required instructions exceed max_prompt_chars; inc"
+                        "rease the budget within the hard limit."
+                    )
                 )
             examples.pop()

@@ -25,9 +25,7 @@ class SQLiteScoringStore:
         if str(path) != ":memory:":
             Path(path).parent.mkdir(parents=True, exist_ok=True)
         self._lock = RLock()
-        self._db = sqlite3.connect(
-            str(path), isolation_level=None, check_same_thread=False
-        )
+        self._db = sqlite3.connect(str(path), isolation_level=None, check_same_thread=False)
         self._db.row_factory = sqlite3.Row
         self._db.execute("PRAGMA foreign_keys = ON")
         self._db.executescript("""
@@ -53,13 +51,9 @@ class SQLiteScoringStore:
         """)
         # Old databases retain all rows; a NULL lease is expired, never immortal.
         with self._transaction() as db:
-            columns = {
-                row["name"] for row in db.execute("PRAGMA table_info(scoring_jobs)")
-            }
+            columns = {row["name"] for row in db.execute("PRAGMA table_info(scoring_jobs)")}
             if "lease_expires_at" not in columns:
-                db.execute(
-                    "ALTER TABLE scoring_jobs ADD COLUMN lease_expires_at TEXT DEFAULT NULL"
-                )
+                db.execute("ALTER TABLE scoring_jobs ADD COLUMN lease_expires_at TEXT DEFAULT NULL")
 
     def __enter__(self) -> Self:
         return self
@@ -101,7 +95,10 @@ class SQLiteScoringStore:
     @staticmethod
     def _write(db: sqlite3.Connection, job: ScoringJob) -> None:
         db.execute(
-            "UPDATE scoring_jobs SET status = ?, payload = ?, lease_expires_at = ? WHERE job_id = ?",
+            (
+                "UPDATE scoring_jobs SET status = ?, payload = ?, lease_expir"
+                "es_at = ? WHERE job_id = ?"
+            ),
             (
                 job.status.value,
                 json.dumps(job.to_dict()),
@@ -128,9 +125,7 @@ class SQLiteScoringStore:
             return self._active(self._db, key)
 
     @classmethod
-    def _recover_active(
-        cls, db: sqlite3.Connection, key: str, now: datetime
-    ) -> ScoringJob | None:
+    def _recover_active(cls, db: sqlite3.Connection, key: str, now: datetime) -> ScoringJob | None:
         existing = cls._active(db, key)
         if (
             existing is not None
@@ -138,9 +133,7 @@ class SQLiteScoringStore:
             and not existing.has_active_lease(now)
         ):
             failed = existing.transition(JobStatus.FAILED, now, LEASE_EXPIRED_ERROR)
-            db.execute(
-                "DELETE FROM scoring_predictions WHERE job_id = ?", (existing.job_id,)
-            )
+            db.execute("DELETE FROM scoring_predictions WHERE job_id = ?", (existing.job_id,))
             cls._write(db, failed)
             return None
         return existing
@@ -153,9 +146,7 @@ class SQLiteScoringStore:
         if job.status != JobStatus.PENDING:
             raise InvalidJobTransition("New jobs must be PENDING")
         with self._transaction() as db:
-            existing = self._recover_active(
-                db, job.idempotency_key, now or job.created_at
-            )
+            existing = self._recover_active(db, job.idempotency_key, now or job.created_at)
             if existing is not None:
                 return existing
             db.execute(
@@ -203,9 +194,7 @@ class SQLiteScoringStore:
             self._write(db, failed)
             return failed
 
-    def finish(
-        self, job_id: str, now: datetime, error: str | None = None
-    ) -> ScoringJob:
+    def finish(self, job_id: str, now: datetime, error: str | None = None) -> ScoringJob:
         with self._transaction() as db:
             job = self._get(db, job_id)
             if error is None:
@@ -234,9 +223,7 @@ class SQLiteScoringStore:
                 raise InvalidJobTransition("Only RUNNING jobs may stage predictions")
             job.require_lease(now)
             if batch.model_version != job.model_version:
-                raise ValueError(
-                    "Prediction model_version does not match pinned job model"
-                )
+                raise ValueError("Prediction model_version does not match pinned job model")
             for offset, prediction in enumerate(batch.predictions):
                 if (
                     prediction.dataset_id != job.dataset_id
@@ -254,9 +241,7 @@ class SQLiteScoringStore:
                         ),
                     )
                 except sqlite3.IntegrityError as exc:
-                    raise ValueError(
-                        "Duplicate customer_id within scoring run"
-                    ) from exc
+                    raise ValueError("Duplicate customer_id within scoring run") from exc
             count = db.execute(
                 "SELECT COUNT(*) FROM scoring_explanations WHERE job_id = ?",
                 (job.job_id,),
@@ -283,9 +268,7 @@ class SQLiteScoringStore:
 
     def _ready(self, job_id: str) -> None:
         if self._get(self._db, job_id).status != JobStatus.SUCCEEDED:
-            raise ResultsNotReady(
-                "Predictions/explanations are visible only for SUCCEEDED jobs"
-            )
+            raise ResultsNotReady("Predictions/explanations are visible only for SUCCEEDED jobs")
 
     def predictions(self, job_id: str) -> list[Prediction]:
         with self._lock:

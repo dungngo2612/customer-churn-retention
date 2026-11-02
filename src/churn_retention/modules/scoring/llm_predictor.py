@@ -40,29 +40,21 @@ class LLMChurnPredictor:
 
     async def predict(self, customer: Mapping[str, object]) -> LLMChurnPrediction:
         prepared = self._store.prepare_query(customer)
-        references = self._retriever.retrieve(
-            prepared.features, customer_id=prepared.customer_id
-        )
+        references = self._retriever.retrieve(prepared.features, customer_id=prepared.customer_id)
         built = self._builder.build_with_metadata(prepared.features, references)
-        private_ids = tuple(
-            reference.customer_id.casefold() for reference in references
-        )
+        private_ids = tuple(reference.customer_id.casefold() for reference in references)
         if prepared.customer_id is not None:
             private_ids += (prepared.customer_id.casefold(),)
 
         def validate(text: str) -> None:
             parsed = parse_churn_response(text)
-            if any(
-                identifier in parsed.reason.casefold() for identifier in private_ids
-            ):
+            if any(identifier in parsed.reason.casefold() for identifier in private_ids):
                 # Reject rather than edit the LLM's explanation or expose IDs.
                 raise LLMResponseValidationError(
                     "Explanation contains a private identifier.", code="invalid_reason"
                 )
 
-        routed = await self._router.generate_result(
-            built.text, response_validator=validate
-        )
+        routed = await self._router.generate_result(built.text, response_validator=validate)
         # Reparse the same immutable winning text; do not keep shared validator
         # caches or mutable last-winner state across concurrent requests.
         parsed = parse_churn_response(routed.content)

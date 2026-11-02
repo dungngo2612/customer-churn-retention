@@ -103,7 +103,9 @@ class SqliteTaskQueue:
             conn.commit()
 
     def enqueue(self, job: TaskJob) -> TaskJob:
-        """Đưa tác vụ vào hàng đợi. Nếu trùng idempotency_key, trả về bản ghi hiện có mà không tạo mới."""
+        """Đưa tác vụ vào hàng đợi. Nếu trùng idempotency_key, trả về bản ghi hiện có mà
+        không tạo mới.
+        """
         reject_credentials(job.to_dict())
         existing = self.get_by_idempotency_key(job.idempotency_key)
         if existing is not None:
@@ -112,9 +114,7 @@ class SqliteTaskQueue:
 
         payload_json = json.dumps(job.payload, ensure_ascii=False, allow_nan=False)
         result_json = (
-            json.dumps(job.result, ensure_ascii=False, allow_nan=False)
-            if job.result
-            else None
+            json.dumps(job.result, ensure_ascii=False, allow_nan=False) if job.result else None
         )
 
         with self._get_connection() as conn:
@@ -199,13 +199,9 @@ class SqliteTaskQueue:
             JobStatus.SUCCESS,
             JobStatus.FAILED,
         }:
-            raise ValueError(
-                "Use fenced completion; running/terminal jobs cannot be overwritten"
-            )
+            raise ValueError("Use fenced completion; running/terminal jobs cannot be overwritten")
         result_json = (
-            json.dumps(job.result, ensure_ascii=False, allow_nan=False)
-            if job.result
-            else None
+            json.dumps(job.result, ensure_ascii=False, allow_nan=False) if job.result else None
         )
         with self._get_connection() as conn:
             conn.execute(
@@ -255,8 +251,11 @@ class SqliteTaskQueue:
         with self._get_connection() as conn, conn:
             return (
                 conn.execute(
-                    "UPDATE task_jobs SET status=?,retry_count=?,error_reason=?,error_type=?,result=?,updated_at=? "
-                    "WHERE job_id=? AND status='RUNNING' AND updated_at=?",
+                    (
+                        "UPDATE task_jobs SET status=?,retry_count=?,error_reason=?,e"
+                        "rror_type=?,result=?,updated_at=? WHERE job_id=? AND status="
+                        "'RUNNING' AND updated_at=?"
+                    ),
                     (
                         job.status.value,
                         job.retry_count,
@@ -278,8 +277,11 @@ class SqliteTaskQueue:
         with self._get_connection() as conn, conn:
             return (
                 conn.execute(
-                    "UPDATE task_jobs SET status='FAILED',error_type='Interrupted',"
-                    "error_reason='Interrupted; no automatic API retry' WHERE job_id=? AND status='RUNNING'",
+                    (
+                        "UPDATE task_jobs SET status='FAILED',error_type='Interrupted"
+                        "',error_reason='Interrupted; no automatic API retry' WHERE j"
+                        "ob_id=? AND status='RUNNING'"
+                    ),
                     (job_id,),
                 ).rowcount
                 == 1

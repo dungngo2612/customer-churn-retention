@@ -18,9 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def schema() -> tuple[FeatureColumn, ...]:
     # Unit-test descriptors follow the project's feature configuration. Actual
     # application wiring supplies the official schema from ReferenceStore.
-    config = yaml.safe_load((ROOT / "configs/train_config.yaml").read_text())[
-        "features"
-    ]
+    config = yaml.safe_load((ROOT / "configs/train_config.yaml").read_text())["features"]
     return tuple(
         [
             FeatureColumn(
@@ -77,17 +75,13 @@ def references(query: dict[str, object]) -> list[SimilarCustomer]:
 
 def data_block(prompt: str) -> dict[str, Any]:
     return json.loads(
-        prompt.split("\nBEGIN_CUSTOMER_DATA_JSON\n", 1)[1].split(
-            "\nEND_CUSTOMER_DATA_JSON\n", 1
-        )[0]
+        prompt.split("\nBEGIN_CUSTOMER_DATA_JSON\n", 1)[1].split("\nEND_CUSTOMER_DATA_JSON\n", 1)[0]
     )
 
 
 def output_schema(prompt: str) -> dict[str, Any]:
     return json.loads(
-        prompt.split("\nBEGIN_OUTPUT_JSON_SCHEMA\n", 1)[1].split(
-            "\nEND_OUTPUT_JSON_SCHEMA\n", 1
-        )[0]
+        prompt.split("\nBEGIN_OUTPUT_JSON_SCHEMA\n", 1)[1].split("\nEND_OUTPUT_JSON_SCHEMA\n", 1)[0]
     )
 
 
@@ -104,22 +98,16 @@ def test_reference_count_labels_and_order_match_retriever_projection(
     selected = references[:3]
     data = data_block(ChurnPromptBuilder(schema).build(query, selected))
     assert data["reference_count"] == 3
-    assert data["reference_customers"] == [
-        reference.to_prompt_data() for reference in selected
-    ]
+    assert data["reference_customers"] == [reference.to_prompt_data() for reference in selected]
     assert [example["Churn"] for example in data["reference_customers"]] == [
         "No",
         "Yes",
         "No",
     ]
-    assert all(
-        len(example["features"]) == 19 for example in data["reference_customers"]
-    )
+    assert all(len(example["features"]) == 19 for example in data["reference_customers"])
 
 
-def test_no_query_id_or_label_and_no_reference_metadata(
-    schema, query, references
-) -> None:
+def test_no_query_id_or_label_and_no_reference_metadata(schema, query, references) -> None:
     row = {
         **query,
         "customerID": "PRIVATE-QUERY-ID",
@@ -134,9 +122,7 @@ def test_no_query_id_or_label_and_no_reference_metadata(
     assert "Churn" not in data_block(prompt)["customer_to_predict"]
 
 
-def test_ignored_metadata_values_are_never_read_or_serialized(
-    schema, query, references
-) -> None:
+def test_ignored_metadata_values_are_never_read_or_serialized(schema, query, references) -> None:
     class Forbidden:
         def __str__(self):
             raise AssertionError("Private metadata must not be read")
@@ -147,13 +133,8 @@ def test_ignored_metadata_values_are_never_read_or_serialized(
     )
 
 
-def test_reference_id_and_distance_do_not_change_prompt(
-    schema, query, references
-) -> None:
-    changed = [
-        SimilarCustomer(r.features, r.churn, "OTHER-PRIVATE-ID", 999.0)
-        for r in references
-    ]
+def test_reference_id_and_distance_do_not_change_prompt(schema, query, references) -> None:
+    changed = [SimilarCustomer(r.features, r.churn, "OTHER-PRIVATE-ID", 999.0) for r in references]
     builder = ChurnPromptBuilder(schema)
     assert builder.build(query, references) == builder.build(query, changed)
 
@@ -174,21 +155,13 @@ def test_builder_calls_existing_to_prompt_data_only_for_retained_prefix(
 
 
 @pytest.mark.parametrize("maximum", [0, 1, 3, 5])
-def test_example_limit_keeps_nearest_prefix(
-    schema, query, references, maximum: int
-) -> None:
-    data = data_block(
-        ChurnPromptBuilder(schema, max_examples=maximum).build(query, references)
-    )
+def test_example_limit_keeps_nearest_prefix(schema, query, references, maximum: int) -> None:
+    data = data_block(ChurnPromptBuilder(schema, max_examples=maximum).build(query, references))
     assert data["reference_count"] == maximum
-    assert data["reference_customers"] == [
-        r.to_prompt_data() for r in references[:maximum]
-    ]
+    assert data["reference_customers"] == [r.to_prompt_data() for r in references[:maximum]]
 
 
-def test_empty_references_require_uncertainty_without_fabricated_examples(
-    schema, query
-) -> None:
+def test_empty_references_require_uncertainty_without_fabricated_examples(schema, query) -> None:
     prompt = ChurnPromptBuilder(schema).build(query, [])
     data = data_block(prompt)
     assert data["reference_customers"] == [] and data["reference_count"] == 0
@@ -209,9 +182,7 @@ def test_size_limit_drops_complete_tail_examples_and_preserves_query(
 ) -> None:
     selected = references[:3]
     full = ChurnPromptBuilder(schema).build(query, selected)
-    prompt = ChurnPromptBuilder(schema, max_prompt_chars=len(full) - 1).build(
-        query, selected
-    )
+    prompt = ChurnPromptBuilder(schema, max_prompt_chars=len(full) - 1).build(query, selected)
     data = data_block(prompt)
     assert len(prompt) <= len(full) - 1
     assert data["customer_to_predict"] == query
@@ -222,10 +193,7 @@ def test_size_limit_drops_complete_tail_examples_and_preserves_query(
 
 def test_exact_size_boundary_is_inclusive(schema, query, references) -> None:
     full = ChurnPromptBuilder(schema).build(query, references)
-    assert (
-        ChurnPromptBuilder(schema, max_prompt_chars=len(full)).build(query, references)
-        == full
-    )
+    assert ChurnPromptBuilder(schema, max_prompt_chars=len(full)).build(query, references) == full
 
 
 def test_query_and_rules_are_never_truncated_to_fit(schema, query, references) -> None:
@@ -326,9 +294,7 @@ def test_missing_query_features_are_rejected(schema, query, feature: str) -> Non
         ChurnPromptBuilder(schema).build(row, [])
 
 
-def test_extra_features_are_rejected_in_query_and_references(
-    schema, query, references
-) -> None:
+def test_extra_features_are_rejected_in_query_and_references(schema, query, references) -> None:
     builder = ChurnPromptBuilder(schema)
     with pytest.raises(ValueError, match="19-feature"):
         builder.build({**query, "income": 1000}, references)
@@ -359,37 +325,25 @@ def test_extra_features_are_rejected_in_query_and_references(
         ("gender", "x" * 129),
     ],
 )
-def test_invalid_feature_values_are_rejected(
-    schema, query, feature: str, value: object
-) -> None:
+def test_invalid_feature_values_are_rejected(schema, query, feature: str, value: object) -> None:
     with pytest.raises((TypeError, ValueError)):
         ChurnPromptBuilder(schema).build({**query, feature: value}, [])
 
 
 @pytest.mark.parametrize("label", ["Maybe", "yes", 1, True, None])
-def test_invalid_reference_labels_are_rejected(
-    schema, query, references, label: object
-) -> None:
-    reference = SimilarCustomer(
-        references[0].features, cast(Any, label), "PRIVATE", 0.0
-    )
+def test_invalid_reference_labels_are_rejected(schema, query, references, label: object) -> None:
+    reference = SimilarCustomer(references[0].features, cast(Any, label), "PRIVATE", 0.0)
     with pytest.raises(ValueError, match="Yes or No"):
         ChurnPromptBuilder(schema).build(query, [reference])
 
 
-@pytest.mark.parametrize(
-    "invalid", [None, "text", {}, [None], [{"features": {}, "Churn": "No"}]]
-)
-def test_invalid_reference_container_or_element_is_rejected(
-    schema, query, invalid: object
-) -> None:
+@pytest.mark.parametrize("invalid", [None, "text", {}, [None], [{"features": {}, "Churn": "No"}]])
+def test_invalid_reference_container_or_element_is_rejected(schema, query, invalid: object) -> None:
     with pytest.raises(TypeError):
         ChurnPromptBuilder(schema).build(query, cast(Any, invalid))
 
 
-def test_unexpected_projection_shape_is_rejected(
-    schema, query, references, monkeypatch
-) -> None:
+def test_unexpected_projection_shape_is_rejected(schema, query, references, monkeypatch) -> None:
     monkeypatch.setattr(
         SimilarCustomer,
         "to_prompt_data",

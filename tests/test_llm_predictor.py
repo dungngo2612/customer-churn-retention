@@ -52,9 +52,7 @@ def clock(monkeypatch: pytest.MonkeyPatch):
 
 def prompt_data(prompt: str) -> dict[str, Any]:
     return json.loads(
-        prompt.split("\nBEGIN_CUSTOMER_DATA_JSON\n", 1)[1].split(
-            "\nEND_CUSTOMER_DATA_JSON\n", 1
-        )[0]
+        prompt.split("\nBEGIN_CUSTOMER_DATA_JSON\n", 1)[1].split("\nEND_CUSTOMER_DATA_JSON\n", 1)[0]
     )
 
 
@@ -71,21 +69,14 @@ def test_valid_prediction_runs_full_pipeline_without_reinterpreting_result(
             result = await LLMChurnPredictor(store, router).predict(query(source))
         assert result.churn_prediction == 1 and result.churn_probability == 0.13
         assert result.reason == REASON and result.probability_calibrated is False
-        assert (
-            result.reference_count == 5
-            and result.reference_version == store.reference_version
-        )
+        assert result.reference_count == 5 and result.reference_version == store.reference_version
         assert result.provider == "Groq" and not fallback.calls
         data = prompt_data(primary.calls[0][0])
         assert len(data["customer_to_predict"]) == 19
         assert "Churn" not in data["customer_to_predict"]
-        assert data["reference_customers"] == [
-            r.to_prompt_data() for r in expected_references
-        ]
+        assert data["reference_customers"] == [r.to_prompt_data() for r in expected_references]
         assert "customerID" not in primary.calls[0][0]
-        assert (
-            not {"customer_id", "customerID", "references"} & result.model_dump().keys()
-        )
+        assert not {"customer_id", "customerID", "references"} & result.model_dump().keys()
 
     run_case(case())
 
@@ -124,10 +115,7 @@ def test_total_charges_cleaning_reuses_existing_zero_tenure_rule(
         primary.succeed(VALID)
         async with LLMRouter(primary, fallback) as router:
             await LLMChurnPredictor(store, router).predict(row)
-        assert (
-            prompt_data(primary.calls[0][0])["customer_to_predict"]["TotalCharges"]
-            == 0.0
-        )
+        assert prompt_data(primary.calls[0][0])["customer_to_predict"]["TotalCharges"] == 0.0
         assert not fallback.calls
 
     run_case(case())
@@ -210,9 +198,7 @@ def test_both_failures_have_separate_structured_errors(
             assert isinstance(caught.value.fallback_error, LLMAPIError)
             assert caught.value.primary_error.status_code == 500
             assert caught.value.fallback_error.status_code == 503
-        assert (
-            "PRIVATE_" not in json.dumps(structured) + str(caught.value) + caplog.text
-        )
+        assert "PRIVATE_" not in json.dumps(structured) + str(caught.value) + caplog.text
         assert len(primary.calls) == len(fallback.calls) == 1
 
     run_case(case())
@@ -223,9 +209,7 @@ def test_hedged_valid_winner_does_not_wait_for_qwen_cleanup(
 ) -> None:
     async def case() -> None:
         primary, fallback = Provider(clock, delayed_cleanup=True), Provider(clock)
-        router = LLMRouter(
-            primary, fallback, primary_provider="Groq", fallback_provider="Gemini"
-        )
+        router = LLMRouter(primary, fallback, primary_provider="Groq", fallback_provider="Gemini")
         try:
             predictor = LLMChurnPredictor(store, router)
             request = asyncio.create_task(predictor.predict(query(source)))
@@ -295,9 +279,7 @@ def test_size_truncation_reports_actual_number_of_examples(
         primary, fallback = Provider(clock), Provider(clock)
         primary.succeed(VALID)
         async with LLMRouter(primary, fallback) as router:
-            result = await LLMChurnPredictor(
-                store, router, max_prompt_chars=budget
-            ).predict(row)
+            result = await LLMChurnPredictor(store, router, max_prompt_chars=budget).predict(row)
         assert result.reference_count == 1
         assert len(primary.calls[0][0]) <= budget
         built = builder.build_with_metadata(prepared.features, references)
@@ -326,9 +308,7 @@ def test_no_dataset_reads_fits_or_preprocessing_mutations_per_request(
             monkeypatch.setattr(pd, "read_csv", forbidden)
             for cls in (StandardScaler, OneHotEncoder, LogisticRegression):
                 monkeypatch.setattr(cls, "fit", forbidden)
-            with patch.object(
-                Path, "read_bytes", side_effect=AssertionError("No artifact reread")
-            ):
+            with patch.object(Path, "read_bytes", side_effect=AssertionError("No artifact reread")):
                 first = await predictor.predict(row)
                 second = await predictor.predict({**row, "Churn": "ignored"})
         assert first == second and first.provider is None
@@ -346,9 +326,7 @@ def test_reference_id_in_reason_is_rejected_without_editing_llm_result(
         reference = SimilarCustomerRetriever(store).retrieve(row)[0]
         primary, fallback = Provider(clock), Provider(clock)
         primary.succeed(
-            json.dumps(
-                {**VALID_DATA, "reason": "Tham chiếu " + reference.customer_id.upper()}
-            )
+            json.dumps({**VALID_DATA, "reason": "Tham chiếu " + reference.customer_id.upper()})
         )
         fallback.succeed(VALID)
         async with LLMRouter(
@@ -358,8 +336,7 @@ def test_reference_id_in_reason_is_rejected_without_editing_llm_result(
         serialized = result.model_dump_json()
         assert result.provider == "Gemini" and result.reason == REASON
         assert all(
-            record.customer_id.casefold() not in serialized.casefold()
-            for record in store.records
+            record.customer_id.casefold() not in serialized.casefold() for record in store.records
         )
 
     run_case(case())

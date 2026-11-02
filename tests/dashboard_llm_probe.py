@@ -35,9 +35,7 @@ def main() -> None:
     class Barrier(importlib.abc.MetaPathFinder):
         def find_spec(self, fullname: str, path: Any = None, target: Any = None):
             if any(fullname == p or fullname.startswith(p + ".") for p in blocked):
-                raise AssertionError(
-                    "Legacy classifier/provider implementation unavailable"
-                )
+                raise AssertionError("Legacy classifier/provider implementation unavailable")
             if fullname == "sklearn.linear_model._logistic":
                 raise AssertionError("Logistic implementation unavailable")
 
@@ -104,9 +102,7 @@ def main() -> None:
         StandardScaler,
     ):
         patch.multiple(cls, fit=forbidden, fit_transform=forbidden).start()
-    adapter = DashboardLLMAdapter(
-        ui.resources(), pin, DashboardRunStore(ui.runtime_path())
-    )
+    adapter = DashboardLLMAdapter(ui.resources(), pin, DashboardRunStore(ui.runtime_path()))
     run = adapter.prepare(ui.synthetic_frame(), "synthetic-demo.csv", "seed")
     job = ui.execute(adapter, run)
     assert job is not None and job.status.value == "SUCCESS"
@@ -122,9 +118,7 @@ def main() -> None:
     assert not at.exception and not at.error
     assert ui.list_campaigns()[0].scoring_run_id == run.run_id
     assert at.session_state["active_scoring_context"] == {"protected": True}
-    assert not any(
-        n == p or n.startswith(p + ".") for n in sys.modules for p in blocked
-    )
+    assert not any(n == p or n.startswith(p + ".") for n in sys.modules for p in blocked)
     assert not (root / "src/churn_retention/ml").exists()
     assert not (root / "artifacts/bundles").exists()
     assert not (root / "data").exists()

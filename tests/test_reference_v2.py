@@ -45,9 +45,7 @@ def load_trusted(path: str | Path, **kwargs: Any) -> VerificationReferenceV2:
 
 def digest(value: object) -> str:
     return sha256(
-        json.dumps(
-            value, sort_keys=True, separators=(",", ":"), allow_nan=False
-        ).encode()
+        json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
     )
 
 
@@ -69,8 +67,7 @@ def synthetic_source(directory: Path) -> tuple[Path, Path]:
     pd.DataFrame(rows).to_csv(train, index=False)
     pd.DataFrame(
         {
-            "customerID": [row["customerID"] for row in rows]
-            + ["held-val", "held-test"],
+            "customerID": [row["customerID"] for row in rows] + ["held-val", "held-test"],
             "split": ["train"] * 4 + ["val", "test"],
         }
     ).to_csv(splits, index=False)
@@ -104,9 +101,7 @@ def rewrite(source: Path, target: Path, change: Any, *, resign: bool = False) ->
     if resign:
         manifest = json.loads(payloads["manifest.json"])
         manifest["files"] = {
-            name: sha256(value)
-            for name, value in payloads.items()
-            if name != "manifest.json"
+            name: sha256(value) for name, value in payloads.items() if name != "manifest.json"
         }
         for field, name in [
             ("schema_sha256", "schema.json"),
@@ -115,9 +110,7 @@ def rewrite(source: Path, target: Path, change: Any, *, resign: bool = False) ->
         ]:
             if name in manifest["files"]:
                 manifest[field] = manifest["files"][name]
-        manifest["reference_version"] = reference_version(
-            manifest["files"], manifest["libraries"]
-        )
+        manifest["reference_version"] = reference_version(manifest["files"], manifest["libraries"])
         payloads["manifest.json"] = json_bytes(manifest)
     with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for name, value in payloads.items():
@@ -134,18 +127,14 @@ def test_generation_manifest_checksums_no_bundle_and_deterministic_bytes(
     assert output.read_bytes() == second.read_bytes()
     assert stat.S_IMODE(output.stat().st_mode) == 0o600
     assert built == first.manifest and built.reference_version.startswith("rag-v2-")
-    assert (
-        not {"model_type", "model_version", "bundle_sha256"} & built.model_dump().keys()
-    )
+    assert not {"model_type", "model_version", "bundle_sha256"} & built.model_dump().keys()
     with zipfile.ZipFile(output) as archive:
         assert set(archive.namelist()) == PAYLOAD_NAMES | {"manifest.json"}
         assert not any(
             name.endswith((".pkl", ".pickle", ".joblib")) or name.startswith("bundle/")
             for name in archive.namelist()
         )
-        assert all(
-            sha256(archive.read(name)) == value for name, value in built.files.items()
-        )
+        assert all(sha256(archive.read(name)) == value for name, value in built.files.items())
     assert np.isfinite(first.matrix).all() and len(first.records) == 4
 
 
@@ -232,8 +221,7 @@ def test_invalid_manifest_fields(
         value = json.loads(data["manifest.json"])
         value[field] = (
             0
-            if field
-            in {"row_count", "input_feature_count", "transformed_feature_count"}
+            if field in {"row_count", "input_feature_count", "transformed_feature_count"}
             else "invalid"
         )
         data["manifest.json"] = json_bytes(value)
@@ -243,9 +231,7 @@ def test_invalid_manifest_fields(
         load_trusted(target)
 
 
-@pytest.mark.parametrize(
-    "kind", ["missing_feature", "wrong_order", "dtype", "extra_field"]
-)
+@pytest.mark.parametrize("kind", ["missing_feature", "wrong_order", "dtype", "extra_field"])
 def test_invalid_schema_with_valid_checksums(
     small: tuple[Path, Path, Path], tmp_path: Path, kind: str
 ) -> None:
@@ -368,15 +354,11 @@ def test_state_codec_has_no_arbitrary_code_or_object_loading(
                 "items": {"kind": "list", "items": []},
             }
         elif kind == "wrong_statistics":
-            state["metadata"]["preprocessing"]["steps"]["num.scaler"]["state"]["mean_"][
-                0
-            ] += 1
+            state["metadata"]["preprocessing"]["steps"]["num.scaler"]["state"]["mean_"][0] += 1
         if kind == "code_bytes":
             data["preprocessing/state.json"] = b"cos\nsystem\n(S'never-execute'\ntR."
         elif kind == "duplicate_json":
-            data["preprocessing/state.json"] = (
-                b'{"encoding_version":1,"encoding_version":2}'
-            )
+            data["preprocessing/state.json"] = b'{"encoding_version":1,"encoding_version":2}'
         else:
             data["preprocessing/state.json"] = json_bytes(state)
 
@@ -428,9 +410,7 @@ def test_zip_duplicate_symlink_limits_and_compression_bomb(
     with pytest.raises(ReferenceV2Error):
         load_trusted(symlink)
     bomb = tmp_path / "bomb.zip"
-    rewrite(
-        small[2], bomb, lambda data: data.__setitem__("records.jsonl", b"0" * 200_000)
-    )
+    rewrite(small[2], bomb, lambda data: data.__setitem__("records.jsonl", b"0" * 200_000))
     with pytest.raises(ReferenceV2Error):
         load_trusted(bomb)
     monkeypatch.setitem(reference_v2.PAYLOAD_LIMITS, "records.jsonl", 1)
@@ -438,18 +418,14 @@ def test_zip_duplicate_symlink_limits_and_compression_bomb(
         load_trusted(small[2])
 
 
-def test_corrupt_archive_pin_and_libraries(
-    small: tuple[Path, Path, Path], tmp_path: Path
-) -> None:
+def test_corrupt_archive_pin_and_libraries(small: tuple[Path, Path, Path], tmp_path: Path) -> None:
     corrupt = tmp_path / "corrupt.zip"
     corrupt.write_bytes(b"not a ZIP")
     with pytest.raises(ReferenceV2Error):
         load_trusted(corrupt)
     with pytest.raises(ReferenceV2Error, match="pinned"):
         load_trusted(small[2], expected_artifact_sha256="0" * 64)
-    assert load_trusted(
-        small[2], expected_artifact_sha256=sha256(small[2].read_bytes())
-    )
+    assert load_trusted(small[2], expected_artifact_sha256=sha256(small[2].read_bytes()))
     incompatible = tmp_path / "libraries.zip"
 
     def change(data: dict[str, bytes]) -> None:
@@ -462,9 +438,7 @@ def test_corrupt_archive_pin_and_libraries(
         load_trusted(incompatible)
 
 
-@pytest.mark.parametrize(
-    "kind", ["val", "test", "duplicate", "incomplete", "invalid_label"]
-)
+@pytest.mark.parametrize("kind", ["val", "test", "duplicate", "incomplete", "invalid_label"])
 def test_builder_train_only_and_labels(tmp_path: Path, kind: str) -> None:
     train, splits = synthetic_source(tmp_path)
     frame = pd.read_csv(train)
@@ -544,20 +518,14 @@ def test_loaded_vectors_retrieval_and_prompt_match_golden_without_refit(
         == case["vector_sha256"]
     )
     neighbors = SimilarCustomerRetriever(cast("ReferenceStore", real)).retrieve(query)
-    assert (
-        digest([row.customer_id for row in neighbors])
-        == case["ordered_neighbor_ids_sha256"]
-    )
+    assert digest([row.customer_id for row in neighbors]) == case["ordered_neighbor_ids_sha256"]
     np.testing.assert_allclose(
         [row.distance for row in neighbors], case["distances"], atol=1e-12, rtol=1e-12
     )
     prompt = ChurnPromptBuilder(real.feature_schema).build_with_metadata(
         prepared.features, neighbors
     )
-    assert (
-        prompt.reference_count == 5
-        and sha256(prompt.text.encode()) == case["prompt"]["sha256"]
-    )
+    assert prompt.reference_count == 5 and sha256(prompt.text.encode()) == case["prompt"]["sha256"]
     if any(row.customer_id in prompt.text for row in real.records):
         pytest.fail("An ID entered a prompt")
 
@@ -581,74 +549,102 @@ def test_loaded_preprocessing_keeps_k_boundary_ties_and_self_exclusion(
         features, customer_id="synthetic-c" if exclude else None
     )
     suffixes = ("a", "b", "d", "e", "f") if exclude else ("a", "b", "c", "d", "e")
-    assert [row.customer_id for row in rows] == [
-        "synthetic-" + suffix for suffix in suffixes
-    ]
+    assert [row.customer_id for row in rows] == ["synthetic-" + suffix for suffix in suffixes]
     assert len({row.distance for row in rows}) == 1
 
 
 def test_independent_build_load_restore_retrieve_and_prompt(tmp_path: Path) -> None:
-    script = r"""
-import hashlib, importlib.abc, json, os, socket, sys, types
-sys.dont_write_bytecode = True
-sys.path.insert(0, sys.argv[1])
-blocked = (
- "sklearn.linear_model._logistic", "churn_retention.ml",
- "churn_retention.adapters.retrieval._artifact", "churn_retention.adapters.retrieval.reference_store",
- "churn_retention.adapters.predictor", "churn_retention.workflows.train_model",
- "churn_retention.workflows.build_reference",
-)
-class Barrier(importlib.abc.MetaPathFinder):
- def find_spec(self, fullname, path=None, target=None):
-  if any(fullname == p or fullname.startswith(p+".") for p in blocked):
-   raise AssertionError("Legacy/classifier imports are unavailable")
-class NoClassifier:
- def __new__(cls,*args,**kwargs): raise AssertionError("Classifier unavailable")
-poison = types.ModuleType("sklearn.linear_model._logistic")
-poison.LogisticRegression = poison.LogisticRegressionCV = NoClassifier
-sys.modules[poison.__name__] = poison
-sys.meta_path.insert(0, Barrier())
-def audit(event,args):
- if event == "open" and isinstance(args[0],(str,bytes,os.PathLike)):
-  p = os.fsdecode(args[0]).replace("\\","/")
-  if p.endswith(".pkl") or "/artifacts/bundles/" in p or p.endswith("telco-train-v1.zip"):
-   raise AssertionError("Old bundles and v1 reference artifact are unavailable")
-sys.addaudithook(audit)
-def forbidden(*args,**kwargs): raise AssertionError("No fitting/network during v2 load")
-socket.socket.connect = socket.socket.connect_ex = socket.create_connection = forbidden
-from churn_retention.workflows.build_reference_v2 import build_reference_v2
-from churn_retention.adapters.retrieval.reference_v2 import VerificationReferenceV2
-from churn_retention.adapters.retrieval.nearest_neighbors import SimilarCustomerRetriever
-from churn_retention.modules.scoring.llm_prompt import ChurnPromptBuilder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler,OneHotEncoder
-import numpy as np, pandas as pd
-out = sys.argv[6]
-build_reference_v2(sys.argv[2],sys.argv[3],out)
-for cls in (ColumnTransformer, Pipeline, SimpleImputer, StandardScaler, OneHotEncoder):
- cls.fit = cls.fit_transform = forbidden
-s = VerificationReferenceV2.load(out, trusted=True)
-b = json.load(open(sys.argv[5]))
-assert s.matrix.shape == (4930,45) and s.matrix.dtype == np.float64
-assert hashlib.sha256(s.matrix.astype("<f8").tobytes()).hexdigest() == b["matrix"]["values_sha256"]
-frame = pd.read_csv(sys.argv[4],usecols=list(s.preprocessor.input_feature_names))
-r = SimilarCustomerRetriever(s)
-builder = ChurnPromptBuilder(s.feature_schema)
-for case in b["queries"]:
- query = {name:frame.iloc[case["row"]][name] for name in s.preprocessor.input_feature_names}
- vector = s.prepare_query(query).vector
- assert hashlib.sha256(vector.astype("<f8").tobytes()).hexdigest() == case["vector_sha256"]
- neighbors = r.retrieve(query)
- ids = json.dumps([n.customer_id for n in neighbors],sort_keys=True,separators=(",",":"))
- assert hashlib.sha256(ids.encode()).hexdigest() == case["ordered_neighbor_ids_sha256"]
- prompt = builder.build(s.prepare_query(query).features,neighbors)
- assert hashlib.sha256(prompt.encode()).hexdigest() == case["prompt"]["sha256"]
-assert sys.modules[poison.__name__] is poison and not hasattr(poison,"__file__")
-assert not any(name == p or name.startswith(p+".") for name in sys.modules for p in blocked[1:])
-print("independent v2 build/load/query/retrieval/prompt passed")
-"""
+    script = (
+        "\n"
+        "import hashlib, importlib.abc, json, os, socket, sys, types\n"
+        "sys.dont_write_bytecode = True\n"
+        "sys.path.insert(0, sys.argv[1])\n"
+        "blocked = (\n"
+        ' "sklearn.linear_model._logistic", "churn_retention.ml",\n'
+        ' "churn_retention.adapters.retrieval._artifact", "churn_rete'
+        'ntion.adapters.retrieval.reference_store",\n'
+        ' "churn_retention.adapters.predictor", "churn_retention.work'
+        'flows.train_model",\n'
+        ' "churn_retention.workflows.build_reference",\n'
+        ")\n"
+        "class Barrier(importlib.abc.MetaPathFinder):\n"
+        " def find_spec(self, fullname, path=None, target=None):\n"
+        '  if any(fullname == p or fullname.startswith(p+".") for p i'
+        "n blocked):\n"
+        '   raise AssertionError("Legacy/classifier imports are unava'
+        'ilable")\n'
+        "class NoClassifier:\n"
+        ' def __new__(cls,*args,**kwargs): raise AssertionError("Clas'
+        'sifier unavailable")\n'
+        'poison = types.ModuleType("sklearn.linear_model._logistic")\n'
+        "poison.LogisticRegression = poison.LogisticRegressionCV = No"
+        "Classifier\n"
+        "sys.modules[poison.__name__] = poison\n"
+        "sys.meta_path.insert(0, Barrier())\n"
+        "def audit(event,args):\n"
+        ' if event == "open" and isinstance(args[0],(str,bytes,os.Pat'
+        "hLike)):\n"
+        '  p = os.fsdecode(args[0]).replace("\\\\","/")\n'
+        '  if p.endswith(".pkl") or "/artifacts/bundles/" in p or p.e'
+        'ndswith("telco-train-v1.zip"):\n'
+        '   raise AssertionError("Old bundles and v1 reference artifa'
+        'ct are unavailable")\n'
+        "sys.addaudithook(audit)\n"
+        'def forbidden(*args,**kwargs): raise AssertionError("No fitt'
+        'ing/network during v2 load")\n'
+        "socket.socket.connect = socket.socket.connect_ex = socket.cr"
+        "eate_connection = forbidden\n"
+        "from churn_retention.workflows.build_reference_v2 import bui"
+        "ld_reference_v2\n"
+        "from churn_retention.adapters.retrieval.reference_v2 import "
+        "VerificationReferenceV2\n"
+        "from churn_retention.adapters.retrieval.nearest_neighbors im"
+        "port SimilarCustomerRetriever\n"
+        "from churn_retention.modules.scoring.llm_prompt import Churn"
+        "PromptBuilder\n"
+        "from sklearn.compose import ColumnTransformer\n"
+        "from sklearn.pipeline import Pipeline\n"
+        "from sklearn.impute import SimpleImputer\n"
+        "from sklearn.preprocessing import StandardScaler,OneHotEncod"
+        "er\n"
+        "import numpy as np, pandas as pd\n"
+        "out = sys.argv[6]\n"
+        "build_reference_v2(sys.argv[2],sys.argv[3],out)\n"
+        "for cls in (ColumnTransformer, Pipeline, SimpleImputer, Stan"
+        "dardScaler, OneHotEncoder):\n"
+        " cls.fit = cls.fit_transform = forbidden\n"
+        "s = VerificationReferenceV2.load(out, trusted=True)\n"
+        "b = json.load(open(sys.argv[5]))\n"
+        "assert s.matrix.shape == (4930,45) and s.matrix.dtype == np."
+        "float64\n"
+        'assert hashlib.sha256(s.matrix.astype("<f8").tobytes()).hexd'
+        'igest() == b["matrix"]["values_sha256"]\n'
+        "frame = pd.read_csv(sys.argv[4],usecols=list(s.preprocessor."
+        "input_feature_names))\n"
+        "r = SimilarCustomerRetriever(s)\n"
+        "builder = ChurnPromptBuilder(s.feature_schema)\n"
+        'for case in b["queries"]:\n'
+        ' query = {name:frame.iloc[case["row"]][name] for name in s.p'
+        "reprocessor.input_feature_names}\n"
+        " vector = s.prepare_query(query).vector\n"
+        ' assert hashlib.sha256(vector.astype("<f8").tobytes()).hexdi'
+        'gest() == case["vector_sha256"]\n'
+        " neighbors = r.retrieve(query)\n"
+        " ids = json.dumps([n.customer_id for n in neighbors],sort_ke"
+        'ys=True,separators=(",",":"))\n'
+        ' assert hashlib.sha256(ids.encode()).hexdigest() == case["or'
+        'dered_neighbor_ids_sha256"]\n'
+        " prompt = builder.build(s.prepare_query(query).features,neig"
+        "hbors)\n"
+        " assert hashlib.sha256(prompt.encode()).hexdigest() == case["
+        '"prompt"]["sha256"]\n'
+        "assert sys.modules[poison.__name__] is poison and not hasatt"
+        'r(poison,"__file__")\n'
+        'assert not any(name == p or name.startswith(p+".") for name '
+        "in sys.modules for p in blocked[1:])\n"
+        'print("independent v2 build/load/query/retrieval/prompt pass'
+        'ed")\n'
+    )
     result = subprocess.run(
         [
             sys.executable,
@@ -669,15 +665,10 @@ print("independent v2 build/load/query/retrieval/prompt passed")
         check=True,
         timeout=60,
     )
-    assert (
-        result.stdout.strip()
-        == "independent v2 build/load/query/retrieval/prompt passed"
-    )
+    assert result.stdout.strip() == "independent v2 build/load/query/retrieval/prompt passed"
 
 
-def test_comparison_tool_uses_loaded_v2(
-    real: VerificationReferenceV2, tmp_path: Path
-) -> None:
+def test_comparison_tool_uses_loaded_v2(real: VerificationReferenceV2, tmp_path: Path) -> None:
     output = tmp_path / "compare-v2.zip"
     build_reference_v2(
         ROOT / "data/processed/train.csv",
@@ -699,9 +690,7 @@ def test_loader_requires_explicit_source_trust_or_external_pin(
     )
 
 
-@pytest.mark.parametrize(
-    "kind", ["order", "heldout", "duplicate", "target", "membership_hash"]
-)
+@pytest.mark.parametrize("kind", ["order", "heldout", "duplicate", "target", "membership_hash"])
 def test_fit_provenance_must_agree_with_train_membership(
     small: tuple[Path, Path, Path], tmp_path: Path, kind: str
 ) -> None:
@@ -719,9 +708,9 @@ def test_fit_provenance_must_agree_with_train_membership(
             data["preprocessing/fit_ids.json"] = json_bytes(ids)
         else:
             manifest = json.loads(data["manifest.json"])
-            manifest["fit"][
-                "target_used" if kind == "target" else "membership_sha256"
-            ] = True if kind == "target" else "0" * 64
+            manifest["fit"]["target_used" if kind == "target" else "membership_sha256"] = (
+                True if kind == "target" else "0" * 64
+            )
             data["manifest.json"] = json_bytes(manifest)
 
     rewrite(small[2], target, change, resign=True)
@@ -736,9 +725,7 @@ def test_validation_vocabulary_must_equal_encoder_categories(
 
     def change(data: dict[str, bytes]) -> None:
         state = json.loads(data["preprocessing/state.json"])
-        state["metadata"]["preprocessing"]["categorical_vocabulary"]["gender"].append(
-            "__UNSEEN__"
-        )
+        state["metadata"]["preprocessing"]["categorical_vocabulary"]["gender"].append("__UNSEEN__")
         data["preprocessing/state.json"] = json_bytes(state)
 
     rewrite(small[2], target, change, resign=True)

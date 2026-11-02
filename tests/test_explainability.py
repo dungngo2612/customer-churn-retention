@@ -25,9 +25,7 @@ def trained():
             "customerID": [f"train-{i}" for i in range(260)],
             "strong_signal": rng.normal(size=260),
             "weak_signal": rng.normal(size=260),
-            "contract_type": rng.choice(
-                ["month_to_month", "one_year", "two_year"], 260
-            ),
+            "contract_type": rng.choice(["month_to_month", "one_year", "two_year"], 260),
         }
     )
     labels = (train.strong_signal + rng.normal(scale=0.2, size=260) > 0).astype(int)
@@ -36,9 +34,7 @@ def trained():
         "categorical_features": ["contract_type"],
         "logistic": {"C": 1.0, "max_iter": 500},
     }
-    pipeline = train_logistic(
-        train.drop(columns="customerID"), labels, config, 42, False
-    )
+    pipeline = train_logistic(train.drop(columns="customerID"), labels, config, 42, False)
     schema = create_feature_schema(
         train, config["numeric_features"], config["categorical_features"]
     )
@@ -59,12 +55,10 @@ def test_additivity_probability_and_onehot_grouping(trained):
     row = train.iloc[[4]].copy()
     row["customerID"] = "val-1"
     result = ModelExplanation.model_validate(explain_one(bundle, row, train))
-    expected_logit = float(
-        bundle._pipeline.decision_function(row.drop(columns="customerID"))[0]
+    expected_logit = float(bundle._pipeline.decision_function(row.drop(columns="customerID"))[0])
+    assert result.base_value + sum(c.contribution for c in result.contributions) == pytest.approx(
+        expected_logit, abs=1e-6, rel=0
     )
-    assert result.base_value + sum(
-        c.contribution for c in result.contributions
-    ) == pytest.approx(expected_logit, abs=1e-6, rel=0)
     assert result.log_odds == pytest.approx(expected_logit, abs=1e-6, rel=0)
     assert 1 / (1 + np.exp(-result.log_odds)) == pytest.approx(
         bundle.predict_proba(row.drop(columns="customerID"))[0], abs=1e-6, rel=0
@@ -81,9 +75,7 @@ def test_additivity_probability_and_onehot_grouping(trained):
     category_details = [
         d for d in result.detailed_contributions if d.source_feature == "contract_type"
     ]
-    assert (
-        len(category_details) == 3
-    )  # Both feature and category names contain underscores.
+    assert len(category_details) == 3  # Both feature and category names contain underscores.
     assert result.customer_id == "val-1"
 
 
@@ -107,9 +99,7 @@ def test_global_is_stable_and_groups_before_absolute_value(trained):
             )
             for r in contributions
         ]
-        assert importance["mean_abs_shap"] == pytest.approx(
-            np.mean(np.abs(values)), abs=1e-9
-        )
+        assert importance["mean_abs_shap"] == pytest.approx(np.mean(np.abs(values)), abs=1e-9)
     assert all(r["background"]["rows"] == 200 for r in local)
 
 

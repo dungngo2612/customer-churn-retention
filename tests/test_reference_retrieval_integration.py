@@ -21,7 +21,10 @@ SPLITS = ROOT / "artifacts/splits/dataset_splits.csv"
 BUNDLE = ROOT / "artifacts/bundles/logistic-20261018T130159-seed42"
 pytestmark = pytest.mark.skipif(
     not all(p.is_file() for p in [TRAIN, VAL, SPLITS, BUNDLE / "model.pkl"]),
-    reason="Existing project CSVs and saved Logistic bundle are required; no fake project data is substituted.",
+    reason=(
+        "Existing project CSVs and saved Logistic bundle are required"
+        "; no fake project data is substituted."
+    ),
 )
 
 
@@ -52,9 +55,7 @@ def test_real_reference_contains_exactly_train_and_reuses_saved_transform(
         zip(train.customerID, train.Churn, strict=True)
     )
     names = [c.name for c in store.feature_schema]
-    expected = source_bundle._pipeline.named_steps["preprocessor"].transform(
-        train[names]
-    )
+    expected = source_bundle._pipeline.named_steps["preprocessor"].transform(train[names])
     np.testing.assert_array_equal(store.matrix, expected)
 
 
@@ -72,15 +73,11 @@ def test_real_validation_query_has_train_neighbors_only_without_csv_rereads(
         ),
         key=lambda pair: (pair[0], pair[1].customer_id),
     )[:5]
-    with patch.object(
-        pd, "read_csv", side_effect=AssertionError("No request-time CSV reads")
-    ):
+    with patch.object(pd, "read_csv", side_effect=AssertionError("No request-time CSV reads")):
         first = retriever.retrieve(row)
         second = retriever.retrieve({**row, "Churn": "ignored"})
     assert first == second
     assert len(first) == 5
     assert [r.customer_id for r in first] == [r.customer_id for _, r in expected]
-    np.testing.assert_allclose(
-        [r.distance for r in first], [d for d, _ in expected], atol=1e-7
-    )
+    np.testing.assert_allclose([r.distance for r in first], [d for d, _ in expected], atol=1e-7)
     assert all(set(r.to_prompt_data()) == {"features", "Churn"} for r in first)

@@ -126,9 +126,7 @@ class JobWorker:
             else prediction_store
         )
         self._handlers: dict[JobType, Callable[[TaskJob], dict[str, Any]]] = (
-            {JobType.SCORING: self._handle_scoring}
-            if handlers is None
-            else dict(handlers)
+            {JobType.SCORING: self._handle_scoring} if handlers is None else dict(handlers)
         )
 
     def register_handler(

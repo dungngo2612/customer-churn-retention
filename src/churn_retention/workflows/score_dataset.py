@@ -132,9 +132,7 @@ class BatchScoringService:
                         not math.isfinite(prediction.churn_probability)
                         or not 0 <= prediction.churn_probability <= 1
                     ):
-                        raise ValueError(
-                            "Probabilities must be finite and within [0, 1]"
-                        )
+                        raise ValueError("Probabilities must be finite and within [0, 1]")
                 explanations = []
                 for offset, prediction in enumerate(batch.predictions):
                     if len(explained) >= job.explain_limit:
@@ -148,15 +146,11 @@ class BatchScoringService:
                         explanation.customer_id != prediction.customer_id
                         or explanation.model_version != job.model_version
                     ):
-                        raise ValueError(
-                            "Explanation customer/model does not match prediction"
-                        )
+                        raise ValueError("Explanation customer/model does not match prediction")
                     explanations.append(explanation)
                     explained.add(prediction.customer_id)
                 self.predictions.stage(batch, explanations, self.clock())
-                job = self.jobs.update_progress(
-                    job_id, job.processed_rows + len(batch.predictions)
-                )
+                job = self.jobs.update_progress(job_id, job.processed_rows + len(batch.predictions))
                 job = self.jobs.renew_lease(job_id, self.clock())
             if requested - explained:
                 raise ValueError(

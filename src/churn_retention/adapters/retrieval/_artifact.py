@@ -105,9 +105,7 @@ def load_preprocessor(
     if metadata.get("model_type") != "logistic" or not isinstance(
         metadata.get("model_version"), str
     ):
-        raise ReferenceArtifactError(
-            "A Logistic Regression bundle with model_version is required."
-        )
+        raise ReferenceArtifactError("A Logistic Regression bundle with model_version is required.")
     if metadata.get("label") != {"target_col": "Churn", "positive_label": "Yes"}:
         raise ReferenceArtifactError("Bundle label mapping must be Churn / Yes.")
     configured = metadata.get("config", {}).get("features", {})
@@ -117,14 +115,10 @@ def load_preprocessor(
         configured.get("numeric_cols") != numeric
         or configured.get("categorical_cols") != categorical
     ):
-        raise ReferenceArtifactError(
-            "Bundle configuration and feature schema disagree."
-        )
+        raise ReferenceArtifactError("Bundle configuration and feature schema disagree.")
     recorded_version = metadata.get("libraries", {}).get("scikit-learn")
     if recorded_version is not None and recorded_version != sklearn.__version__:
-        raise ReferenceArtifactError(
-            "Source sklearn bundle version does not match this runtime."
-        )
+        raise ReferenceArtifactError("Source sklearn bundle version does not match this runtime.")
 
     pipeline = pickle.loads(bundle_files["model.pkl"])
     if not isinstance(pipeline, Pipeline) or list(pipeline.named_steps) != [
@@ -139,16 +133,10 @@ def load_preprocessor(
         raise ReferenceArtifactError("Expected a fitted ColumnTransformer.")
     check_is_fitted(preprocessor)
     if list(preprocessor.feature_names_in_) != [c.name for c in schema]:
-        raise ReferenceArtifactError(
-            "Fitted preprocessor feature names do not match the schema."
-        )
-    configured_transformers = [
-        (name, list(cols)) for name, _, cols in preprocessor.transformers_
-    ]
+        raise ReferenceArtifactError("Fitted preprocessor feature names do not match the schema.")
+    configured_transformers = [(name, list(cols)) for name, _, cols in preprocessor.transformers_]
     if configured_transformers != [("num", numeric), ("cat", categorical)]:
-        raise ReferenceArtifactError(
-            "Fitted transformer inputs do not match the feature schema."
-        )
+        raise ReferenceArtifactError("Fitted transformer inputs do not match the feature schema.")
     num = preprocessor.named_transformers_["num"]
     cat = preprocessor.named_transformers_["cat"]
     if not isinstance(num, Pipeline) or not isinstance(cat, Pipeline):
@@ -176,18 +164,11 @@ def load_preprocessor(
 def read_splits(
     data: bytes,
 ) -> tuple[dict[str, str], dict[Literal["train", "val", "test"], int]]:
-    frame = pd.read_csv(
-        io.BytesIO(data), dtype={"customerID": "string", "split": "string"}
-    )
+    frame = pd.read_csv(io.BytesIO(data), dtype={"customerID": "string", "split": "string"})
     if set(frame.columns) != {"customerID", "split"} or len(frame.columns) != 2:
-        raise ReferenceArtifactError(
-            "Split manifest requires customerID and split columns."
-        )
+        raise ReferenceArtifactError("Split manifest requires customerID and split columns.")
     ids = [validate_id(value) for value in frame.customerID]
-    if (
-        len(set(ids)) != len(ids)
-        or not frame.split.isin(["train", "val", "test"]).all()
-    ):
+    if len(set(ids)) != len(ids) or not frame.split.isin(["train", "val", "test"]).all():
         raise ReferenceArtifactError("Split membership must be unique and valid.")
     membership = dict(zip(ids, frame.split.tolist(), strict=True))
     counts: dict[Literal["train", "val", "test"], int] = {
@@ -206,7 +187,10 @@ def validate_membership(ids: list[str], membership: Mapping[str, str]) -> None:
     train_ids = {key for key, value in membership.items() if value == "train"}
     if set(ids) != train_ids:
         raise ReferenceArtifactError(
-            "Reference IDs must match exactly the train split; val/test and unknown IDs are forbidden."
+            (
+                "Reference IDs must match exactly the train split; val/test a"
+                "nd unknown IDs are forbidden."
+            )
         )
 
 
@@ -219,9 +203,7 @@ def transform(
         matrix = matrix.toarray()
     result = np.asarray(matrix, dtype=np.float64, order="C")
     if result.ndim != 2 or len(result) != len(rows) or not np.isfinite(result).all():
-        raise ReferenceArtifactError(
-            "Transformed features must form a finite 2D matrix."
-        )
+        raise ReferenceArtifactError("Transformed features must form a finite 2D matrix.")
     if result.shape[1] != len(preprocessor.get_feature_names_out()):
         raise ReferenceArtifactError(
             "Transformed feature dimensions disagree with the preprocessor."

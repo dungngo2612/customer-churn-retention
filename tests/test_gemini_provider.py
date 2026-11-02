@@ -55,9 +55,7 @@ def completion(content: str | None) -> types.GenerateContentResponse:
     )
 
 
-def test_returns_content_and_awaits_sdk(
-    mock_sdk: MagicMock, mock_http_client: MagicMock
-) -> None:
+def test_returns_content_and_awaits_sdk(mock_sdk: MagicMock, mock_http_client: MagicMock) -> None:
     text = "  Khách hàng có nguy cơ rời bỏ.\n"
     mock_sdk.return_value.aio.models.generate_content.return_value = completion(text)
     provider: LLMProvider = GeminiProvider()
@@ -210,18 +208,13 @@ def test_uses_configured_model_in_request(
 ) -> None:
     if configured is not None:
         monkeypatch.setenv("GEMINI_MODEL", configured)
-    mock_sdk.return_value.aio.models.generate_content.return_value = completion(
-        "answer"
-    )
+    mock_sdk.return_value.aio.models.generate_content.return_value = completion("answer")
     provider = GeminiProvider()
 
     asyncio.run(provider.generate("prompt"))
 
     assert provider.model == expected
-    assert (
-        mock_sdk.return_value.aio.models.generate_content.await_args.kwargs["model"]
-        == expected
-    )
+    assert mock_sdk.return_value.aio.models.generate_content.await_args.kwargs["model"] == expected
 
 
 @pytest.mark.parametrize("prompt", ["", " \n\t"])
@@ -263,17 +256,13 @@ def test_rejects_invalid_timeout(
 def test_context_manager_closes_all_clients(
     mock_sdk: MagicMock, mock_http_client: MagicMock, outcome: str
 ) -> None:
-    mock_sdk.return_value.aio.models.generate_content.return_value = completion(
-        "answer"
-    )
+    mock_sdk.return_value.aio.models.generate_content.return_value = completion("answer")
     if outcome == "error":
-        mock_sdk.return_value.aio.models.generate_content.side_effect = (
-            httpx.ReadTimeout("mock timeout")
+        mock_sdk.return_value.aio.models.generate_content.side_effect = httpx.ReadTimeout(
+            "mock timeout"
         )
     elif outcome == "cancelled":
-        mock_sdk.return_value.aio.models.generate_content.side_effect = (
-            asyncio.CancelledError()
-        )
+        mock_sdk.return_value.aio.models.generate_content.side_effect = asyncio.CancelledError()
 
     async def run() -> None:
         async with GeminiProvider() as provider:
@@ -306,13 +295,9 @@ def test_cleanup_continues_when_a_client_close_fails(
     mock_sdk: MagicMock, mock_http_client: MagicMock, failing_client: str
 ) -> None:
     if failing_client == "sdk":
-        mock_sdk.return_value.aio.aclose.side_effect = RuntimeError(
-            "mock close failure"
-        )
+        mock_sdk.return_value.aio.aclose.side_effect = RuntimeError("mock close failure")
     else:
-        mock_http_client.return_value.aclose.side_effect = RuntimeError(
-            "mock close failure"
-        )
+        mock_http_client.return_value.aclose.side_effect = RuntimeError("mock close failure")
 
     with pytest.raises(RuntimeError, match="mock close failure"):
         asyncio.run(GeminiProvider().aclose())

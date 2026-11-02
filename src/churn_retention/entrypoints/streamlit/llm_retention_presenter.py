@@ -20,9 +20,7 @@ DEMO_KEY = "llm_retention.demo_inputs"
 def _accepted_record() -> PredictionRecord | None:
     record = st.session_state.get(RECORD_KEY)
     if not isinstance(record, PredictionRecord) or record.origin != "llm":
-        st.info(
-            "Chưa có kết quả LLM đã chấp nhận trong phiên này. Có thể dùng dữ liệu giả để thử."
-        )
+        st.info("Chưa có kết quả LLM đã chấp nhận trong phiên này. Có thể dùng dữ liệu giả để thử.")
         return None
     # Imported only for live results. Demo needs no artifact or legacy deployment.
     from churn_retention.entrypoints.streamlit.llm_input import (
@@ -37,17 +35,10 @@ def _accepted_record() -> PredictionRecord | None:
             reference_artifact_sha256(),
         )
     except Exception:  # noqa: BLE001 -- Do not expose artifact paths/customer details.
-        st.error(
-            "Không thể xác minh ngữ cảnh tham chiếu hiện tại. Chưa thể mô phỏng kết quả này."
-        )
+        st.error("Không thể xác minh ngữ cảnh tham chiếu hiện tại. Chưa thể mô phỏng kết quả này.")
         return None
-    if (
-        current != st.session_state.get(RECORD_CONTEXT_KEY)
-        or record.reference_sha256 != current[1]
-    ):
-        st.error(
-            "Tham chiếu đã thay đổi. Kết quả cũ không được dùng cho mô phỏng hiện hành."
-        )
+    if current != st.session_state.get(RECORD_CONTEXT_KEY) or record.reference_sha256 != current[1]:
+        st.error("Tham chiếu đã thay đổi. Kết quả cũ không được dùng cho mô phỏng hiện hành.")
         return None
     return record
 
@@ -55,8 +46,11 @@ def _accepted_record() -> PredictionRecord | None:
 def render_retention() -> None:
     st.title("Mô phỏng Retention / Budget")
     st.warning(
-        "Mô phỏng theo giả định: xác suất LLM chưa hiệu chuẩn; hiệu quả can thiệp chưa được kiểm chứng. "
-        "Giá trị kinh tế không phải ROI đã xác nhận. Phân bổ dùng greedy heuristic."
+        (
+            "Mô phỏng theo giả định: xác suất LLM chưa hiệu chuẩn; hiệu q"
+            "uả can thiệp chưa được kiểm chứng. Giá trị kinh tế không phả"
+            "i ROI đã xác nhận. Phân bổ dùng greedy heuristic."
+        )
     )
     source = st.radio(
         "Nguồn dữ liệu",
@@ -64,9 +58,7 @@ def render_retention() -> None:
         key="llm_retention.source",
     )
     if source == "Dữ liệu giả (demo)":
-        st.info(
-            "DỮ LIỆU GIẢ: 4 khách hàng và xác suất viết tay. Không gọi LLM, không đọc dataset."
-        )
+        st.info("DỮ LIỆU GIẢ: 4 khách hàng và xác suất viết tay. Không gọi LLM, không đọc dataset.")
         if DEMO_KEY not in st.session_state:
             st.session_state[DEMO_KEY] = demo_inputs()
         inputs = st.session_state[DEMO_KEY]
@@ -74,13 +66,9 @@ def render_retention() -> None:
         record = _accepted_record()
         if record is None:
             return
-        st.caption(
-            f"Kết quả đã gửi lúc {record.created_at.isoformat()} · Run {record.record_id}"
-        )
+        st.caption(f"Kết quả đã gửi lúc {record.created_at.isoformat()} · Run {record.record_id}")
         st.text(f"Reference version: {record.prediction.reference_version}")
-        st.caption(
-            "Không dùng bản nháp trong form Predict và không tạo lượt dự đoán mới."
-        )
+        st.caption("Không dùng bản nháp trong form Predict và không tạo lượt dự đoán mới.")
         if st.session_state.get("llm_retention.context_record_id") != record.record_id:
             for key in ("llm_retention.customer_ref", "llm_retention.observed_active"):
                 st.session_state.pop(key, None)
@@ -97,9 +85,7 @@ def render_retention() -> None:
             key="llm_retention.observed_active",
         )
         if status is None:
-            st.info(
-                "Cần xác nhận trạng thái hoạt động; không suy ra từ churn_prediction."
-            )
+            st.info("Cần xác nhận trạng thái hoạt động; không suy ra từ churn_prediction.")
             return
         try:
             inputs = (
@@ -165,9 +151,7 @@ def render_retention() -> None:
     if allocations.empty:
         st.info("Không có khách hàng đủ điều kiện mô phỏng.")
     elif (allocations["action_code"] == "A0").all():
-        st.info(
-            "Tất cả khách hàng chọn A0: không can thiệp theo các giả định hiện tại."
-        )
+        st.info("Tất cả khách hàng chọn A0: không can thiệp theo các giả định hiện tại.")
     st.subheader("Phân bổ trong ngân sách")
     st.dataframe(allocations, hide_index=True)
     st.subheader("Khuyến nghị chưa giới hạn ngân sách")

@@ -128,9 +128,7 @@ class SqliteCampaignRepository:
                     existing["created_at"],
                 )
                 if snapshot != previous:
-                    raise ValueError(
-                        "Campaign snapshot is immutable; create a new campaign."
-                    )
+                    raise ValueError("Campaign snapshot is immutable; create a new campaign.")
             if existing is not None:
                 order = {"DRAFT": 0, "SIMULATED": 1, "EXPORTED": 2}
                 if order[campaign.status.value] <= order[existing["status"]]:

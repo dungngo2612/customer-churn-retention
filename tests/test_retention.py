@@ -1,13 +1,6 @@
 """Unit tests for Customer Churn Retention economic evaluation and recommendation module."""
 
-import sys
-from pathlib import Path
-
 # Thêm thư mục src vào sys.path để test chạy độc lập mà không bắt buộc phải pip install -e .
-SRC_DIR = Path(__file__).resolve().parent.parent / "src"
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
-
 import unittest
 
 import pandas as pd
@@ -44,17 +37,13 @@ class TestRetentionPolicy(unittest.TestCase):
 
     def test_compute_proxy_clv(self):
         """Kiểm tra công thức tính Proxy CLV: V = MonthlyCharges * horizon * margin."""
-        clv = compute_proxy_clv(
-            monthly_charges=70.0, horizon_months=12, contribution_margin=0.50
-        )
+        clv = compute_proxy_clv(monthly_charges=70.0, horizon_months=12, contribution_margin=0.50)
         # 70.0 * 12 * 0.50 = 420.0
         self.assertEqual(clv, 420.0)
 
     def test_retention_policy_positive_env(self):
         """Kiểm tra trường hợp can thiệp có lãi (ENV > 0)."""
-        policy = RetentionPolicy(
-            clv=500.0, churn_prob=0.60, cost=10.0, success_rate=0.15
-        )
+        policy = RetentionPolicy(clv=500.0, churn_prob=0.60, cost=10.0, success_rate=0.15)
         # B = 0.60 * 0.15 * 500.0 = 45.0
         self.assertAlmostEqual(policy.expected_benefit(), 45.0, places=2)
         # ENV = 45.0 - 10.0 = 35.0
@@ -65,9 +54,7 @@ class TestRetentionPolicy(unittest.TestCase):
 
     def test_retention_policy_negative_env(self):
         """Kiểm tra trường hợp can thiệp lỗ (ENV <= 0) thì không nên can thiệp."""
-        policy = RetentionPolicy(
-            clv=100.0, churn_prob=0.05, cost=15.0, success_rate=0.10
-        )
+        policy = RetentionPolicy(clv=100.0, churn_prob=0.05, cost=15.0, success_rate=0.10)
         # B = 0.05 * 0.10 * 100.0 = 0.5
         # ENV = 0.5 - 15.0 = -14.5
         self.assertLess(policy.expected_net_value(), 0)

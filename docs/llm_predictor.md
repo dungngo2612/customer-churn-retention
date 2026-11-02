@@ -15,11 +15,10 @@ from churn_retention.modules.scoring.llm_router import groq_gemini_router
 # Startup: đọc/kiểm tra artifact và nạp fitted preprocessing đúng một lần.
 store = ReferenceStore.load("artifacts/references/telco-train-v1.zip")
 
+
 async def serve(customers):
     async with groq_gemini_router() as router:
-        predictor = LLMChurnPredictor(
-            store, router, k=5, max_examples=5, max_prompt_chars=16_000
-        )
+        predictor = LLMChurnPredictor(store, router, k=5, max_examples=5, max_prompt_chars=16_000)
         for customer in customers:
             result = await predictor.predict(customer)
             yield result.model_dump()

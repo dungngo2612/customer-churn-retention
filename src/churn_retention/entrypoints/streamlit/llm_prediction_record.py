@@ -30,8 +30,6 @@ def capture_submission(
     reference_sha256: str,
     reference_context: object,
 ) -> None:
-    record = PredictionRecord.capture(
-        snapshot, prediction, reference_sha256=reference_sha256
-    )
+    record = PredictionRecord.capture(snapshot, prediction, reference_sha256=reference_sha256)
     state[RECORD_KEY] = record
     state[RECORD_CONTEXT_KEY] = reference_context

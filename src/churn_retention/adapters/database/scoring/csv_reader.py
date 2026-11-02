@@ -22,12 +22,8 @@ class CsvDatasetReader:
                 if row and not (len(row) == 1 and not row[0].strip())
             )
             header = next(rows, [])
-            if len(set(header)) != len(header) or not (
-                {"customer_id", "customerID"} & set(header)
-            ):
-                raise ValueError(
-                    "CSV requires unique columns and customer_id or customerID"
-                )
+            if len(set(header)) != len(header) or not ({"customer_id", "customerID"} & set(header)):
+                raise ValueError("CSV requires unique columns and customer_id or customerID")
             if {"customer_id", "customerID"} <= set(header):
                 raise ValueError("CSV must contain one unambiguous customer ID column")
             return sum(1 for _ in rows)

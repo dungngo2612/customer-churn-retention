@@ -44,9 +44,7 @@ PRIVATE = ROOT / "artifacts/golden/llm-rag-v1-private.json"
 
 def json_digest(value: object) -> str:
     return sha256(
-        json.dumps(
-            value, sort_keys=True, separators=(",", ":"), allow_nan=False
-        ).encode()
+        json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
     )
 
 
@@ -70,11 +68,7 @@ class CandidateReferenceView:
     def prepare_query(
         self, query: Mapping[str, object], *, customer_id: str | None = None
     ) -> PreparedQuery:
-        ids = [
-            validate_id(query[name])
-            for name in ("customerID", "customer_id")
-            if name in query
-        ]
+        ids = [validate_id(query[name]) for name in ("customerID", "customer_id") if name in query]
         if customer_id is not None:
             ids.append(validate_id(customer_id))
         if len(set(ids)) > 1:
@@ -82,9 +76,7 @@ class CandidateReferenceView:
         features = self.preprocessor.clean(query)
         vector = self.preprocessor.transform_one(query)
         vector.setflags(write=False)
-        return PreparedQuery(
-            MappingProxyType(features), vector, ids[0] if ids else None
-        )
+        return PreparedQuery(MappingProxyType(features), vector, ids[0] if ids else None)
 
 
 def candidate_view(
@@ -94,8 +86,7 @@ def candidate_view(
         # Records/labels are RAG reference data; matrix.npy is the immutable oracle.
         # bundle/model.pkl is deliberately never read or unpickled.
         stored = [
-            StoredRecord.model_validate(row)
-            for row in json.loads(archive.read("records.json"))
+            StoredRecord.model_validate(row) for row in json.loads(archive.read("records.json"))
         ]
         expected = np.load(io.BytesIO(archive.read("matrix.npy")), allow_pickle=False)
     records = tuple(
@@ -117,8 +108,7 @@ def validation_queries(
     frame = pd.read_csv(VALIDATION, usecols=list(preprocessor.input_feature_names))
     return {
         case["name"]: {
-            name: frame.iloc[case["row"]][name]
-            for name in preprocessor.input_feature_names
+            name: frame.iloc[case["row"]][name] for name in preprocessor.input_feature_names
         }
         for case in cases
     }
@@ -134,9 +124,7 @@ def verify() -> dict[str, Any]:
     # Actual: fit from train and splits. Expected: frozen JSON/NPY, never a model.
     preprocessor = RAGPreprocessor.fit_train(TRAIN, SPLITS)
     view, expected_matrix = candidate_view(preprocessor)
-    expected_vectors = (
-        json.loads(PRIVATE.read_text())["queries"] if PRIVATE.is_file() else {}
-    )
+    expected_vectors = json.loads(PRIVATE.read_text())["queries"] if PRIVATE.is_file() else {}
     retriever = make_retriever(view)
     builder = ChurnPromptBuilder(preprocessor.feature_schema)
     queries = validation_queries(preprocessor, golden["queries"])
@@ -167,25 +155,18 @@ def verify() -> dict[str, Any]:
                 "vector_dtype": str(vector.dtype),
                 "vector_exact": vector_matches,
                 "vector_max_absolute_error": max_error,
-                "top5_ids_and_order_exact": json_digest(
-                    [row.customer_id for row in neighbors]
-                )
+                "top5_ids_and_order_exact": json_digest([row.customer_id for row in neighbors])
                 == case["ordered_neighbor_ids_sha256"],
                 "distance_max_absolute_error": float(
                     np.max(
-                        np.abs(
-                            np.asarray([row.distance for row in neighbors])
-                            - case["distances"]
-                        )
+                        np.abs(np.asarray([row.distance for row in neighbors]) - case["distances"])
                     )
                 ),
-                "examples_exact": built.reference_count
-                == case["prompt"]["reference_count"]
+                "examples_exact": built.reference_count == case["prompt"]["reference_count"]
                 and json_digest(payload["reference_customers"])
                 == case["prompt"]["ordered_examples_sha256"],
                 "prompt_hash": sha256(built.text.encode("utf-8")),
-                "prompt_exact": sha256(built.text.encode("utf-8"))
-                == case["prompt"]["sha256"],
+                "prompt_exact": sha256(built.text.encode("utf-8")) == case["prompt"]["sha256"],
                 "prompt_has_no_reference_ids": not any(
                     row.customer_id in built.text for row in view.records
                 ),
@@ -198,12 +179,9 @@ def verify() -> dict[str, Any]:
         "matrix_shape": list(view.matrix.shape),
         "matrix_dtype": str(view.matrix.dtype),
         "matrix_exact": bool(np.array_equal(view.matrix, expected_matrix)),
-        "matrix_max_absolute_error": float(
-            np.max(np.abs(view.matrix - expected_matrix))
-        ),
+        "matrix_max_absolute_error": float(np.max(np.abs(view.matrix - expected_matrix))),
         "matrix_hash": array_digest(view.matrix),
-        "matrix_hash_exact": array_digest(view.matrix)
-        == golden["matrix"]["values_sha256"],
+        "matrix_hash_exact": array_digest(view.matrix) == golden["matrix"]["values_sha256"],
         "reference_order_exact": json_digest([row.customer_id for row in view.records])
         == golden["matrix"]["ordered_reference_ids_sha256"],
         "queries": observations,

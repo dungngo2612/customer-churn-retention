@@ -49,13 +49,8 @@ def build_reference_v2(
         raise ReferenceV2Error("Source files changed during preprocessing fit.")
     frame = pd.read_csv(io.BytesIO(train_bytes), dtype={"customerID": "string"})
     names = list(preprocessor.input_feature_names)
-    if (
-        set(frame.columns) != {"customerID", "Churn", *names}
-        or len(frame.columns) != 21
-    ):
-        raise ReferenceV2Error(
-            "Train CSV requires exactly the 19 features, ID and label."
-        )
+    if set(frame.columns) != {"customerID", "Churn", *names} or len(frame.columns) != 21:
+        raise ReferenceV2Error("Train CSV requires exactly the 19 features, ID and label.")
     if not frame.Churn.isin(["No", "Yes"]).all():
         raise ReferenceV2Error("Reference labels must be non-missing No/Yes values.")
     fit_ids = [validate_id(value) for value in frame.customerID]
@@ -73,14 +68,10 @@ def build_reference_v2(
     buffer = io.BytesIO()
     np.save(buffer, matrix, allow_pickle=False)
     payloads = {
-        "schema.json": json_bytes(
-            [column.model_dump() for column in preprocessor.feature_schema]
-        ),
+        "schema.json": json_bytes([column.model_dump() for column in preprocessor.feature_schema]),
         "preprocessing/state.json": dump_preprocessing(preprocessor),
         "preprocessing/fit_ids.json": json_bytes(fit_ids),
-        "records.jsonl": b"".join(
-            json_bytes(row.model_dump()) + b"\n" for row in records
-        ),
+        "records.jsonl": b"".join(json_bytes(row.model_dump()) + b"\n" for row in records),
         "matrix.npy": buffer.getvalue(),
         "splits.csv": split_bytes,
     }
@@ -96,9 +87,7 @@ def build_reference_v2(
         transformed_feature_count=matrix.shape[1],
         output_feature_names=output_names,
         output_feature_names_sha256=sha256(json_bytes(output_names)),
-        matrix_values_sha256=sha256(
-            np.asarray(matrix, dtype="<f8", order="C").tobytes()
-        ),
+        matrix_values_sha256=sha256(np.asarray(matrix, dtype="<f8", order="C").tobytes()),
         fit=FitProvenance.model_validate(metadata["fit"]),
         libraries=metadata["libraries"],
         files=files,
@@ -137,9 +126,7 @@ def build_reference_v2(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--train", type=Path, default=Path("data/processed/train.csv"))
-    parser.add_argument(
-        "--splits", type=Path, default=Path("artifacts/splits/dataset_splits.csv")
-    )
+    parser.add_argument("--splits", type=Path, default=Path("artifacts/splits/dataset_splits.csv"))
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     manifest = build_reference_v2(args.train, args.splits, args.out)

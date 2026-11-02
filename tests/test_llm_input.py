@@ -24,9 +24,7 @@ def input_fixture(tmp_path_factory: pytest.TempPathFactory):
     source.build()
     store = ReferenceStore.load(source.output, trusted=True)
     values = {
-        key: value
-        for key, value in query(source).items()
-        if key not in {"customerID", "Churn"}
+        key: value for key, value in query(source).items() if key not in {"customerID", "Churn"}
     }
     return source, form_resources(store), values
 
@@ -47,10 +45,7 @@ def test_category_choices_are_verified_train_values_without_identifiers(
     for name, choices in resources.choices.items():
         assert choices == tuple(sorted(set(source.frame[name])))
         assert set(choices) == set(CATEGORIES[name])
-    assert (
-        "customerID" not in resources.feature_names
-        and "Churn" not in resources.feature_names
-    )
+    assert "customerID" not in resources.feature_names and "Churn" not in resources.feature_names
     with pytest.raises(TypeError):
         resources.choices["gender"] = ("new",)
 
@@ -79,14 +74,10 @@ def test_valid_input_delegates_to_prepare_query_and_preserves_raw_values(
     assert cleaned == values
     assert list(cleaned) == list(resources.feature_names)
     assert isinstance(cleaned["tenure"], int)
-    assert len(cleaned) == 19 and all(
-        not name.startswith(("num__", "cat__")) for name in cleaned
-    )
+    assert len(cleaned) == 19 and all(not name.startswith(("num__", "cat__")) for name in cleaned)
 
 
-@pytest.mark.parametrize(
-    "change", ["missing", "extra", "customerID", "customer_id", "Churn"]
-)
+@pytest.mark.parametrize("change", ["missing", "extra", "customerID", "customer_id", "Churn"])
 def test_rejects_any_input_other_than_exactly_19_features(
     input_fixture, monkeypatch: pytest.MonkeyPatch, change: str
 ) -> None:
@@ -96,9 +87,7 @@ def test_rejects_any_input_other_than_exactly_19_features(
         changed.pop("gender")
     else:
         changed[change] = "PRIVATE_INPUT"
-    prepare = Mock(
-        side_effect=AssertionError("Must reject shape before preparing query")
-    )
+    prepare = Mock(side_effect=AssertionError("Must reject shape before preparing query"))
     monkeypatch.setattr(resources.store, "prepare_query", prepare)
     with pytest.raises(ValueError, match="19 đặc trưng"):
         validate_customer(resources, changed)
@@ -135,13 +124,9 @@ def test_existing_validator_rejects_invalid_values_with_safe_message(
 
 
 @pytest.mark.parametrize("missing", [None, "", " \t", float("nan"), pd.NA])
-def test_missing_total_charges_only_zero_tenure_is_cleaned(
-    input_fixture, missing: object
-) -> None:
+def test_missing_total_charges_only_zero_tenure_is_cleaned(input_fixture, missing: object) -> None:
     _, resources, values = input_fixture
-    cleaned = validate_customer(
-        resources, {**values, "tenure": 0, "TotalCharges": missing}
-    )
+    cleaned = validate_customer(resources, {**values, "tenure": 0, "TotalCharges": missing})
     assert cleaned["TotalCharges"] == 0.0
     with pytest.raises(ValueError, match="tenure.*0"):
         validate_customer(resources, {**values, "tenure": 1, "TotalCharges": missing})
@@ -156,9 +141,7 @@ def test_does_not_calculate_charges_or_mutate_preprocessing(
         pd, "read_csv", Mock(side_effect=AssertionError("No CSV read per submission"))
     )
     with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(
-            Path, "read_bytes", Mock(side_effect=AssertionError("No artifact reread"))
-        )
+        patch.setattr(Path, "read_bytes", Mock(side_effect=AssertionError("No artifact reread")))
         row = {**values, "tenure": 2, "MonthlyCharges": 20.0, "TotalCharges": 7.0}
         first = validate_customer(resources, row)
         second = validate_customer(resources, row)
@@ -193,9 +176,7 @@ def test_reference_fingerprint_is_stable_without_reading_contents(
 ) -> None:
     artifact = tmp_path / "reference.zip"
     artifact.write_bytes(b"test-only")
-    monkeypatch.setattr(
-        Path, "read_bytes", Mock(side_effect=AssertionError("Stat only"))
-    )
+    monkeypatch.setattr(Path, "read_bytes", Mock(side_effect=AssertionError("Stat only")))
     assert reference_fingerprint(artifact) == reference_fingerprint(artifact)
 
 

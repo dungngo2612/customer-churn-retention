@@ -119,8 +119,7 @@ def test_top_five_ids_distances_and_order_are_unchanged(
     results = retriever.retrieve(query)
     assert len(results) == 5
     assert (
-        digest_json([row.customer_id for row in results])
-        == expected["ordered_neighbor_ids_sha256"]
+        digest_json([row.customer_id for row in results]) == expected["ordered_neighbor_ids_sha256"]
     )
     # IDs/order/vectors are exact. Only kernel-dependent distances get tolerance.
     np.testing.assert_allclose(
@@ -145,9 +144,7 @@ def test_complete_prompt_hash_structure_labels_and_example_order(
     queries: dict[str, dict[str, object]],
     expected: dict[str, Any],
 ) -> None:
-    actual, _ = query_snapshot(
-        store, SimilarCustomerRetriever(store), queries[expected["name"]]
-    )
+    actual, _ = query_snapshot(store, SimilarCustomerRetriever(store), queries[expected["name"]])
     assert actual["prompt"] == expected["prompt"]
     assert actual["prompt"]["reference_count"] == 5
 
@@ -197,12 +194,8 @@ def test_internal_vectors_and_ids_match_without_exposing_them(
 ) -> None:
     if not PRIVATE.is_file():
         if os.environ.get("CHURN_GOLDEN_REQUIRE_ASSETS") == "1":
-            pytest.fail(
-                "Private golden observations required in strict local validation"
-            )
-        pytest.skip(
-            "Private observations stay local; public digests still test all queries"
-        )
+            pytest.fail("Private golden observations required in strict local validation")
+        pytest.skip("Private observations stay local; public digests still test all queries")
     assert stat.S_IMODE(PRIVATE.stat().st_mode) == 0o600
     assert (
         subprocess.run(
@@ -217,9 +210,7 @@ def test_internal_vectors_and_ids_match_without_exposing_them(
         _, actual = query_snapshot(store, retriever, queries[case["name"]])
         expected = internal["queries"][case["name"]]
         if actual["ordered_neighbor_ids"] != expected["ordered_neighbor_ids"]:
-            pytest.fail(
-                "Internal neighbor order changed; inspect private observations locally"
-            )
+            pytest.fail("Internal neighbor order changed; inspect private observations locally")
         if not np.array_equal(actual["vector"], expected["vector"]):
             pytest.fail("Internal vector changed; inspect private observations locally")
 
