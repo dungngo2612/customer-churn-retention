@@ -289,6 +289,7 @@ with result_tab:
             }
         )
         shown["Điểm rời bỏ"] = shown["Điểm rời bỏ"].map(ui.percent)
+        shown["Đề xuất"] = shown["Đề xuất"].fillna("Không thuộc diện can thiệp")
         ui.table(shown, "analysis.results")
         st.download_button(
             "Xuất danh sách kết quả đã lọc (.csv)",

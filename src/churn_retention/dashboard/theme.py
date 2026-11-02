@@ -47,7 +47,10 @@ a { color:#3345a2; }
 .empty-state p { color:var(--muted); max-width:540px; margin:auto; line-height:1.7; }
 .empty-icon { color:var(--accent); font-size:32px; }
 .source-note { padding:12px 0 18px; color:var(--muted); font-size:14px; }
-@media(max-width:1100px) { [data-testid="stMainBlockContainer"] { padding:4rem 1.5rem 3rem; } }
+@media(max-width:1100px) {
+ [data-testid="stMainBlockContainer"] { padding:4rem 1.5rem 3rem; }
+ .summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
 @media(max-width:640px) {
  [data-testid="stMainBlockContainer"] { padding:4rem 1rem 3rem; }
  .summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }

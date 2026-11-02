@@ -96,12 +96,12 @@ with list_tab:
             "warning" if data.sample else "success",
         )
         st.caption(f"Nguồn: {data.source} · {len(data.frame)} khách hàng")
-        cols = st.columns([2, 1, 1])
+        cols = st.columns([2, 1, 1.5])
         search = ui.persist(
             cols[0].text_input,
             "Tìm theo mã khách hàng",
             key="customers.search",
-            placeholder="Ví dụ: DEMO-001",
+            placeholder="Nhập một phần mã khách hàng",
         )
         contract = ui.persist(
             cols[1].selectbox,
