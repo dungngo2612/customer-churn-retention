@@ -113,7 +113,14 @@ def start(policy: DemoPolicy) -> None:
         "server.maxUploadSize": 2,
         "server.maxMessageSize": 16,
         "client.showErrorDetails": "none",
+        "client.toolbarMode": "minimal",
         "browser.gatherUsageStats": False,
+        "theme.base": "light",
+        "theme.primaryColor": "#3949ab",
+        "theme.backgroundColor": "#f5f6fa",
+        "theme.secondaryBackgroundColor": "#ffffff",
+        "theme.textColor": "#17243b",
+        "theme.font": "sans serif",
     }
     bootstrap.load_config_options(options)
     activate(policy)
