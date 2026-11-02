@@ -171,7 +171,9 @@ Không tìm thấy AGENTS.md áp dụng trong repository hoặc các thư mục 
 
 ### Bảng task / branch / commit
 
-Các nhánh cùng tên local/origin được nhóm lại. Ancestry và nội dung đều được kiểm tra;
+Các nhánh cùng tên local/origin được nhóm lại. `feat/ml-train-workflow` và
+`feature/dataset-ingestion` cùng tip 18c4a6a, không phải hai phần triển khai riêng.
+Ancestry và nội dung đều được kiểm tra;
 cherry-pick/copy không được coi là chưa tích hợp chỉ vì commit gốc không là ancestor.
 
 | Branch local/remote | Tip được rà soát | Kết quả và trạng thái trên main |
@@ -188,7 +190,7 @@ cherry-pick/copy không được coi là chưa tích hợp chỉ vì commit gố
 | `feat/ml-real-data`, `origin/feat/ml-real-data` | `9b5c7cf` | Đã vào main theo ancestry (bao gồm lịch sử merge d910a78 nếu thuộc hạ tầng dữ liệu). |
 | `feat/ml-train`, `origin/feat/ml-train` | `e92ecb6` | Đã vào main theo ancestry (bao gồm lịch sử merge d910a78 nếu thuộc hạ tầng dữ liệu). |
 | `feat/ml-train-workflow` | `18c4a6a` | Đã vào main theo ancestry (bao gồm lịch sử merge d910a78 nếu thuộc hạ tầng dữ liệu). |
-| `feat/scoring-screen`, `origin/feat/scoring-screen` | `509e8e3` | Đã vào main theo ancestry (bao gồm lịch sử merge d910a78 nếu thuộc hạ tầng dữ liệu). |
+| `feat/scoring-screen`, `origin/feat/scoring-screen` | `509e8e3` | Đã vào lịch sử main; React screen được gỡ qua 4e06ebb vì nhóm dùng Streamlit. Luồng hiện hành ở apps/streamlit/scoring_page.py. |
 | `feat/scoring-slice`, `origin/feat/scoring-slice` | `ac3f315` | Đã vào main theo ancestry (bao gồm lịch sử merge d910a78 nếu thuộc hạ tầng dữ liệu). |
 | `feat/scoring-streamlit`, `origin/feat/scoring-streamlit` | `4e3f416` | Đã vào main theo ancestry (bao gồm lịch sử merge d910a78 nếu thuộc hạ tầng dữ liệu). |
 | `feature/data-infrastructure-ci`, `origin/feature/data-infrastructure-ci` | `e6fa0ce` | Đã vào main theo ancestry (bao gồm lịch sử merge d910a78 nếu thuộc hạ tầng dữ liệu). |
@@ -263,14 +265,21 @@ guard train/validation. Không xóa stash đó.
 
 ### Kiểm chứng
 
-- Full regression strict private-assets, chặn kết nối ngoài: **1437 passed, 1 skipped,
-  17 warnings**, 470.80s. Skip duy nhất là test cần DATABASE_URL PostgreSQL;
-  sau đó đã chạy riêng test này cùng migration trên PostgreSQL 17 UTF-8: **2 passed**.
+- Full regression cuối, strict private-assets và PostgreSQL 17 UTF-8 tạm:
+  **1438 passed, 0 failed, 0 skipped, 13 warnings**, 414.37s, trên code checkpoint
+  `1ed762f`. Sau đó `f11c328` chỉ thêm package marker; đã kiểm tra lại build, imports,
+  launcher cài từ wheel, Ruff và Mypy. Không đổi logic đã qua full regression.
+- Lượt đầu: **1437 passed, 1 skipped, 17 warnings**, 470.80s. Test PostgreSQL đã được
+  chạy riêng cùng migration: **2 passed**, rồi được bao gồm trong full regression cuối.
 - Nhóm data/evaluation/lifecycle/boundaries: **77 passed**.
 - Calibration + split guards + batch scoring: **88 passed**; sau chỉnh nội dung báo cáo
   calibration cho phù hợp main, chạy riêng calibration: **11 passed**.
-- Ruff check và format theo CI: pass. Mypy: **124 source files, no issues**.
+- Ruff check và format theo CI: pass. Mypy: **125 source files, no issues**.
 - Build wheel + source distribution thành công trong virtualenv build tạm riêng.
+  Kiểm tra nội dung wheel phát hiện thiếu package dashboard do namespaces=false và
+  thiếu __init__.py; `f11c328` đã sửa. Wheel mới chứa app/demo và đầy đủ runtime deps.
+  Cài wheel vào target tạm, import ngoài checkout và khởi động Dashboard với artifact
+  v2/hash pin cấu hình rõ ràng: pass. Artifact private không được nhúng vào wheel.
 - Golden v1/v2 chạy strict-assets; fixture public không sửa, assets private không commit.
 - API health + đăng ký routes dataset: pass. CLI có đủ tune/calibrate/score-batch/job-status.
 - Sample CatBoost bundle load/predict 2 dòng: pass; không thay predictor Dashboard.
