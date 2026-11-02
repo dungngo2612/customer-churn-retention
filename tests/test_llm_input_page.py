@@ -252,21 +252,6 @@ def test_missing_reference_artifact_shows_safe_error(
     assert not at.button and not at.success and RESOURCES_KEY not in at.session_state
 
 
-def test_existing_scoring_and_shap_pages_still_initialize() -> None:
-    # Warm the existing SHAP/matplotlib import outside the script timeout.
-    # Importing does not compute SHAP or execute any prediction.
-    from importlib import import_module
-
-    import_module("churn_retention.ml.explainability")
-    at = AppTest.from_file(str(ROOT / "apps/streamlit/scoring_page.py"), default_timeout=30).run()
-    assert not at.exception and at.title[0].value == "Chấm điểm churn"
-    assert len(at.text_input) == 2
-    at.switch_page("pages/1_Explain.py").run()
-    assert not at.exception
-    assert at.title[0].value == "Giải thích mô hình và khách hàng"
-    assert "chấm điểm dataset" in at.warning[0].value
-
-
 def test_second_submit_predicts_once_more_but_reruns_do_not(
     page, input_fixture, prediction
 ) -> None:

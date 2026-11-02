@@ -1,5 +1,3 @@
-from typing import Literal
-
 from pydantic import (
     AwareDatetime,
     BaseModel,
@@ -41,39 +39,6 @@ class PredictionBatch(BaseModel):
             if prediction.model_version != self.model_version:
                 raise ValueError(
                     f"Prediction has model_version '{prediction.model_version}' "
-                    f"but wrapper has '{self.model_version}'"
-                )
-        return self
-
-
-class Explanation(BaseModel):
-    customer_id: str
-    model_version: str
-    feature_name: str
-    feature_value: str | float
-    contribution: float
-    base_value: float
-    explained_output: Literal["log_odds", "probability"]
-    calibration_applied: Literal["original", "calibrated"]
-
-
-class ExplanationList(BaseModel):
-    customer_id: str
-    model_version: str
-    explanations: list[Explanation]
-
-    @model_validator(mode="after")
-    def validate_consistency(self):
-        """R04: Validate wrapper fields match all items."""
-        for explanation in self.explanations:
-            if explanation.customer_id != self.customer_id:
-                raise ValueError(
-                    f"Explanation has customer_id '{explanation.customer_id}' "
-                    f"but wrapper has '{self.customer_id}'"
-                )
-            if explanation.model_version != self.model_version:
-                raise ValueError(
-                    f"Explanation has model_version '{explanation.model_version}' "
                     f"but wrapper has '{self.model_version}'"
                 )
         return self

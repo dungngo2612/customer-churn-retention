@@ -1,12 +1,9 @@
-"""Capture the existing v1 behavior offline; never overwrite a golden snapshot."""
+"""Snapshot helpers comparing current RAG v2 with frozen v1 golden values."""
 
-import argparse
 import hashlib
 import json
 import math
-import os
 import socket
-import subprocess
 from collections.abc import Iterator, Mapping
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
@@ -20,10 +17,10 @@ from sklearn.impute import SimpleImputer  # type: ignore[import-untyped]
 from sklearn.pipeline import Pipeline  # type: ignore[import-untyped]
 from sklearn.preprocessing import OneHotEncoder, StandardScaler  # type: ignore[import-untyped]
 
-from churn_retention.adapters.retrieval.legacy_reference_store import ReferenceStore
 from churn_retention.adapters.retrieval.nearest_neighbors import (
     SimilarCustomerRetriever,
 )
+from churn_retention.adapters.retrieval.reference_store import ReferenceStore
 from churn_retention.modules.scoring.llm_prompt import ChurnPromptBuilder
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -113,7 +110,7 @@ def validation_queries(
 
 
 def preprocessing_snapshot(store: ReferenceStore) -> dict[str, Any]:
-    preprocessor = store._preprocessor
+    preprocessor = store.preprocessor._transformer
     steps = {}
     for group in ("num", "cat"):
         for name, estimator in preprocessor.named_transformers_[group].steps:
@@ -140,7 +137,7 @@ def preprocessing_snapshot(store: ReferenceStore) -> dict[str, Any]:
             "schema": [column.model_dump() for column in store.feature_schema],
             "input_feature_names": preprocessor.feature_names_in_,
             "output_feature_names": preprocessor.get_feature_names_out(),
-            "categorical_vocabulary": store._categories,
+            "categorical_vocabulary": dict(store.preprocessor.categorical_vocabulary),
             "parameters": {
                 key: value
                 for key, value in preprocessor.get_params(deep=False).items()
@@ -251,76 +248,3 @@ def probe_snapshot(store: ReferenceStore, query: Mapping[str, object]) -> dict[s
         "cleaned_features_sha256": digest_json(dict(prepared.features)),
         "vector_sha256": digest_array(prepared.vector),
     }
-
-
-def capture(public_path: Path, private_path: Path) -> None:
-    if public_path.exists() or private_path.exists():
-        raise FileExistsError("Golden snapshots are immutable; choose new output paths")
-    if subprocess.run(
-        ["git", "check-ignore", "-q", "--", str(private_path)], cwd=ROOT, check=False
-    ).returncode:
-        raise ValueError("Private golden output must be Git-ignored")
-    with offline_without_fitting():
-        store = ReferenceStore.load(ARTIFACT)
-        retriever = SimilarCustomerRetriever(store, k=5)
-        cases: list[dict[str, Any]] = [{"name": name, "row": row} for name, row in QUERY_ROWS]
-        queries = validation_queries(store, cases)
-        public: dict[str, Any] = {
-            "baseline_format": 1,
-            "source": {
-                "reference_version": store.reference_version,
-                "artifact_sha256": digest_bytes(ARTIFACT.read_bytes()),
-                "validation_sha256": digest_bytes(VALIDATION.read_bytes()),
-                "libraries": store.manifest.libraries,
-            },
-            "preprocessing": preprocessing_snapshot(store),
-            "matrix": {
-                "shape": list(store.matrix.shape),
-                "dtype": str(store.matrix.dtype),
-                "values_sha256": digest_array(store.matrix),
-                "ordered_reference_ids_sha256": digest_json(
-                    [record.customer_id for record in store.records]
-                ),
-            },
-            "retrieval": {
-                "k": 5,
-                "metric": "euclidean",
-                "algorithm": "brute",
-                "tie_breaking": "distance ascending, then customer_id ascending",
-                "self_exclusion": "exclude the query customer_id when provided",
-            },
-            "queries": [],
-            "missing_values": {
-                name: probe_snapshot(store, query)
-                for name, query in missing_probes(queries["zero_tenure"]).items()
-            },
-        }
-        private: dict[str, Any] = {"baseline_format": 1, "queries": {}}
-        for case in cases:
-            observed, internal = query_snapshot(store, retriever, queries[case["name"]])
-            public["queries"].append({**case, **observed})
-            private["queries"][case["name"]] = internal
-        private["public_snapshot_sha256"] = digest_json(public)
-    # No raw query rows, prompts, labels of validation, or IDs enter the public file.
-    public_path.parent.mkdir(parents=True, exist_ok=True)
-    private_path.parent.mkdir(parents=True, exist_ok=True)
-    with public_path.open("x", encoding="utf-8") as handle:
-        json.dump(public, handle, ensure_ascii=False, allow_nan=False, indent=2)
-        handle.write("\n")
-    descriptor = os.open(private_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-        json.dump(private, handle, ensure_ascii=False, allow_nan=False, indent=2)
-        handle.write("\n")
-    print(json.dumps({"queries": len(cases), "matrix_shape": public["matrix"]["shape"]}))
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--public", type=Path, default=PUBLIC)
-    parser.add_argument("--private", type=Path, default=PRIVATE)
-    args = parser.parse_args()
-    capture(args.public.resolve(), args.private.resolve())
-
-
-if __name__ == "__main__":
-    main()

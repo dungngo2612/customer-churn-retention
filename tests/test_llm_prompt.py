@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
-import yaml
 
 from churn_retention.contracts.reference import FeatureColumn, SimilarCustomer
 from churn_retention.modules.scoring.llm_prompt import ChurnPromptBuilder
@@ -16,22 +15,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @pytest.fixture
 def schema() -> tuple[FeatureColumn, ...]:
-    # Unit-test descriptors follow the project's feature configuration. Actual
-    # application wiring supplies the official schema from ReferenceStore.
-    config = yaml.safe_load((ROOT / "configs/train_config.yaml").read_text())["features"]
+    # Frozen neutral descriptors; no classifier configuration is loaded.
+    frozen = json.loads((ROOT / "tests/fixtures/llm_rag_v1_golden.json").read_text())
     return tuple(
-        [
-            FeatureColumn(
-                name=name,
-                kind="numeric",
-                dtype="int64" if name in {"SeniorCitizen", "tenure"} else "float64",
-            )
-            for name in config["numeric_cols"]
-        ]
-        + [
-            FeatureColumn(name=name, kind="categorical", dtype="str")
-            for name in config["categorical_cols"]
-        ]
+        FeatureColumn.model_validate(column) for column in frozen["preprocessing"]["schema"]
     )
 
 

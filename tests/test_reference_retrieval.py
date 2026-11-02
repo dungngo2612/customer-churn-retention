@@ -1,11 +1,10 @@
-"""Small synthetic fixtures test mechanics; project-data checks live separately."""
+"""Shared retrieval and artifact checks, using classifier-free RAG v2 fixtures."""
 
 import hashlib
 import io
 import json
 import pickle
 import zipfile
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 from unittest.mock import patch
@@ -13,136 +12,27 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 import pytest
-import yaml
-from sklearn.base import clone  # type: ignore[import-untyped]
-from sklearn.compose import ColumnTransformer  # type: ignore[import-untyped]
-from sklearn.impute import SimpleImputer  # type: ignore[import-untyped]
-from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
-from sklearn.pipeline import Pipeline  # type: ignore[import-untyped]
-from sklearn.preprocessing import OneHotEncoder, StandardScaler  # type: ignore[import-untyped]
+from llm_v2_fixtures import Source, make_source
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from test_reference_v2 import rewrite
 
-from churn_retention.adapters.retrieval._artifact import (
-    ReferenceArtifactError,
-    ReferenceManifest,
-    runtime_versions,
-    sha256,
+from churn_retention.adapters.retrieval.nearest_neighbors import SimilarCustomerRetriever
+from churn_retention.adapters.retrieval.rag_preprocessor import (
+    CATEGORICAL_FEATURES,
+    NUMERIC_FEATURES,
+    RAGPreprocessor,
 )
-from churn_retention.adapters.retrieval.legacy_reference_store import ReferenceStore
-from churn_retention.adapters.retrieval.nearest_neighbors import (
-    SimilarCustomerRetriever,
-)
-from churn_retention.ml.training.bundle import create_feature_schema, save_bundle
-from churn_retention.workflows.build_reference import build_reference
+from churn_retention.adapters.retrieval.reference_store import ReferenceStore
+from churn_retention.contracts.reference import ReferenceArtifactError, sha256
+from churn_retention.workflows.build_reference_v2 import build_reference_v2 as build_reference
 
-ROOT = Path(__file__).resolve().parents[1]
-FEATURES = yaml.safe_load((ROOT / "configs/train_config.yaml").read_text())["features"]
-CATEGORIES = {
-    "gender": ["Female", "Male"],
-    "Partner": ["No", "Yes"],
-    "Dependents": ["No", "Yes"],
-    "PhoneService": ["No", "Yes"],
-    "MultipleLines": ["No", "Yes", "No phone service"],
-    "InternetService": ["DSL", "Fiber optic", "No"],
-    "OnlineSecurity": ["No", "Yes", "No internet service"],
-    "OnlineBackup": ["No", "Yes", "No internet service"],
-    "DeviceProtection": ["No", "Yes", "No internet service"],
-    "TechSupport": ["No", "Yes", "No internet service"],
-    "StreamingTV": ["No", "Yes", "No internet service"],
-    "StreamingMovies": ["No", "Yes", "No internet service"],
-    "Contract": ["Month-to-month", "One year", "Two year"],
-    "PaperlessBilling": ["No", "Yes"],
-    "PaymentMethod": [
-        "Electronic check",
-        "Mailed check",
-        "Bank transfer (automatic)",
-        "Credit card (automatic)",
-    ],
-}
+FEATURES = {"numeric_cols": list(NUMERIC_FEATURES), "categorical_cols": list(CATEGORICAL_FEATURES)}
 
 
-@dataclass
-class Source:
-    train: Path
-    bundle: Path
-    splits: Path
-    output: Path
-    frame: pd.DataFrame
-    preprocessor: ColumnTransformer
-
-    def build(self) -> ReferenceManifest:
-        return build_reference(self.train, self.bundle, self.splits, self.output)
-
-
-def make_source(directory: Path, n: int = 5) -> Source:
-    directory.mkdir(parents=True, exist_ok=True)
-    rows = []
-    for i in range(n):
-        rows.append(
-            {
-                "customerID": f"unit-{n - i:03d}",
-                "Churn": "Yes" if i % 2 else "No",
-                "SeniorCitizen": i % 2,
-                "tenure": i,
-                "MonthlyCharges": 20.0 + i,
-                "TotalCharges": float(i * (20 + i)),
-                **{name: values[i % len(values)] for name, values in CATEGORIES.items()},
-            }
-        )
-    frame = pd.DataFrame(rows)
-    numeric, categorical = FEATURES["numeric_cols"], FEATURES["categorical_cols"]
-    X = frame[numeric + categorical]
-    # This new test-only transformer is fitted once to construct a fixture.
-    # The classifier is never trained; production must only transform this fixture.
-    preprocessor = ColumnTransformer(
-        [
-            (
-                "num",
-                Pipeline(
-                    [
-                        ("imputer", SimpleImputer(strategy="median")),
-                        ("scaler", StandardScaler()),
-                    ]
-                ),
-                numeric,
-            ),
-            (
-                "cat",
-                Pipeline(
-                    [
-                        (
-                            "imputer",
-                            SimpleImputer(strategy="constant", fill_value="__MISSING__"),
-                        ),
-                        ("onehot", OneHotEncoder(handle_unknown="ignore")),
-                    ]
-                ),
-                categorical,
-            ),
-        ]
-    ).fit(X)
-    pipeline = Pipeline([("preprocessor", preprocessor), ("model", LogisticRegression())])
-    bundle = directory / "logistic-unit-fixture"
-    save_bundle(
-        pipeline,
-        bundle,
-        create_feature_schema(X, numeric, categorical),
-        {
-            "model_version": bundle.name,
-            "model_type": "logistic",
-            "label": {"target_col": "Churn", "positive_label": "Yes"},
-            "config": {"features": FEATURES},
-            "libraries": runtime_versions(),
-        },
-    )
-    train, splits = directory / "train.csv", directory / "splits.csv"
-    frame.to_csv(train, index=False)
-    pd.DataFrame(
-        {
-            "customerID": frame.customerID.tolist() + ["held-out-val", "held-out-test"],
-            "split": ["train"] * n + ["val", "test"],
-        }
-    ).to_csv(splits, index=False)
-    return Source(train, bundle, splits, directory / "reference.zip", frame, preprocessor)
+def load_reference(path, **kwargs):
+    return ReferenceStore.load(path, trusted=True, **kwargs)
 
 
 @pytest.fixture
@@ -153,7 +43,7 @@ def source(tmp_path: Path) -> Source:
 @pytest.fixture
 def store(source: Source) -> ReferenceStore:
     source.build()
-    return ReferenceStore.load(source.output)
+    return load_reference(source.output)
 
 
 def query(source: Source) -> dict[str, object]:
@@ -161,32 +51,24 @@ def query(source: Source) -> dict[str, object]:
 
 
 def rewrite_archive(path: Path, change, *, resign: bool = False) -> None:
-    with zipfile.ZipFile(path) as archive:
-        payloads = {name: archive.read(name) for name in archive.namelist()}
-    change(payloads)
-    if resign:
-        manifest = json.loads(payloads["manifest.json"])
-        manifest["files"] = {
-            name: sha256(value) for name, value in payloads.items() if name != "manifest.json"
-        }
-        payloads["manifest.json"] = json.dumps(manifest).encode()
-    with zipfile.ZipFile(path, "w") as archive:
-        for name, value in payloads.items():
-            archive.writestr(name, value)
+    rewrite(path, path, change, resign=resign)
 
 
 def test_builder_produces_consistent_artifact(source: Source) -> None:
     manifest = source.build()
-    store = ReferenceStore.load(
-        source.output, expected_reference_version=manifest.reference_version
-    )
+    store = load_reference(source.output, expected_reference_version=manifest.reference_version)
     assert manifest.row_count == len(source.frame) == len(store.records)
-    assert len(manifest.feature_schema) == 19
-    assert manifest.dataset_sha256 == hashlib.sha256(source.train.read_bytes()).hexdigest()
+    assert len(store.feature_schema) == 19
+    assert manifest.source_train_sha256 == hashlib.sha256(source.train.read_bytes()).hexdigest()
     assert manifest.split_sha256 == sha256(source.splits.read_bytes())
-    assert manifest.split_counts == {"train": 5, "val": 1, "test": 1}
+    assert pd.read_csv(source.splits)["split"].value_counts().to_dict() == {
+        "train": 5,
+        "val": 1,
+        "test": 1,
+    }
+    assert manifest.fit.row_count == 5
     assert manifest.reference_split == "train"
-    assert store.matrix.shape == (5, len(source.preprocessor.get_feature_names_out()))
+    assert store.matrix.shape == (5, len(store.preprocessor._transformer.get_feature_names_out()))
     assert store.matrix.dtype == np.float64 and np.isfinite(store.matrix).all()
     assert {r.customer_id: r.churn for r in store.records} == dict(
         zip(source.frame.customerID, source.frame.Churn, strict=True)
@@ -201,14 +83,14 @@ def test_builder_rejects_non_train_ids(source: Source, id_value: str) -> None:
     frame = source.frame.copy()
     frame.loc[0, "customerID"] = id_value
     frame.to_csv(source.train, index=False)
-    with pytest.raises(ReferenceArtifactError, match="train split"):
+    with pytest.raises(ValueError, match="exactly the train split"):
         source.build()
     assert not source.output.exists()
 
 
 def test_builder_rejects_incomplete_train_membership(source: Source) -> None:
     source.frame.iloc[:-1].to_csv(source.train, index=False)
-    with pytest.raises(ReferenceArtifactError, match="exactly"):
+    with pytest.raises(ValueError, match="exactly the train split"):
         source.build()
 
 
@@ -243,34 +125,29 @@ def test_builder_requires_exact_feature_columns(source: Source, change: str) -> 
     else:
         frame.columns = ["gender" if c == "Partner" else c for c in frame.columns]
     frame.to_csv(source.train, index=False)
-    with pytest.raises(ReferenceArtifactError, match="19 features"):
+    with pytest.raises(
+        ValueError, match="19 features" if change == "extra" else "Usecols do not match columns"
+    ):
         source.build()
 
 
-def test_never_refits_or_mutates_preprocessing_or_classifier(
+def test_never_refits_or_mutates_loaded_rag_preprocessing(
     source: Source, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def forbidden(*args, **kwargs):
-        pytest.fail("Builder/store/retriever must not fit preprocessing or classifier")
+    source.build()
 
-    for cls in [
-        ColumnTransformer,
-        SimpleImputer,
-        StandardScaler,
-        OneHotEncoder,
-        LogisticRegression,
-    ]:
+    def forbidden(*args, **kwargs):
+        pytest.fail("Loaded RAG store/retriever must not fit preprocessing")
+
+    for cls in [ColumnTransformer, SimpleImputer, StandardScaler, OneHotEncoder]:
         monkeypatch.setattr(cls, "fit", forbidden)
     monkeypatch.setattr(ColumnTransformer, "fit_transform", forbidden)
-    original_files = {p: sha256(p.read_bytes()) for p in source.bundle.iterdir()}
-    source.build()
-    store = ReferenceStore.load(source.output)
-    state = pickle.dumps(store._preprocessor)
+    store = load_reference(source.output)
+    state = pickle.dumps(store.preprocessor._transformer)
     retriever = SimilarCustomerRetriever(store)
     for _ in range(3):
         retriever.retrieve(query(source))
-    assert pickle.dumps(store._preprocessor) == state
-    assert {p: sha256(p.read_bytes()) for p in source.bundle.iterdir()} == original_files
+    assert pickle.dumps(store.preprocessor._transformer) == state
 
 
 def test_query_uses_exact_existing_transform_and_feature_order(
@@ -279,13 +156,15 @@ def test_query_uses_exact_existing_transform_and_feature_order(
     row = query(source)
     prepared = store.prepare_query(dict(reversed(list(row.items()))))
     names = FEATURES["numeric_cols"] + FEATURES["categorical_cols"]
-    expected = source.preprocessor.transform(pd.DataFrame([row])[names])
+    expected = RAGPreprocessor.fit_train(source.train, source.splits)._transformer.transform(
+        pd.DataFrame([row])[names]
+    )
     if hasattr(expected, "toarray"):
         expected = expected.toarray()
     np.testing.assert_allclose(prepared.vector, expected)
     assert set(prepared.features) == set(names)
-    assert "Churn" not in store._preprocessor.feature_names_in_
-    assert "customerID" not in store._preprocessor.feature_names_in_
+    assert "Churn" not in store.preprocessor._transformer.feature_names_in_
+    assert "customerID" not in store.preprocessor._transformer.feature_names_in_
 
 
 def test_top_k_matches_independent_euclidean_calculation(
@@ -323,13 +202,13 @@ def test_query_labels_and_nonmember_ids_have_no_effect_on_distance(
 
 def test_reference_labels_are_not_encoded_into_matrix(source: Source, tmp_path: Path) -> None:
     source.build()
-    original = ReferenceStore.load(source.output)
+    original = load_reference(source.output)
     frame = source.frame.copy()
     frame["Churn"] = frame.Churn.map({"Yes": "No", "No": "Yes"})
     frame.to_csv(source.train, index=False)
     other_path = tmp_path / "other.zip"
-    build_reference(source.train, source.bundle, source.splits, other_path)
-    other = ReferenceStore.load(other_path)
+    build_reference(source.train, source.splits, other_path)
+    other = load_reference(other_path)
     np.testing.assert_array_equal(original.matrix, other.matrix)
     assert [r.churn for r in original.records] != [r.churn for r in other.records]
 
@@ -359,9 +238,7 @@ def test_explicit_customer_id_alias_and_conflicts(source: Source, store: Referen
 def test_only_self_reference_returns_empty(tmp_path: Path) -> None:
     source = make_source(tmp_path, n=1)
     source.build()
-    assert (
-        SimilarCustomerRetriever(ReferenceStore.load(source.output)).retrieve(query(source)) == []
-    )
+    assert SimilarCustomerRetriever(load_reference(source.output)).retrieve(query(source)) == []
 
 
 @pytest.mark.parametrize("k", [0, -1, True, 1.5, "5"])
@@ -427,7 +304,7 @@ def test_builder_normalizes_only_valid_missing_total_charges(source: Source) -> 
     source.build()
     record = next(
         r
-        for r in ReferenceStore.load(source.output).records
+        for r in load_reference(source.output).records
         if r.customer_id == frame.iloc[0].customerID
     )
     assert record.features["TotalCharges"] == 0.0
@@ -439,14 +316,14 @@ def test_no_disk_reads_or_full_train_transforms_per_request(
     retriever = SimilarCustomerRetriever(store)
     row = query(source)
     shapes = []
-    original = store._preprocessor.transform
+    original = store.preprocessor._transformer.transform
 
     def transform_query_only(frame):
         shapes.append(frame.shape)
         assert frame.shape == (1, 19)
         return original(frame)
 
-    monkeypatch.setattr(store._preprocessor, "transform", transform_query_only)
+    monkeypatch.setattr(store.preprocessor._transformer, "transform", transform_query_only)
     with (
         patch.object(pd, "read_csv", side_effect=AssertionError("No CSV reads at request time")),
         patch.object(zipfile, "ZipFile", side_effect=AssertionError("No archive reloads")),
@@ -488,10 +365,10 @@ def test_store_data_cannot_be_accidentally_mutated(store: ReferenceStore) -> Non
 def test_deterministic_bytes_and_results(source: Source, tmp_path: Path) -> None:
     first_manifest = source.build()
     second = tmp_path / "repeat.zip"
-    other_manifest = build_reference(source.train, source.bundle, source.splits, second)
+    other_manifest = build_reference(source.train, source.splits, second)
     assert first_manifest == other_manifest
     assert source.output.read_bytes() == second.read_bytes()
-    first, repeated = ReferenceStore.load(source.output), ReferenceStore.load(second)
+    first, repeated = load_reference(source.output), load_reference(second)
     retriever = SimilarCustomerRetriever(first)
     assert retriever.retrieve(query(source)) == retriever.retrieve(query(source))
     assert retriever.retrieve(query(source)) == SimilarCustomerRetriever(repeated).retrieve(
@@ -505,7 +382,7 @@ def test_global_ties_have_deterministic_id_order(source: Source) -> None:
     frame.loc[:, cols] = frame.loc[0, cols].to_numpy()
     frame.to_csv(source.train, index=False)
     source.build()
-    result = SimilarCustomerRetriever(ReferenceStore.load(source.output), k=2).retrieve(
+    result = SimilarCustomerRetriever(load_reference(source.output), k=2).retrieve(
         {**query(source), "customerID": "non-member"}
     )
     assert [r.customer_id for r in result] == sorted(frame.customerID)[:2]
@@ -539,7 +416,7 @@ def test_existing_artifact_is_never_overwritten(source: Source) -> None:
     [
         "format_version",
         "libraries",
-        "feature_schema",
+        "schema_version",
         "row_count",
         "transformed_feature_count",
     ],
@@ -552,7 +429,7 @@ def test_incompatible_manifest_is_rejected(source: Source, field: str) -> None:
         manifest[field] = {
             "format_version": 999,
             "libraries": {"scikit-learn": "0.0"},
-            "feature_schema": manifest["feature_schema"][:-1],
+            "schema_version": "invalid-schema",
             "row_count": 999,
             "transformed_feature_count": 999,
         }[field]
@@ -560,21 +437,20 @@ def test_incompatible_manifest_is_rejected(source: Source, field: str) -> None:
 
     rewrite_archive(source.output, change)
     with pytest.raises(ReferenceArtifactError):
-        ReferenceStore.load(source.output)
+        load_reference(source.output)
 
 
-def test_checksums_are_checked_before_unpickling(source: Source) -> None:
+def test_checksums_are_checked_before_preprocessing_restoration(source: Source) -> None:
     source.build()
-    rewrite_archive(source.output, lambda p: p.__setitem__("bundle/model.pkl", b"corrupt"))
+    rewrite_archive(source.output, lambda p: p.__setitem__("preprocessing/state.json", b"corrupt"))
     with (
-        patch.object(
-            pickle,
-            "loads",
-            side_effect=AssertionError("Do not unpickle corrupt payloads"),
+        patch(
+            "churn_retention.adapters.retrieval.reference_v2.load_preprocessing",
+            side_effect=AssertionError("Do not restore corrupt payloads"),
         ),
         pytest.raises(ReferenceArtifactError, match="checksum"),
     ):
-        ReferenceStore.load(source.output)
+        load_reference(source.output)
 
 
 @pytest.mark.parametrize("kind", ["nan", "wrong_shape", "wrong_alignment", "object"])
@@ -597,7 +473,7 @@ def test_invalid_matrix_is_rejected_even_with_updated_checksum(source: Source, k
 
     rewrite_archive(source.output, change, resign=True)
     with pytest.raises(ReferenceArtifactError):
-        ReferenceStore.load(source.output)
+        load_reference(source.output)
 
 
 def test_non_train_record_is_rejected_even_with_updated_checksum(
@@ -606,46 +482,29 @@ def test_non_train_record_is_rejected_even_with_updated_checksum(
     source.build()
 
     def change(payloads):
-        records = json.loads(payloads["records.json"])
+        records = [json.loads(line) for line in payloads["records.jsonl"].splitlines()]
         records[0]["customer_id"] = "held-out-val"
-        payloads["records.json"] = json.dumps(records).encode()
+        payloads["records.jsonl"] = b"".join((json.dumps(row) + "\n").encode() for row in records)
 
     rewrite_archive(source.output, change, resign=True)
-    with pytest.raises(ReferenceArtifactError, match="train split"):
-        ReferenceStore.load(source.output)
+    with pytest.raises(ReferenceArtifactError, match="exactly train-only"):
+        load_reference(source.output)
 
 
 @pytest.mark.parametrize(
     "field",
-    ["expected_reference_version", "expected_bundle_sha256", "expected_dataset_sha256"],
+    ["expected_reference_version", "expected_dataset_sha256"],
 )
 def test_expected_source_and_version_are_enforced(source: Source, field: str) -> None:
     source.build()
     with pytest.raises(ReferenceArtifactError, match="requested"):
-        ReferenceStore.load(source.output, **{field: "does-not-match"})
+        load_reference(source.output, **{field: "does-not-match"})
 
 
-def test_bad_archive_and_unfitted_or_wrong_bundle_are_rejected(source: Source) -> None:
+def test_bad_archive_is_rejected(source: Source) -> None:
     source.output.write_bytes(b"not a zip archive")
     with pytest.raises(ReferenceArtifactError):
-        ReferenceStore.load(source.output)
-    source.output.unlink()
-    metadata_path = source.bundle / "metadata.json"
-    metadata = json.loads(metadata_path.read_text())
-    metadata["model_type"] = "catboost"
-    metadata_path.write_text(json.dumps(metadata))
-    with pytest.raises(ReferenceArtifactError, match="Logistic"):
-        source.build()
-
-
-def test_unfitted_preprocessing_is_rejected_without_fitting(source: Source) -> None:
-    model_path = source.bundle / "model.pkl"
-    pipeline = pickle.loads(model_path.read_bytes())
-    pipeline.set_params(preprocessor=clone(pipeline.named_steps["preprocessor"]))
-    model_path.write_bytes(pickle.dumps(pipeline))
-    with pytest.raises(ValueError):
-        source.build()
-    assert not source.output.exists()
+        load_reference(source.output)
 
 
 @pytest.mark.parametrize(
@@ -670,13 +529,13 @@ def test_noncanonical_features_cannot_be_hidden_in_archive(source: Source) -> No
     source.build()
 
     def change(payloads):
-        records = json.loads(payloads["records.json"])
+        records = [json.loads(line) for line in payloads["records.jsonl"].splitlines()]
         records[0]["features"]["customerID"] = "hidden-id"
-        payloads["records.json"] = json.dumps(records).encode()
+        payloads["records.jsonl"] = b"".join((json.dumps(row) + "\n").encode() for row in records)
 
     rewrite_archive(source.output, change, resign=True)
     with pytest.raises(ReferenceArtifactError, match="canonical"):
-        ReferenceStore.load(source.output)
+        load_reference(source.output)
 
 
 def test_atomic_publish_refuses_a_concurrent_destination(
@@ -707,7 +566,7 @@ def test_query_cleaning_does_not_mutate_input(source: Source, store: ReferenceSt
 def test_split_manifest_rejects_duplicate_membership(source: Source) -> None:
     splits = pd.read_csv(source.splits)
     pd.concat([splits, splits.iloc[[0]]]).to_csv(source.splits, index=False)
-    with pytest.raises(ReferenceArtifactError, match="unique"):
+    with pytest.raises(ValueError, match="unique"):
         source.build()
 
 
@@ -719,5 +578,5 @@ def test_customer_ids_preserve_leading_zeros(source: Source) -> None:
         source.splits, index=False
     )
     source.build()
-    store = ReferenceStore.load(source.output)
+    store = load_reference(source.output)
     assert [record.customer_id for record in store.records] == sorted(frame.customerID)

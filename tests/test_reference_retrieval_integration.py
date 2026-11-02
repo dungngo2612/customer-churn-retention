@@ -1,5 +1,7 @@
 """Read existing project data; skip explicitly if local generated assets are absent."""
 
+import io
+import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -7,22 +9,21 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from churn_retention.adapters.retrieval.legacy_reference_store import ReferenceStore
 from churn_retention.adapters.retrieval.nearest_neighbors import (
     SimilarCustomerRetriever,
 )
-from churn_retention.ml.training.bundle import load_bundle
-from churn_retention.workflows.build_reference import build_reference
+from churn_retention.adapters.retrieval.reference_store import ReferenceStore
+from churn_retention.workflows.build_reference_v2 import build_reference_v2
 
 ROOT = Path(__file__).resolve().parents[1]
 TRAIN = ROOT / "data/processed/train.csv"
 VAL = ROOT / "data/processed/val.csv"
 SPLITS = ROOT / "artifacts/splits/dataset_splits.csv"
-BUNDLE = ROOT / "artifacts/bundles/logistic-20261018T130159-seed42"
+ORACLE = ROOT / "artifacts/references/telco-train-v1.zip"
 pytestmark = pytest.mark.skipif(
-    not all(p.is_file() for p in [TRAIN, VAL, SPLITS, BUNDLE / "model.pkl"]),
+    not all(p.is_file() for p in [TRAIN, VAL, SPLITS, ORACLE]),
     reason=(
-        "Existing project CSVs and saved Logistic bundle are required"
+        "Existing project CSVs and frozen RAG oracle are required"
         "; no fake project data is substituted."
     ),
 )
@@ -31,8 +32,8 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture
 def project_store(tmp_path: Path) -> ReferenceStore:
     output = tmp_path / "telco-reference.zip"
-    build_reference(TRAIN, BUNDLE, SPLITS, output)
-    return ReferenceStore.load(output)
+    build_reference_v2(TRAIN, SPLITS, output)
+    return ReferenceStore.load(output, trusted=True)
 
 
 def test_real_reference_contains_exactly_train_and_reuses_saved_transform(
@@ -40,7 +41,6 @@ def test_real_reference_contains_exactly_train_and_reuses_saved_transform(
 ) -> None:
     train = pd.read_csv(TRAIN).sort_values("customerID")
     splits = pd.read_csv(SPLITS)
-    source_bundle = load_bundle(BUNDLE)
     store = project_store
     assert len(store.records) == 4930
     assert store.matrix.shape == (4930, 45)
@@ -54,8 +54,8 @@ def test_real_reference_contains_exactly_train_and_reuses_saved_transform(
     assert {r.customer_id: r.churn for r in store.records} == dict(
         zip(train.customerID, train.Churn, strict=True)
     )
-    names = [c.name for c in store.feature_schema]
-    expected = source_bundle._pipeline.named_steps["preprocessor"].transform(train[names])
+    with zipfile.ZipFile(ORACLE) as archive:
+        expected = np.load(io.BytesIO(archive.read("matrix.npy")), allow_pickle=False)
     np.testing.assert_array_equal(store.matrix, expected)
 
 

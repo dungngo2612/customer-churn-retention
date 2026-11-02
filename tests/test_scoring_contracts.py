@@ -7,8 +7,6 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 from churn_retention.contracts.http.scoring import (
-    Explanation,
-    ExplanationList,
     Prediction,
     PredictionBatch,
 )
@@ -114,80 +112,6 @@ def test_prediction_batch_valid():
     assert batch.model_version == "v1"
 
 
-def test_explanation_valid_with_float_feature():
-    e = Explanation(
-        customer_id="C001",
-        model_version="v1",
-        feature_name="monthly_charges",
-        feature_value=89.5,
-        contribution=0.42,
-        base_value=-0.85,
-        explained_output="log_odds",
-        calibration_applied="original",
-    )
-    assert e.feature_value == 89.5
-
-
-def test_explanation_valid_with_string_feature():
-    e = Explanation(
-        customer_id="C001",
-        model_version="v1",
-        feature_name="contract_type",
-        feature_value="month_to_month",
-        contribution=0.38,
-        base_value=-0.85,
-        explained_output="probability",
-        calibration_applied="calibrated",
-    )
-    assert e.feature_value == "month_to_month"
-
-
-def test_explanation_missing_field():
-    with pytest.raises(ValidationError):
-        Explanation(
-            customer_id="C001",
-            model_version="v1",
-            feature_name="tenure",
-            feature_value=12,
-            contribution=0.2,
-            # missing base_value
-            explained_output="log_odds",
-            calibration_applied="original",
-        )
-
-
-def test_explanation_list_valid():
-    el = ExplanationList(
-        customer_id="C001",
-        model_version="v1",
-        explanations=[
-            Explanation(
-                customer_id="C001",
-                model_version="v1",
-                feature_name="f1",
-                feature_value=10,
-                contribution=0.1,
-                base_value=0.0,
-                explained_output="log_odds",
-                calibration_applied="original",
-            ),
-            Explanation(
-                customer_id="C001",
-                model_version="v1",
-                feature_name="f2",
-                feature_value="cat",
-                contribution=-0.2,
-                base_value=0.0,
-                explained_output="log_odds",
-                calibration_applied="original",
-            ),
-        ],
-    )
-    assert len(el.explanations) == 2
-    assert el.customer_id == "C001"
-    assert el.model_version == "v1"
-
-
 @pytest.fixture
 def demo_prediction_payload() -> dict[str, Any]:
     return {
@@ -197,20 +121,6 @@ def demo_prediction_payload() -> dict[str, Any]:
         "churn_probability": 0.5,
         "model_version": "demo-model",
         "scored_at": "2026-10-17T00:00:00+00:00",
-    }
-
-
-@pytest.fixture
-def demo_explanation_payload() -> dict[str, Any]:
-    return {
-        "customer_id": "demo-customer-001",
-        "model_version": "demo-model",
-        "feature_name": "demo-usage",
-        "feature_value": 10.0,
-        "contribution": 0.2,
-        "base_value": -0.5,
-        "explained_output": "log_odds",
-        "calibration_applied": "original",
     }
 
 
@@ -225,44 +135,6 @@ def test_prediction_rejects_missing_timezone(
 
     assert exc_info.value.errors()[0]["loc"] == ("scored_at",)
     assert exc_info.value.errors()[0]["type"] == "timezone_aware"
-
-
-@pytest.mark.parametrize(
-    "missing_fields",
-    [
-        ("explained_output",),
-        ("calibration_applied",),
-        ("explained_output", "calibration_applied"),
-    ],
-)
-def test_explanation_requires_explicit_literals(
-    missing_fields: tuple[str, ...], demo_explanation_payload: dict[str, Any]
-) -> None:
-    for field in missing_fields:
-        del demo_explanation_payload[field]
-
-    with pytest.raises(ValidationError) as exc_info:
-        Explanation.model_validate(demo_explanation_payload)
-
-    assert {error["loc"] for error in exc_info.value.errors()} == {
-        (field,) for field in missing_fields
-    }
-    assert all(error["type"] == "missing" for error in exc_info.value.errors())
-
-
-@pytest.mark.parametrize(
-    "field, value", [("explained_output", "raw"), ("calibration_applied", "unknown")]
-)
-def test_explanation_rejects_invalid_literals(
-    field: str, value: str, demo_explanation_payload: dict[str, Any]
-) -> None:
-    demo_explanation_payload[field] = value
-
-    with pytest.raises(ValidationError) as exc_info:
-        Explanation.model_validate(demo_explanation_payload)
-
-    assert exc_info.value.errors()[0]["loc"] == (field,)
-    assert exc_info.value.errors()[0]["type"] == "literal_error"
 
 
 @pytest.mark.parametrize("field", ["scoring_run_id", "model_version", "predictions"])
@@ -283,29 +155,10 @@ def test_prediction_batch_requires_fields(
     assert exc_info.value.errors()[0]["type"] == "missing"
 
 
-@pytest.mark.parametrize("field", ["customer_id", "model_version", "explanations"])
-def test_explanation_list_requires_fields(
-    field: str, demo_explanation_payload: dict[str, Any]
-) -> None:
-    payload = {
-        "customer_id": "demo-customer-001",
-        "model_version": "demo-model",
-        "explanations": [demo_explanation_payload],
-    }
-    del payload[field]
-
-    with pytest.raises(ValidationError) as exc_info:
-        ExplanationList.model_validate(payload)
-
-    assert exc_info.value.errors()[0]["loc"] == (field,)
-    assert exc_info.value.errors()[0]["type"] == "missing"
-
-
 @pytest.mark.parametrize(
     "filename, model",
     [
         ("prediction_example.json", PredictionBatch),
-        ("explanation_example.json", ExplanationList),
     ],
 )
 def test_demo_json_examples_parse_with_contracts(filename: str, model: type[BaseModel]) -> None:
@@ -370,74 +223,6 @@ def test_prediction_batch_validates_model_version_consistency():
                     churn_probability=0.7,
                     model_version="v2",  # MISMATCH
                     scored_at=datetime.now(UTC),
-                ),
-            ],
-        )
-
-    assert "model_version" in str(exc_info.value)
-    assert "v2" in str(exc_info.value)
-
-
-def test_explanation_list_validates_customer_id_consistency():
-    """R04: ExplanationList must validate that wrapper customer_id matches all items."""
-    with pytest.raises(ValidationError) as exc_info:
-        ExplanationList(
-            customer_id="C001",
-            model_version="v1",
-            explanations=[
-                Explanation(
-                    customer_id="C001",  # matches wrapper
-                    model_version="v1",
-                    feature_name="f1",
-                    feature_value=10,
-                    contribution=0.1,
-                    base_value=0.0,
-                    explained_output="log_odds",
-                    calibration_applied="original",
-                ),
-                Explanation(
-                    customer_id="C002",  # MISMATCH
-                    model_version="v1",
-                    feature_name="f2",
-                    feature_value="cat",
-                    contribution=-0.2,
-                    base_value=0.0,
-                    explained_output="log_odds",
-                    calibration_applied="original",
-                ),
-            ],
-        )
-
-    assert "customer_id" in str(exc_info.value)
-    assert "C002" in str(exc_info.value)
-
-
-def test_explanation_list_validates_model_version_consistency():
-    """R04: ExplanationList must validate that wrapper model_version matches all items."""
-    with pytest.raises(ValidationError) as exc_info:
-        ExplanationList(
-            customer_id="C001",
-            model_version="v1",
-            explanations=[
-                Explanation(
-                    customer_id="C001",
-                    model_version="v1",  # matches wrapper
-                    feature_name="f1",
-                    feature_value=10,
-                    contribution=0.1,
-                    base_value=0.0,
-                    explained_output="log_odds",
-                    calibration_applied="original",
-                ),
-                Explanation(
-                    customer_id="C001",
-                    model_version="v2",  # MISMATCH
-                    feature_name="f2",
-                    feature_value="cat",
-                    contribution=-0.2,
-                    base_value=0.0,
-                    explained_output="log_odds",
-                    calibration_applied="original",
                 ),
             ],
         )

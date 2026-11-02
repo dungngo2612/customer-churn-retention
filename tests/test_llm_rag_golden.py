@@ -11,15 +11,15 @@ from typing import Any
 import numpy as np
 import pytest
 
-from churn_retention.adapters.retrieval.legacy_reference_store import (
-    ReferenceRecord,
-    ReferenceStore,
-)
 from churn_retention.adapters.retrieval.nearest_neighbors import (
     SimilarCustomerRetriever,
 )
+from churn_retention.adapters.retrieval.reference_store import (
+    ReferenceRecord,
+    ReferenceStore,
+)
 from churn_retention.modules.scoring.llm_prompt import ChurnPromptBuilder
-from scripts.capture_llm_rag_golden import (
+from scripts.verify_rag_golden import (
     ARTIFACT,
     PRIVATE,
     PUBLIC,
@@ -48,10 +48,13 @@ def store() -> Iterator[ReferenceStore]:
             pytest.fail(message)
         pytest.skip(message)
     with offline_without_fitting():
-        loaded = ReferenceStore.load(ARTIFACT)
-        before = pickle.dumps(loaded._preprocessor)
+        loaded = ReferenceStore.load(
+            ROOT / "artifacts/references/telco-train-v2.zip",
+            expected_artifact_sha256="c85e61be7edfd0e91b248e0e353088677a345a378e64840b1613b51194b40bf8",
+        )
+        before = pickle.dumps(loaded.preprocessor._transformer)
         yield loaded
-        assert pickle.dumps(loaded._preprocessor) == before
+        assert pickle.dumps(loaded.preprocessor._transformer) == before
 
 
 @pytest.fixture(scope="module")
@@ -61,7 +64,7 @@ def queries(store: ReferenceStore) -> dict[str, dict[str, object]]:
 
 def test_golden_source_is_the_pinned_real_v1(store: ReferenceStore) -> None:
     source = GOLDEN["source"]
-    assert store.reference_version == source["reference_version"]
+    assert store.manifest.format_version == 2
     assert digest_bytes(ARTIFACT.read_bytes()) == source["artifact_sha256"]
     assert digest_bytes(VALIDATION.read_bytes()) == source["validation_sha256"]
     assert store.manifest.libraries == source["libraries"]
@@ -88,7 +91,7 @@ def test_every_reference_matrix_value_and_row_order_are_unchanged(
     names = [column.name for column in store.feature_schema]
     import pandas as pd
 
-    transformed = store._preprocessor.transform(
+    transformed = store.preprocessor._transformer.transform(
         pd.DataFrame([dict(row.features) for row in store.records], columns=names)
     )
     assert digest_array(transformed) == matrix["values_sha256"]
@@ -173,10 +176,9 @@ def test_equal_distances_use_id_order_at_k_boundary_and_exclude_self(
     )
     tied_store = ReferenceStore(
         store.manifest.model_copy(update={"row_count": 6}),
+        store.preprocessor,
         records,
         np.repeat(prepared.vector, 6, axis=0),
-        store._preprocessor,
-        store._categories,
     )
     results = SimilarCustomerRetriever(tied_store).retrieve(
         query, customer_id="synthetic-tie-c" if exclude_self else None
@@ -230,8 +232,8 @@ def test_public_fixture_and_prompts_do_not_expose_reference_ids(
             pytest.fail("A reference identifier entered an LLM prompt")
 
 
-def test_capture_refuses_to_overwrite_existing_snapshots() -> None:
-    from scripts.capture_llm_rag_golden import capture
-
-    with pytest.raises(FileExistsError, match="immutable"):
-        capture(PUBLIC, PRIVATE)
+def test_public_golden_snapshot_is_unchanged() -> None:
+    assert (
+        digest_bytes(PUBLIC.read_bytes())
+        == "ca54b2e2290f0e70c841a8ad0ea31e00694229feda1a422c82deeafea4e9888b"
+    )

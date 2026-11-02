@@ -88,12 +88,13 @@ def main() -> None:
     from churn_retention.entrypoints.streamlit.dashboard_llm_service import (
         DashboardLLMAdapter,
     )
-    from churn_retention.entrypoints.worker.worker import IdempotentPredictionStore
+    from churn_retention.entrypoints.worker import worker as worker_module
 
     # This import-isolation probe uses AppTest with no HTTP server.
     patch.object(demo_security, "require_safe_runtime", lambda: None).start()
     patch.object(RAGPreprocessor, "fit_train", forbidden).start()
-    patch.object(IdempotentPredictionStore, "__init__", forbidden).start()
+    assert not hasattr(worker_module, "IdempotentPredictionStore")
+    assert not hasattr(worker_module.JobWorker, "_handle_scoring")
     for cls in (
         ColumnTransformer,
         SimpleImputer,

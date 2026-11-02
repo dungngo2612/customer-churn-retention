@@ -3,23 +3,19 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-import yaml
 from sklearn.model_selection import train_test_split
 
+from churn_retention.adapters.retrieval.rag_preprocessor import FEATURE_SCHEMA
 
-def test_training_config_accounts_for_source_columns_without_id_or_target_leakage() -> None:
+
+def test_rag_schema_accounts_for_source_columns_without_id_or_target_leakage() -> None:
     root = Path(__file__).resolve().parents[1]
     source = pd.read_csv(root / "data" / "telco_churn.csv", nrows=0)
-    config = yaml.safe_load((root / "configs" / "train_config.yaml").read_text(encoding="utf-8"))
 
-    features = config["features"]
-    configured_features = set(features["numeric_cols"]) | set(features["categorical_cols"])
-    excluded = set(features["drop_cols"])
-    target = features["target_col"]
-
-    assert target == "Churn"
+    configured_features = {column.name for column in FEATURE_SCHEMA}
+    excluded = {"customerID"}
+    target = "Churn"
     assert target not in configured_features
-    assert "customerID" in excluded
     assert "customerID" not in configured_features
     assert configured_features | excluded | {target} == set(source.columns)
     assert not (configured_features & excluded)
@@ -63,8 +59,7 @@ def test_seed_42_reproduces_stratified_manifest() -> None:
     root = Path(__file__).resolve().parents[1]
     source = pd.read_csv(root / "data" / "telco_churn.csv", usecols=["customerID", "Churn"])
     manifest = pd.read_csv(root / "artifacts" / "splits" / "dataset_splits.csv")
-    config = yaml.safe_load((root / "configs" / "train_config.yaml").read_text(encoding="utf-8"))
-    seed = config["seed"]
+    seed = 42
     assert seed == 42
 
     train, remaining = train_test_split(

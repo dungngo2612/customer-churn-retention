@@ -237,24 +237,11 @@ def test_invalid_ids_are_rejected(invalid: object) -> None:
 
 def test_old_import_paths_reexport_the_same_contract_objects() -> None:
     from churn_retention.adapters.retrieval import (
-        _artifact,
         nearest_neighbors,
         reference_store,
     )
-    from churn_retention.contracts import reference
     from churn_retention.modules.scoring import llm_prompt
 
-    for name in (
-        "FeatureColumn",
-        "StoredRecord",
-        "ReferenceArtifactError",
-        "clean_features",
-        "validate_schema",
-        "validate_id",
-        "sha256",
-        "json_bytes",
-    ):
-        assert getattr(_artifact, name) is getattr(reference, name)
     assert reference_store.ReferenceRecord is ReferenceRecord
     assert reference_store.PreparedQuery is PreparedQuery
     assert nearest_neighbors.SimilarCustomer is SimilarCustomer

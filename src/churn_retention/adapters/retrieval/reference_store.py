@@ -1,7 +1,7 @@
 """Public LLM/RAG Store: v2 only, with no legacy import or fallback.
 
-The implementation is the JSON loader validated in step 7.5. v1 callers must
-explicitly import legacy_reference_store; old bundle filters belong there.
+The JSON loader restores only RAG preprocessing state. Historical classifier-
+backed v1 loading is preserved on the archive branch, outside main.
 """
 
 from churn_retention.adapters.retrieval.reference_v2 import VerificationReferenceV2
