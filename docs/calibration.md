@@ -55,7 +55,7 @@ Temporary default only: threshold=0.27, precision=0.5112107623, recall=0.8142857
 | 0.90 | 0.000000 | 0.000000 | 0.000000 | 0 | 0 | 280 | 776 |
 | 0.95 | 0.000000 | 0.000000 | 0.000000 | 0 | 0 | 280 | 776 |
 
-The shared evaluation module is absent from both main and the selected base. Metrics reuse training.metrics.compute_metrics; confusion counts and reliability/ECE supplement it locally.
+Calibration retains training.metrics.compute_metrics for reproducibility; confusion counts and reliability/ECE supplement it locally. The shared ml.evaluation module is available separately. This does not calibrate LLM outputs.
 
 Reproduce from the repository root:
 

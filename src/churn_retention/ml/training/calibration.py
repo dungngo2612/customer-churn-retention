@@ -203,8 +203,8 @@ def selection_message(result: CalibrationResult) -> str:
 def scan_thresholds(y_true: np.ndarray, y_proba: np.ndarray) -> pd.DataFrame:
     """Evaluate all 91 thresholds .05 through .95 at .01 steps on val only.
 
-    Churn means probability >= threshold. Reuse training.metrics because the
-    shared evaluation module is not present on main or this branch's base.
+    Churn means probability >= threshold. Keep the original training.metrics
+    helper for reproducible calibration reports; ml.evaluation is also available.
     Counts supplement that existing helper; no threshold is locked or configured.
     """
     labels = np.asarray(y_true)
@@ -355,9 +355,9 @@ def render_calibration_report(result: CalibrationResult, config: TuneConfig) -> 
         [
             "",
             (
-                "The shared evaluation module is absent from both main and the selected "
-                "base. Metrics reuse training.metrics.compute_metrics; confusion counts "
-                "and reliability/ECE supplement it locally."
+                "Calibration retains training.metrics.compute_metrics for reproducibility; "
+                "confusion counts and reliability/ECE supplement it locally. The shared "
+                "ml.evaluation module is available separately. This does not calibrate LLM outputs."
             ),
             "",
             "Reproduce from the repository root:",

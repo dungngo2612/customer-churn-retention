@@ -1,6 +1,8 @@
 # customer-churn-retention
 
-Khung dự án dự đoán khách hàng rời bỏ và hỗ trợ giữ chân. Hiện chỉ có cấu trúc và cấu hình, chưa có logic ứng dụng.
+Dự án dự đoán khách hàng rời bỏ và hỗ trợ giữ chân. Dashboard của Cường là giao diện tích hợp chính, dùng LLM/RAG v2; có thêm luồng ML truyền thống, batch scoring, quản lý dataset và các công cụ đánh giá. Kết quả LLM chưa hiệu chuẩn; chiến dịch và ROI hiện là mô phỏng.
+
+Trạng thái task, branch, stash và bằng chứng kiểm tra được cập nhật trong [báo cáo tích hợp](docs/cuong_dashboard_llm.md#rà-soát-tích-hợp-main-ngày-2026-11-02).
 
 ## Cài môi trường
 
@@ -9,7 +11,7 @@ Sử dụng CPython 3.12–3.14:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -e .
+python -m pip install -e ".[dev,training]"
 cp .env.example .env
 ```
 
@@ -47,3 +49,21 @@ PYTHONPATH=src python3 -m churn_retention.dashboard.demo
 Chỉ `http://127.0.0.1:8501`, mock mặc định và SQLite demo riêng. Không có
 authentication hoặc cách ly phiên. Không dùng tunnel/reverse proxy/public deploy.
 Xem [phạm vi bảo mật demo](docs/group5_single_admin_security.md).
+
+
+## API và kiểm tra
+
+```bash
+python3 -m uvicorn main:app --host 127.0.0.1 --port 8000
+python3 -m churn_retention.entrypoints.cli --help
+python3 -m ruff check .
+python3 -m ruff format --check .
+python3 -m mypy src
+python3 -m pytest
+```
+
+Trước khi dùng API dataset, cấu hình `DATABASE_URL` rồi chạy
+`python3 -m alembic upgrade head`. API có `/health` và `/datasets`.
+`calibrate`, `tune`, `score-batch`, `job-status` là các lệnh CLI riêng.
+Golden strict cần các artifact private local đã pin; không commit các artifact đó.
+CI kiểm tra migration trên PostgreSQL riêng. Không dùng database sản xuất cho tests.
