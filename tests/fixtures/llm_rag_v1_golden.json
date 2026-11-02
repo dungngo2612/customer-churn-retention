@@ -1,0 +1,1466 @@
+{
+  "baseline_format": 1,
+  "source": {
+    "reference_version": "ref-d56bcf40bc5cc5b3452d",
+    "artifact_sha256": "373a7542a21a2899ee4aae555dd1ab5d82a08211f52be34cd582be84e1a9507e",
+    "validation_sha256": "17237b2fe21d6efb77f6b052b99965626f4b1a19219e533917b8ebc7a5eb00b6",
+    "libraries": {
+      "numpy": "2.4.4",
+      "pandas": "3.0.6",
+      "scikit-learn": "1.9.1"
+    }
+  },
+  "preprocessing": {
+    "schema": [
+      {
+        "name": "SeniorCitizen",
+        "kind": "numeric",
+        "dtype": "int64"
+      },
+      {
+        "name": "tenure",
+        "kind": "numeric",
+        "dtype": "int64"
+      },
+      {
+        "name": "MonthlyCharges",
+        "kind": "numeric",
+        "dtype": "float64"
+      },
+      {
+        "name": "TotalCharges",
+        "kind": "numeric",
+        "dtype": "float64"
+      },
+      {
+        "name": "gender",
+        "kind": "categorical",
+        "dtype": "str"
+      },
+      {
+        "name": "Partner",
+        "kind": "categorical",
+        "dtype": "str"
+      },
+      {
+        "name": "Dependents",
+        "kind": "categorical",
+        "dtype": "str"
+      },
+      {
+        "name": "PhoneService",
+        "kind": "categorical",
+        "dtype": "str"
+      },
+      {
+        "name": "MultipleLines",
+        "kind": "categorical",
+        "dtype": "str"
+      },
+      {
+        "name": "InternetService",
+        "kind": "categorical",
+        "dtype": "str"
+      },
+      {
+        "name": "OnlineSecurity",
+        "kind": "categorical",
+        "dtype": "str"
+      },
+      {
+        "name": "OnlineBackup",
+        "kind": "categorical",
+        "dtype": "str"
+      },
+      {
+        "name": "DeviceProtection",
+        "kind": "categorical",
+        "dtype": "str"
+      },
+      {
+        "name": "TechSupport",
+        "kind": "categorical",
+        "dtype": "str"
+      },
+      {
+        "name": "StreamingTV",
+        "kind": "categorical",
+        "dtype": "str"
+      },
+      {
+        "name": "StreamingMovies",
+        "kind": "categorical",
+        "dtype": "str"
+      },
+      {
+        "name": "Contract",
+        "kind": "categorical",
+        "dtype": "str"
+      },
+      {
+        "name": "PaperlessBilling",
+        "kind": "categorical",
+        "dtype": "str"
+      },
+      {
+        "name": "PaymentMethod",
+        "kind": "categorical",
+        "dtype": "str"
+      }
+    ],
+    "input_feature_names": [
+      "SeniorCitizen",
+      "tenure",
+      "MonthlyCharges",
+      "TotalCharges",
+      "gender",
+      "Partner",
+      "Dependents",
+      "PhoneService",
+      "MultipleLines",
+      "InternetService",
+      "OnlineSecurity",
+      "OnlineBackup",
+      "DeviceProtection",
+      "TechSupport",
+      "StreamingTV",
+      "StreamingMovies",
+      "Contract",
+      "PaperlessBilling",
+      "PaymentMethod"
+    ],
+    "output_feature_names": [
+      "num__SeniorCitizen",
+      "num__tenure",
+      "num__MonthlyCharges",
+      "num__TotalCharges",
+      "cat__gender_Female",
+      "cat__gender_Male",
+      "cat__Partner_No",
+      "cat__Partner_Yes",
+      "cat__Dependents_No",
+      "cat__Dependents_Yes",
+      "cat__PhoneService_No",
+      "cat__PhoneService_Yes",
+      "cat__MultipleLines_No",
+      "cat__MultipleLines_No phone service",
+      "cat__MultipleLines_Yes",
+      "cat__InternetService_DSL",
+      "cat__InternetService_Fiber optic",
+      "cat__InternetService_No",
+      "cat__OnlineSecurity_No",
+      "cat__OnlineSecurity_No internet service",
+      "cat__OnlineSecurity_Yes",
+      "cat__OnlineBackup_No",
+      "cat__OnlineBackup_No internet service",
+      "cat__OnlineBackup_Yes",
+      "cat__DeviceProtection_No",
+      "cat__DeviceProtection_No internet service",
+      "cat__DeviceProtection_Yes",
+      "cat__TechSupport_No",
+      "cat__TechSupport_No internet service",
+      "cat__TechSupport_Yes",
+      "cat__StreamingTV_No",
+      "cat__StreamingTV_No internet service",
+      "cat__StreamingTV_Yes",
+      "cat__StreamingMovies_No",
+      "cat__StreamingMovies_No internet service",
+      "cat__StreamingMovies_Yes",
+      "cat__Contract_Month-to-month",
+      "cat__Contract_One year",
+      "cat__Contract_Two year",
+      "cat__PaperlessBilling_No",
+      "cat__PaperlessBilling_Yes",
+      "cat__PaymentMethod_Bank transfer (automatic)",
+      "cat__PaymentMethod_Credit card (automatic)",
+      "cat__PaymentMethod_Electronic check",
+      "cat__PaymentMethod_Mailed check"
+    ],
+    "categorical_vocabulary": {
+      "gender": [
+        "Female",
+        "Male"
+      ],
+      "Partner": [
+        "No",
+        "Yes"
+      ],
+      "Dependents": [
+        "No",
+        "Yes"
+      ],
+      "PhoneService": [
+        "No",
+        "Yes"
+      ],
+      "MultipleLines": [
+        "No",
+        "No phone service",
+        "Yes"
+      ],
+      "InternetService": [
+        "DSL",
+        "Fiber optic",
+        "No"
+      ],
+      "OnlineSecurity": [
+        "No",
+        "No internet service",
+        "Yes"
+      ],
+      "OnlineBackup": [
+        "No",
+        "No internet service",
+        "Yes"
+      ],
+      "DeviceProtection": [
+        "No",
+        "No internet service",
+        "Yes"
+      ],
+      "TechSupport": [
+        "No",
+        "No internet service",
+        "Yes"
+      ],
+      "StreamingTV": [
+        "No",
+        "No internet service",
+        "Yes"
+      ],
+      "StreamingMovies": [
+        "No",
+        "No internet service",
+        "Yes"
+      ],
+      "Contract": [
+        "Month-to-month",
+        "One year",
+        "Two year"
+      ],
+      "PaperlessBilling": [
+        "No",
+        "Yes"
+      ],
+      "PaymentMethod": [
+        "Bank transfer (automatic)",
+        "Credit card (automatic)",
+        "Electronic check",
+        "Mailed check"
+      ]
+    },
+    "parameters": {
+      "n_jobs": null,
+      "remainder": "drop",
+      "sparse_threshold": 0.3,
+      "transformer_weights": null,
+      "verbose": false,
+      "verbose_feature_names_out": true
+    },
+    "transformer_order": [
+      {
+        "name": "num",
+        "columns": [
+          "SeniorCitizen",
+          "tenure",
+          "MonthlyCharges",
+          "TotalCharges"
+        ]
+      },
+      {
+        "name": "cat",
+        "columns": [
+          "gender",
+          "Partner",
+          "Dependents",
+          "PhoneService",
+          "MultipleLines",
+          "InternetService",
+          "OnlineSecurity",
+          "OnlineBackup",
+          "DeviceProtection",
+          "TechSupport",
+          "StreamingTV",
+          "StreamingMovies",
+          "Contract",
+          "PaperlessBilling",
+          "PaymentMethod"
+        ]
+      }
+    ],
+    "sparse_output": false,
+    "steps": {
+      "num.imputer": {
+        "class": "SimpleImputer",
+        "parameters": {
+          "add_indicator": false,
+          "copy": true,
+          "fill_value": null,
+          "keep_empty_features": false,
+          "missing_values": {
+            "nonfinite": "nan"
+          },
+          "strategy": "median"
+        },
+        "state": {
+          "statistics_": [
+            0.0,
+            29.0,
+            70.57499999999999,
+            1387.4
+          ],
+          "n_features_in_": 4
+        }
+      },
+      "num.scaler": {
+        "class": "StandardScaler",
+        "parameters": {
+          "copy": true,
+          "with_mean": true,
+          "with_std": true
+        },
+        "state": {
+          "mean_": [
+            0.16105476673427993,
+            32.47119675456389,
+            64.95008113590264,
+            2301.797565922921
+          ],
+          "var_": [
+            0.13511612884644664,
+            607.3193529288333,
+            914.4942677418957,
+            5254794.809592453
+          ],
+          "scale_": [
+            0.3675814587903566,
+            24.643850205047777,
+            30.240606272723696,
+            2292.3339219215977
+          ],
+          "n_samples_seen_": 4930.0,
+          "n_features_in_": 4
+        }
+      },
+      "cat.imputer": {
+        "class": "SimpleImputer",
+        "parameters": {
+          "add_indicator": false,
+          "copy": true,
+          "fill_value": "__MISSING__",
+          "keep_empty_features": false,
+          "missing_values": {
+            "nonfinite": "nan"
+          },
+          "strategy": "constant"
+        },
+        "state": {
+          "statistics_": [
+            "__MISSING__",
+            "__MISSING__",
+            "__MISSING__",
+            "__MISSING__",
+            "__MISSING__",
+            "__MISSING__",
+            "__MISSING__",
+            "__MISSING__",
+            "__MISSING__",
+            "__MISSING__",
+            "__MISSING__",
+            "__MISSING__",
+            "__MISSING__",
+            "__MISSING__",
+            "__MISSING__"
+          ],
+          "n_features_in_": 15
+        }
+      },
+      "cat.onehot": {
+        "class": "OneHotEncoder",
+        "parameters": {
+          "categories": "auto",
+          "drop": null,
+          "dtype": "float64",
+          "feature_name_combiner": "concat",
+          "handle_unknown": "ignore",
+          "max_categories": null,
+          "min_frequency": null,
+          "sparse_output": true
+        },
+        "state": {
+          "categories_": [
+            [
+              "Female",
+              "Male"
+            ],
+            [
+              "No",
+              "Yes"
+            ],
+            [
+              "No",
+              "Yes"
+            ],
+            [
+              "No",
+              "Yes"
+            ],
+            [
+              "No",
+              "No phone service",
+              "Yes"
+            ],
+            [
+              "DSL",
+              "Fiber optic",
+              "No"
+            ],
+            [
+              "No",
+              "No internet service",
+              "Yes"
+            ],
+            [
+              "No",
+              "No internet service",
+              "Yes"
+            ],
+            [
+              "No",
+              "No internet service",
+              "Yes"
+            ],
+            [
+              "No",
+              "No internet service",
+              "Yes"
+            ],
+            [
+              "No",
+              "No internet service",
+              "Yes"
+            ],
+            [
+              "No",
+              "No internet service",
+              "Yes"
+            ],
+            [
+              "Month-to-month",
+              "One year",
+              "Two year"
+            ],
+            [
+              "No",
+              "Yes"
+            ],
+            [
+              "Bank transfer (automatic)",
+              "Credit card (automatic)",
+              "Electronic check",
+              "Mailed check"
+            ]
+          ],
+          "drop_idx_": null,
+          "n_features_in_": 15
+        }
+      }
+    }
+  },
+  "matrix": {
+    "shape": [
+      4930,
+      45
+    ],
+    "dtype": "float64",
+    "values_sha256": "f4087f1b797b512c63ed79cbaba9942891b67e244c4f24453d6832df4a6cdf47",
+    "ordered_reference_ids_sha256": "431e1c67601b5233cafaeafc4d9b7fe0192f954fe52013222df5192c30ee325a"
+  },
+  "retrieval": {
+    "k": 5,
+    "metric": "euclidean",
+    "algorithm": "brute",
+    "tie_breaking": "distance ascending, then customer_id ascending",
+    "self_exclusion": "exclude the query customer_id when provided"
+  },
+  "queries": [
+    {
+      "name": "first",
+      "row": 0,
+      "cleaned_features_sha256": "4fa27dd692087ae54bf6ae4d0f25200b7d91e0664c26e2e68f2378bfc3b1ddab",
+      "vector_sha256": "d5ca06bff29130a38980b6d6367f622d6ed5d05c50fcb9a61025103650212167",
+      "vector_shape": [
+        1,
+        45
+      ],
+      "vector_dtype": "float64",
+      "ordered_neighbor_ids_sha256": "03fbb42fdf619ae53e4ee6af092cc7f6e6d0415eb10864c8b15abcd1d2571683",
+      "distances": [
+        1.434288708663179,
+        1.47244773343,
+        1.558008974101604,
+        1.984116624756243,
+        2.019460582300198
+      ],
+      "prompt": {
+        "sha256": "2133336961d46cb0eec889c7114066c9f8ac1ba57453a847e50ab24963d1fe51",
+        "characters": 5013,
+        "utf8_bytes": 5518,
+        "reference_count": 5,
+        "reference_labels": [
+          "No",
+          "Yes",
+          "Yes",
+          "Yes",
+          "No"
+        ],
+        "ordered_examples_sha256": "fab79a85d5759fa2188d4b3ecedd10d8393236ab74a5be4623d7b06e235bcf02",
+        "template_sha256": "6d235fea14d8d829e75578bdeb62fa0d43e5084af93ec9db70b63788100c6189",
+        "structure": {
+          "data_keys": [
+            "customer_to_predict",
+            "reference_count",
+            "reference_customers"
+          ],
+          "query_feature_names": [
+            "Contract",
+            "Dependents",
+            "DeviceProtection",
+            "InternetService",
+            "MonthlyCharges",
+            "MultipleLines",
+            "OnlineBackup",
+            "OnlineSecurity",
+            "PaperlessBilling",
+            "Partner",
+            "PaymentMethod",
+            "PhoneService",
+            "SeniorCitizen",
+            "StreamingMovies",
+            "StreamingTV",
+            "TechSupport",
+            "TotalCharges",
+            "gender",
+            "tenure"
+          ],
+          "example_keys": [
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ]
+          ],
+          "output_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "churn_prediction": {
+                "enum": [
+                  0,
+                  1
+                ],
+                "type": "integer"
+              },
+              "churn_probability": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "reason": {
+                "maxLength": 300,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "churn_prediction",
+              "churn_probability",
+              "reason"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "name": "zero_tenure",
+      "row": 104,
+      "cleaned_features_sha256": "39be84736dcb66317386d74e1491e901d01c4a39f9485f6c5158228356479a53",
+      "vector_sha256": "e02e0203597fa96195ef8b2a7325699dfc285a2d52791817ffe9728a8b9d790e",
+      "vector_shape": [
+        1,
+        45
+      ],
+      "vector_dtype": "float64",
+      "ordered_neighbor_ids_sha256": "99ca1d4e7777771001b8bcd9e601cd0015e6934d26cde0a58c258ba091214c79",
+      "distances": [
+        0.8698259742883889,
+        1.1246855814813599,
+        1.3336281326523909,
+        1.414275418753599,
+        1.4148380904622135
+      ],
+      "prompt": {
+        "sha256": "6914cdb43a7276f437cd65f6f3ec2bfbf60e4a7cfe6e1108e0811356bf3e3201",
+        "characters": 5464,
+        "utf8_bytes": 5969,
+        "reference_count": 5,
+        "reference_labels": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "ordered_examples_sha256": "2ab7a67e3574d839fadf068d90b54b17ea7f6cb3ee76555eda50df0ee4157935",
+        "template_sha256": "6d235fea14d8d829e75578bdeb62fa0d43e5084af93ec9db70b63788100c6189",
+        "structure": {
+          "data_keys": [
+            "customer_to_predict",
+            "reference_count",
+            "reference_customers"
+          ],
+          "query_feature_names": [
+            "Contract",
+            "Dependents",
+            "DeviceProtection",
+            "InternetService",
+            "MonthlyCharges",
+            "MultipleLines",
+            "OnlineBackup",
+            "OnlineSecurity",
+            "PaperlessBilling",
+            "Partner",
+            "PaymentMethod",
+            "PhoneService",
+            "SeniorCitizen",
+            "StreamingMovies",
+            "StreamingTV",
+            "TechSupport",
+            "TotalCharges",
+            "gender",
+            "tenure"
+          ],
+          "example_keys": [
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ]
+          ],
+          "output_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "churn_prediction": {
+                "enum": [
+                  0,
+                  1
+                ],
+                "type": "integer"
+              },
+              "churn_probability": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "reason": {
+                "maxLength": 300,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "churn_prediction",
+              "churn_probability",
+              "reason"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "name": "no_phone",
+      "row": 31,
+      "cleaned_features_sha256": "5ad8fd2989d1297df1669b2098fd60f6626d8b499486379801e5d49fa6500387",
+      "vector_sha256": "fc917e178d098b0827083667e3a45a044cb3b43dd1749b9b6002f2f2beabf85d",
+      "vector_shape": [
+        1,
+        45
+      ],
+      "vector_dtype": "float64",
+      "ordered_neighbor_ids_sha256": "ad8104397c91d98eef6e01431f10ed6734a1fea09b084d2ced4736e2f43acc29",
+      "distances": [
+        1.4170729216074214,
+        1.4227296409710717,
+        2.0018421790532503,
+        2.0061596148445693,
+        2.00723875412837
+      ],
+      "prompt": {
+        "sha256": "af24b8aeda92dda4805d1aa4c68a77cd0581b0f3286f399cc784677745a6ddcd",
+        "characters": 5011,
+        "utf8_bytes": 5516,
+        "reference_count": 5,
+        "reference_labels": [
+          "No",
+          "No",
+          "No",
+          "Yes",
+          "Yes"
+        ],
+        "ordered_examples_sha256": "e249a56497f6db57bed73f369b8cc9ebf68b63b4fc44b2788595ce5f068f8554",
+        "template_sha256": "6d235fea14d8d829e75578bdeb62fa0d43e5084af93ec9db70b63788100c6189",
+        "structure": {
+          "data_keys": [
+            "customer_to_predict",
+            "reference_count",
+            "reference_customers"
+          ],
+          "query_feature_names": [
+            "Contract",
+            "Dependents",
+            "DeviceProtection",
+            "InternetService",
+            "MonthlyCharges",
+            "MultipleLines",
+            "OnlineBackup",
+            "OnlineSecurity",
+            "PaperlessBilling",
+            "Partner",
+            "PaymentMethod",
+            "PhoneService",
+            "SeniorCitizen",
+            "StreamingMovies",
+            "StreamingTV",
+            "TechSupport",
+            "TotalCharges",
+            "gender",
+            "tenure"
+          ],
+          "example_keys": [
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ]
+          ],
+          "output_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "churn_prediction": {
+                "enum": [
+                  0,
+                  1
+                ],
+                "type": "integer"
+              },
+              "churn_probability": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "reason": {
+                "maxLength": 300,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "churn_prediction",
+              "churn_probability",
+              "reason"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "name": "no_internet",
+      "row": 7,
+      "cleaned_features_sha256": "88ca4cfc7b6961fba649430e6e271df380e1a84936a9994ec653020f56db9b66",
+      "vector_sha256": "2420ac7e78ea7983124c5bfe9dd51e76149963ad3117fbf020f5b5188ef8910f",
+      "vector_shape": [
+        1,
+        45
+      ],
+      "vector_dtype": "float64",
+      "ordered_neighbor_ids_sha256": "955f7fb747b5a60d8225cecc1eb25d719b02f99e67dc0542a010d691eba506bd",
+      "distances": [
+        0.09734715549675914,
+        0.13895382311195903,
+        0.24457021378772872,
+        0.2898278550737039,
+        0.4243107432135123
+      ],
+      "prompt": {
+        "sha256": "fc560f3df7edde71a451d28c4992ef2e359ed7725773bd2436f6d31d051ec3c5",
+        "characters": 5485,
+        "utf8_bytes": 5990,
+        "reference_count": 5,
+        "reference_labels": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "ordered_examples_sha256": "5586c9c27de888b932c7e57a560d81a36477666b1aba69ec3bbc61357e43d23d",
+        "template_sha256": "6d235fea14d8d829e75578bdeb62fa0d43e5084af93ec9db70b63788100c6189",
+        "structure": {
+          "data_keys": [
+            "customer_to_predict",
+            "reference_count",
+            "reference_customers"
+          ],
+          "query_feature_names": [
+            "Contract",
+            "Dependents",
+            "DeviceProtection",
+            "InternetService",
+            "MonthlyCharges",
+            "MultipleLines",
+            "OnlineBackup",
+            "OnlineSecurity",
+            "PaperlessBilling",
+            "Partner",
+            "PaymentMethod",
+            "PhoneService",
+            "SeniorCitizen",
+            "StreamingMovies",
+            "StreamingTV",
+            "TechSupport",
+            "TotalCharges",
+            "gender",
+            "tenure"
+          ],
+          "example_keys": [
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ]
+          ],
+          "output_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "churn_prediction": {
+                "enum": [
+                  0,
+                  1
+                ],
+                "type": "integer"
+              },
+              "churn_probability": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "reason": {
+                "maxLength": 300,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "churn_prediction",
+              "churn_probability",
+              "reason"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "name": "senior",
+      "row": 9,
+      "cleaned_features_sha256": "f073f6d790c8d7806fd8ad5769dda47dd891b87bc27376a935a5d6f2f0cdcc23",
+      "vector_sha256": "0f08c56ff4dffb7f6715ca21ddc9cb0ad103c085df2e614cdc636972b6d974ca",
+      "vector_shape": [
+        1,
+        45
+      ],
+      "vector_dtype": "float64",
+      "ordered_neighbor_ids_sha256": "5cf33dea7885bce6c5a5c7744077c1ba16304445c1fa1d9a7b710fce6ddbb190",
+      "distances": [
+        2.7081825986424475,
+        2.7509071908037086,
+        2.8860334274604966,
+        2.90218078491306,
+        2.9214127554096208
+      ],
+      "prompt": {
+        "sha256": "432780cb8e3e0e2980335f29524fbaa490e830b42f4e079fccd9d7a54a19e7de",
+        "characters": 5030,
+        "utf8_bytes": 5535,
+        "reference_count": 5,
+        "reference_labels": [
+          "Yes",
+          "Yes",
+          "No",
+          "No",
+          "No"
+        ],
+        "ordered_examples_sha256": "f76309942159b2507115afae95f04cb4195e50748822765eabee3d94e46c1586",
+        "template_sha256": "6d235fea14d8d829e75578bdeb62fa0d43e5084af93ec9db70b63788100c6189",
+        "structure": {
+          "data_keys": [
+            "customer_to_predict",
+            "reference_count",
+            "reference_customers"
+          ],
+          "query_feature_names": [
+            "Contract",
+            "Dependents",
+            "DeviceProtection",
+            "InternetService",
+            "MonthlyCharges",
+            "MultipleLines",
+            "OnlineBackup",
+            "OnlineSecurity",
+            "PaperlessBilling",
+            "Partner",
+            "PaymentMethod",
+            "PhoneService",
+            "SeniorCitizen",
+            "StreamingMovies",
+            "StreamingTV",
+            "TechSupport",
+            "TotalCharges",
+            "gender",
+            "tenure"
+          ],
+          "example_keys": [
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ]
+          ],
+          "output_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "churn_prediction": {
+                "enum": [
+                  0,
+                  1
+                ],
+                "type": "integer"
+              },
+              "churn_probability": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "reason": {
+                "maxLength": 300,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "churn_prediction",
+              "churn_probability",
+              "reason"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "name": "one_year",
+      "row": 5,
+      "cleaned_features_sha256": "e2ea93cd6ad4b85562577dadc8787be525a7461cf383ff037668d5b7e17b2bd8",
+      "vector_sha256": "1678bd164b4bc650f5b8f2b5d18dee5e5d6f051d120aa40b95e93447b5461025",
+      "vector_shape": [
+        1,
+        45
+      ],
+      "vector_dtype": "float64",
+      "ordered_neighbor_ids_sha256": "7c61cab619a4f99f478a71746bddf69d115ae2b2c0623db4f3a986fccfa3b627",
+      "distances": [
+        1.6775592303478288,
+        2.0266845835303013,
+        2.04208391647193,
+        2.0675794081460896,
+        2.0927604537073776
+      ],
+      "prompt": {
+        "sha256": "2070c3121ad6132e9df58f60a1fa31576a590429626110a964047a62f7bf0f81",
+        "characters": 4931,
+        "utf8_bytes": 5436,
+        "reference_count": 5,
+        "reference_labels": [
+          "Yes",
+          "Yes",
+          "No",
+          "No",
+          "No"
+        ],
+        "ordered_examples_sha256": "538f0206d6e66db26fa317db81273d158c065d7172fcae5657d1dd7ff25f9056",
+        "template_sha256": "6d235fea14d8d829e75578bdeb62fa0d43e5084af93ec9db70b63788100c6189",
+        "structure": {
+          "data_keys": [
+            "customer_to_predict",
+            "reference_count",
+            "reference_customers"
+          ],
+          "query_feature_names": [
+            "Contract",
+            "Dependents",
+            "DeviceProtection",
+            "InternetService",
+            "MonthlyCharges",
+            "MultipleLines",
+            "OnlineBackup",
+            "OnlineSecurity",
+            "PaperlessBilling",
+            "Partner",
+            "PaymentMethod",
+            "PhoneService",
+            "SeniorCitizen",
+            "StreamingMovies",
+            "StreamingTV",
+            "TechSupport",
+            "TotalCharges",
+            "gender",
+            "tenure"
+          ],
+          "example_keys": [
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ]
+          ],
+          "output_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "churn_prediction": {
+                "enum": [
+                  0,
+                  1
+                ],
+                "type": "integer"
+              },
+              "churn_probability": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "reason": {
+                "maxLength": 300,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "churn_prediction",
+              "churn_probability",
+              "reason"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "name": "two_year",
+      "row": 1,
+      "cleaned_features_sha256": "7351fe2c2e8e5600056c713f598b58d255e9bf3de4624b5cda90cc66f1280bc7",
+      "vector_sha256": "9603136fd7899cdc55affaf359f848c6d6190722bfcdbe87c399170e9954e652",
+      "vector_shape": [
+        1,
+        45
+      ],
+      "vector_dtype": "float64",
+      "ordered_neighbor_ids_sha256": "38d161494f16d18af87df3de3634ff34cb5d227ffd0dbfcbb5177878209b626a",
+      "distances": [
+        0.14423731261172187,
+        0.38581886840433965,
+        0.5087707299063952,
+        0.6193821244427167,
+        1.4148568676995985
+      ],
+      "prompt": {
+        "sha256": "7d6a6336b6a04bbbdb70e3a16bcb947e65340e09920391238c8af4cf49b867b8",
+        "characters": 5049,
+        "utf8_bytes": 5554,
+        "reference_count": 5,
+        "reference_labels": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "ordered_examples_sha256": "4dac7a4939a390363bd99441d003fe55acf353a62c5093a6253c5f20eb72e519",
+        "template_sha256": "6d235fea14d8d829e75578bdeb62fa0d43e5084af93ec9db70b63788100c6189",
+        "structure": {
+          "data_keys": [
+            "customer_to_predict",
+            "reference_count",
+            "reference_customers"
+          ],
+          "query_feature_names": [
+            "Contract",
+            "Dependents",
+            "DeviceProtection",
+            "InternetService",
+            "MonthlyCharges",
+            "MultipleLines",
+            "OnlineBackup",
+            "OnlineSecurity",
+            "PaperlessBilling",
+            "Partner",
+            "PaymentMethod",
+            "PhoneService",
+            "SeniorCitizen",
+            "StreamingMovies",
+            "StreamingTV",
+            "TechSupport",
+            "TotalCharges",
+            "gender",
+            "tenure"
+          ],
+          "example_keys": [
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ]
+          ],
+          "output_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "churn_prediction": {
+                "enum": [
+                  0,
+                  1
+                ],
+                "type": "integer"
+              },
+              "churn_probability": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "reason": {
+                "maxLength": 300,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "churn_prediction",
+              "churn_probability",
+              "reason"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "name": "maximum_total_charges",
+      "row": 393,
+      "cleaned_features_sha256": "60f9e94f445f9b78d1d1bafb66bac0dabefd112f2decb1c835512ad946cdb26c",
+      "vector_sha256": "c55d9fd05b896d53aa590da009c04a7fef9f30cc628f97ef8e0df790769ad3dc",
+      "vector_shape": [
+        1,
+        45
+      ],
+      "vector_dtype": "float64",
+      "ordered_neighbor_ids_sha256": "462db51641f9f70306cc55057c5062d3cd9a0764df09d1ce0f1e81f544a19ec6",
+      "distances": [
+        0.13074156224189423,
+        1.4185882345784733,
+        1.4222001491121088,
+        1.4307516094597328,
+        1.4329062253442044
+      ],
+      "prompt": {
+        "sha256": "9ecdbe74085d95a2b7822fb968c6138f06e838f33ffa5d8215d6de639109cc17",
+        "characters": 5019,
+        "utf8_bytes": 5524,
+        "reference_count": 5,
+        "reference_labels": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "ordered_examples_sha256": "8f7dc5ef0e6021851c950395e861ba4d39a6e0cac15a43dc8a3cc20e46afee84",
+        "template_sha256": "6d235fea14d8d829e75578bdeb62fa0d43e5084af93ec9db70b63788100c6189",
+        "structure": {
+          "data_keys": [
+            "customer_to_predict",
+            "reference_count",
+            "reference_customers"
+          ],
+          "query_feature_names": [
+            "Contract",
+            "Dependents",
+            "DeviceProtection",
+            "InternetService",
+            "MonthlyCharges",
+            "MultipleLines",
+            "OnlineBackup",
+            "OnlineSecurity",
+            "PaperlessBilling",
+            "Partner",
+            "PaymentMethod",
+            "PhoneService",
+            "SeniorCitizen",
+            "StreamingMovies",
+            "StreamingTV",
+            "TechSupport",
+            "TotalCharges",
+            "gender",
+            "tenure"
+          ],
+          "example_keys": [
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ],
+            [
+              "Churn",
+              "features"
+            ]
+          ],
+          "output_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "churn_prediction": {
+                "enum": [
+                  0,
+                  1
+                ],
+                "type": "integer"
+              },
+              "churn_probability": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "reason": {
+                "maxLength": 300,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "churn_prediction",
+              "churn_probability",
+              "reason"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    }
+  ],
+  "missing_values": {
+    "total_none": {
+      "accepted": true,
+      "cleaned_features_sha256": "39be84736dcb66317386d74e1491e901d01c4a39f9485f6c5158228356479a53",
+      "vector_sha256": "e02e0203597fa96195ef8b2a7325699dfc285a2d52791817ffe9728a8b9d790e"
+    },
+    "total_empty": {
+      "accepted": true,
+      "cleaned_features_sha256": "39be84736dcb66317386d74e1491e901d01c4a39f9485f6c5158228356479a53",
+      "vector_sha256": "e02e0203597fa96195ef8b2a7325699dfc285a2d52791817ffe9728a8b9d790e"
+    },
+    "total_whitespace": {
+      "accepted": true,
+      "cleaned_features_sha256": "39be84736dcb66317386d74e1491e901d01c4a39f9485f6c5158228356479a53",
+      "vector_sha256": "e02e0203597fa96195ef8b2a7325699dfc285a2d52791817ffe9728a8b9d790e"
+    },
+    "total_nan": {
+      "accepted": true,
+      "cleaned_features_sha256": "39be84736dcb66317386d74e1491e901d01c4a39f9485f6c5158228356479a53",
+      "vector_sha256": "e02e0203597fa96195ef8b2a7325699dfc285a2d52791817ffe9728a8b9d790e"
+    },
+    "total_pd_na": {
+      "accepted": true,
+      "cleaned_features_sha256": "39be84736dcb66317386d74e1491e901d01c4a39f9485f6c5158228356479a53",
+      "vector_sha256": "e02e0203597fa96195ef8b2a7325699dfc285a2d52791817ffe9728a8b9d790e"
+    },
+    "total_missing_nonzero_tenure": {
+      "accepted": false,
+      "error_type": "ValueError",
+      "message": "Missing TotalCharges is only valid when tenure is zero."
+    },
+    "other_numeric_missing": {
+      "accepted": false,
+      "error_type": "TypeError",
+      "message": "MonthlyCharges must be a numerical scalar or numeric string."
+    },
+    "category_missing": {
+      "accepted": false,
+      "error_type": "ValueError",
+      "message": "Invalid categorical value for gender."
+    },
+    "category_unknown": {
+      "accepted": false,
+      "error_type": "ValueError",
+      "message": "Invalid categorical value for gender."
+    },
+    "senior_boolean": {
+      "accepted": false,
+      "error_type": "TypeError",
+      "message": "SeniorCitizen must be a numerical scalar or numeric string."
+    },
+    "fractional_tenure": {
+      "accepted": false,
+      "error_type": "ValueError",
+      "message": "tenure must be an integer."
+    },
+    "negative_numeric": {
+      "accepted": false,
+      "error_type": "ValueError",
+      "message": "MonthlyCharges must be finite and non-negative."
+    },
+    "nonfinite_numeric": {
+      "accepted": false,
+      "error_type": "ValueError",
+      "message": "MonthlyCharges must be finite and non-negative."
+    },
+    "reversed_input_order": {
+      "accepted": true,
+      "cleaned_features_sha256": "39be84736dcb66317386d74e1491e901d01c4a39f9485f6c5158228356479a53",
+      "vector_sha256": "e02e0203597fa96195ef8b2a7325699dfc285a2d52791817ffe9728a8b9d790e"
+    },
+    "missing_feature": {
+      "accepted": false,
+      "error_type": "ValueError",
+      "message": "Customer input is missing required features."
+    },
+    "unsupported_field": {
+      "accepted": false,
+      "error_type": "ValueError",
+      "message": "Customer input contains unsupported fields."
+    }
+  }
+}

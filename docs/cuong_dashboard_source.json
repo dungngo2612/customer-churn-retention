@@ -1,0 +1,24 @@
+{
+  "source_commit": "911a60a028cb89507d35fbe584059f30f7ee2da4",
+  "author": "Cuogphi (Cường)",
+  "original_file_sha256": {
+    "src/churn_retention/dashboard/app.py": "c8b20743ca2f62348e1f58f0831abd67ce25b31e3b9c497a43153de173952270",
+    "src/churn_retention/modules/campaigns/__init__.py": "a696c013b19f78b003c398a2d3f194ab8dac54e5a1c0c6b5d08aea9f4a715087",
+    "src/churn_retention/modules/campaigns/models.py": "7bde24bff48df45b43d06ab1967ac3ff51d2aff61a53b9db910c130fc5bda960",
+    "src/churn_retention/modules/campaigns/use_cases.py": "18aa171eb51aab6d09b7fca7794bc83e8d6ad2f9ccc7483dfe74407d5b37dc3a",
+    "src/churn_retention/adapters/database/campaigns/__init__.py": "dd0d2ce1ebac625fdf4f3f40d74947cde2a473d9060d0f168cacbba7cc509185",
+    "src/churn_retention/adapters/database/campaigns/repository.py": "6177f8349986d2f48bcfe5e67175973a8758f1faec95460aa1bcdd7b08197725",
+    "src/churn_retention/adapters/task_queue/__init__.py": "2a131d61d0f52b9b66cef270e1808c92eb920d78c2537d4fb73a2f67f2b53788",
+    "src/churn_retention/adapters/task_queue/queue.py": "38a352c9b04e225dff9149e91bc6d8e058bb39267af4acafdf6806febd3bf518",
+    "src/churn_retention/contracts/jobs/__init__.py": "89f89744caa488017f99c42df35521178a2e6b935fcefd80b63d8e519875ae01",
+    "src/churn_retention/contracts/jobs/models.py": "f538027381d584ccfe8927a091c9a965c3661778ae91559e6342cc7577b5b7cc",
+    "src/churn_retention/entrypoints/worker/__init__.py": "7ee42742dc6504b6fe7adc0aa07d116dee1c932cc02eb19799736eb046a08886",
+    "src/churn_retention/entrypoints/worker/worker.py": "a2493a9dc7c660cc32d21c89da7128e89b7b8f6e51730c23b36bdbdd3891d8f6",
+    "tests/test_campaigns.py": "e4993003e01062d397ce02a854819e7ddb237cdade2560c4835f36ba80a4ba57"
+  },
+  "notes": [
+    "Dashboard four-tab layout/Retain/Budget/Campaigns/Queue services ported selectively.",
+    "No ML/training/predictor/TreeSHAP/model-bundle source ported.",
+    "Legacy handler remains dormant in worker.py for compatibility; Dashboard injects a separate LLM handler."
+  ]
+}
