@@ -43,10 +43,10 @@ with run_tab:
             "Chưa chọn dữ liệu để phân tích",
             "Nhập tệp hoặc chọn dữ liệu mẫu tại Khách hàng & dữ liệu.",
         )
-        st.page_link("pages/customers.py", label="Chọn dữ liệu →")
+        st.page_link("views/customers.py", label="Chọn dữ liệu →")
     elif ctx.form is None or st.session_state.get(state.INPUT_ERROR):
         st.error(st.session_state.get(state.INPUT_ERROR) or ctx.error)
-        st.page_link("pages/customers.py", label="Kiểm tra lại dữ liệu →")
+        st.page_link("views/customers.py", label="Kiểm tra lại dữ liệu →")
     else:
         data = ctx.data
         ui.badge(
@@ -292,7 +292,7 @@ with result_tab:
         )
         customer_detail.render(filtered, "analysis", view)
         st.page_link(
-            "pages/plan.py",
+            "views/plan.py",
             label="Lập kế hoạch từ lần phân tích này →",
             icon=":material/arrow_forward:",
         )

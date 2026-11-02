@@ -112,7 +112,7 @@ def render(frame: pd.DataFrame, key: str, view: DashboardView | None = None) -> 
             st.markdown("**Lý do & bằng chứng tham chiếu**")
             if prediction is None or view is None:
                 st.info("Khách hàng này chưa có kết quả thuộc bộ dữ liệu đang xem.")
-                st.page_link("pages/analysis.py", label="Đến phân tích rời bỏ →")
+                st.page_link("views/analysis.py", label="Đến phân tích rời bỏ →")
             else:
                 st.text(prediction.reason)
                 st.caption(
@@ -175,4 +175,4 @@ def render(frame: pd.DataFrame, key: str, view: DashboardView | None = None) -> 
                 st.caption(
                     "Đề xuất chưa được thực thi. Có thể lập kế hoạch và lưu chiến dịch mô phỏng."
                 )
-                st.page_link("pages/plan.py", label="Lập kế hoạch giữ chân →")
+                st.page_link("views/plan.py", label="Lập kế hoạch giữ chân →")

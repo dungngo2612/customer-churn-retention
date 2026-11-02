@@ -134,6 +134,7 @@ def table(
         height=min(560, 40 + 36 * len(visible)),
         column_config=column_config,
     )
+    st.caption("Nút tải trong thanh công cụ bảng chỉ xuất trang đang xem.")
     return visible
 
 

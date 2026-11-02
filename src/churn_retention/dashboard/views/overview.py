@@ -20,11 +20,11 @@ if ctx.view is None:
         ),
     )
     st.page_link(
-        "pages/customers.py", label="Nhập dữ liệu khách hàng →", icon=":material/upload_file:"
+        "views/customers.py", label="Nhập dữ liệu khách hàng →", icon=":material/upload_file:"
     )
     if ctx.data is not None:
         st.success(f"Đã chọn {len(ctx.data.frame)} khách hàng · {ctx.data.source}")
-        st.page_link("pages/analysis.py", label="Tiếp tục đến phân tích →")
+        st.page_link("views/analysis.py", label="Tiếp tục đến phân tích →")
 else:
     view = ctx.view
     ui.badge(
@@ -72,16 +72,16 @@ else:
             st.dataframe(
                 counts.rename_axis("Nguy cơ").reset_index(name="Số khách hàng"), hide_index=True
             )
-        st.page_link("pages/analysis.py", label="Xem kết quả và lý do →")
+        st.page_link("views/analysis.py", label="Xem kết quả và lý do →")
     with right, st.container(border=True):
         ui.section("Kế hoạch đang xây dựng", "Theo lần phân tích và giả định đang chọn.")
         plan = totals(allocation(view, st.session_state[state.SETTINGS]))
         st.metric("Lợi ích ròng dự kiến", ui.money(plan["total_net_value"]))
         st.write(f"{plan['n_intervened']} khách được chọn · Chi phí {ui.money(plan['total_cost'])}")
         st.caption("Mô phỏng theo giả định về tỷ lệ chấp nhận và hiệu quả can thiệp.")
-        st.page_link("pages/plan.py", label="Tiếp tục lập kế hoạch →")
+        st.page_link("views/plan.py", label="Tiếp tục lập kế hoạch →")
         st.divider()
-        st.page_link("pages/campaigns.py", label="Mở chiến dịch đã lưu →")
+        st.page_link("views/campaigns.py", label="Mở chiến dịch đã lưu →")
     with st.expander("Báo cáo điều hành"):
         report = (
             f"# Tóm tắt giữ chân khách hàng\n\nNguồn: {view.run.source_name}\n"
@@ -115,4 +115,4 @@ for col, title, text, page in zip(
     with col:
         st.markdown(f"**{title}**")
         st.write(text)
-        st.page_link(f"pages/{page}.py", label="Mở không gian →")
+        st.page_link(f"views/{page}.py", label="Mở không gian →")

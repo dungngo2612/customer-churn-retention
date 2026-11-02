@@ -84,7 +84,7 @@ with import_tab:
             st.rerun()
     if ctx.data is not None:
         st.info(f"Đang chọn: {ctx.data.source} · {len(ctx.data.frame)} khách hàng")
-        st.page_link("pages/analysis.py", label="Tiếp tục phân tích rời bỏ →")
+        st.page_link("views/analysis.py", label="Tiếp tục phân tích rời bỏ →")
 
 with list_tab:
     if ctx.data is None:
@@ -132,8 +132,12 @@ with list_tab:
                 "Contract": "Hợp đồng",
                 "MonthlyCharges": "Cước tháng (USD)",
                 "tenure": "Sử dụng (tháng)",
-                "Churn": "Churn quan sát",
+                "Churn": "Trạng thái quan sát",
             }
+        )
+        shown["Hợp đồng"] = shown["Hợp đồng"].map(customer_detail.translated)
+        shown["Trạng thái quan sát"] = shown["Trạng thái quan sát"].map(
+            {"Yes": "Đã rời bỏ", "No": "Đang hoạt động"}
         )
         ui.table(
             shown,

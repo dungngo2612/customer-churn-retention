@@ -31,7 +31,7 @@ if ctx.view is None:
         "Cần kết quả phân tích trước khi lập kế hoạch",
         "Mở một lần phân tích đã lưu hoặc chạy phân tích khách hàng đã chọn.",
     )
-    st.page_link("pages/analysis.py", label="Đến phân tích rời bỏ →")
+    st.page_link("views/analysis.py", label="Đến phân tích rời bỏ →")
     st.stop()
 
 view = ctx.view
@@ -326,7 +326,7 @@ else:
                     )
         if st.session_state.get("last_saved_camp_id"):
             st.page_link(
-                "pages/campaigns.py",
+                "views/campaigns.py",
                 label="Mở chiến dịch đã lưu →",
                 icon=":material/arrow_forward:",
             )

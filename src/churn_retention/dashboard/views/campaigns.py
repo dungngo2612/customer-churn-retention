@@ -47,7 +47,7 @@ with archive_tab:
             "Chưa có chiến dịch",
             "Sau khi phân tích, lập phương án ngân sách và lưu tại Kế hoạch giữ chân.",
         )
-        st.page_link("pages/plan.py", label="Đến kế hoạch giữ chân →")
+        st.page_link("views/plan.py", label="Đến kế hoạch giữ chân →")
     else:
         controls = st.columns([2, 1, 1])
         search = controls[0].text_input("Tìm theo tên chiến dịch", key="campaign.search")
@@ -92,7 +92,7 @@ with archive_tab:
         if filtered:
             ids = [c.campaign_id for c in filtered]
             selected = st.session_state.get(state.CAMPAIGN)
-            if selected in ids:
+            if selected in ids and st.session_state.get("campaign.opened") != selected:
                 st.session_state["campaign.selected"] = selected
             elif st.session_state.get("campaign.selected") not in ids:
                 st.session_state["campaign.selected"] = ids[0]
@@ -103,6 +103,7 @@ with archive_tab:
                 key="campaign.selected",
             )
             st.session_state[state.CAMPAIGN] = cid
+            st.session_state["campaign.opened"] = cid
             campaign = services.get_campaign(cid)
             with st.container(border=True):
                 ui.section(campaign.name, f"Tạo lúc {ui.date_label(campaign.created_at)}")
@@ -179,7 +180,7 @@ with archive_tab:
                     if st.button("Mở lần phân tích nguồn", key="campaign.source"):
                         state.open_run(campaign.scoring_run_id)
                         st.session_state["_analysis_next_tab"] = "Kết quả & lý do"
-                        st.switch_page("pages/analysis.py")
+                        st.switch_page("views/analysis.py")
 
 with queue_tab:
     ui.section(

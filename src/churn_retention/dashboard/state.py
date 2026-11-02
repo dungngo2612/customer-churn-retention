@@ -13,6 +13,7 @@ from churn_retention.adapters.database.dashboard_runs import DashboardRunStore, 
 from churn_retention.adapters.task_queue.queue import SqliteTaskQueue
 from churn_retention.dashboard.planning import Settings
 from churn_retention.entrypoints.streamlit import dashboard_llm_ui as services
+from churn_retention.entrypoints.streamlit import demo_security
 from churn_retention.entrypoints.streamlit.llm_input import LLMInputResources
 
 INPUT = "retention.input"
@@ -51,6 +52,11 @@ def initialize() -> None:
 
 
 def context() -> Context:
+    try:
+        demo_security.require_safe_runtime()
+    except ValueError:
+        st.error("Ứng dụng chỉ hoạt động qua launcher cục bộ được hỗ trợ.")
+        st.stop()
     initialize()
     ledger = DashboardRunStore(services.runtime_path())
     form, pin, error = None, "", ""

@@ -36,27 +36,27 @@ logo = (
 st.logo("data:image/svg+xml;base64," + base64.b64encode(logo.encode()).decode(), size="large")
 page = st.navigation(
     [
-        st.Page("pages/overview.py", title="Tổng quan", icon=":material/dashboard:", default=True),
+        st.Page("views/overview.py", title="Tổng quan", icon=":material/dashboard:", default=True),
         st.Page(
-            "pages/customers.py",
+            "views/customers.py",
             title="Khách hàng & dữ liệu",
             icon=":material/group:",
             url_path="khach-hang",
         ),
         st.Page(
-            "pages/analysis.py",
+            "views/analysis.py",
             title="Phân tích rời bỏ",
             icon=":material/insights:",
             url_path="phan-tich",
         ),
         st.Page(
-            "pages/plan.py",
+            "views/plan.py",
             title="Kế hoạch giữ chân",
             icon=":material/account_balance_wallet:",
             url_path="ke-hoach",
         ),
         st.Page(
-            "pages/campaigns.py",
+            "views/campaigns.py",
             title="Chiến dịch",
             icon=":material/folder_open:",
             url_path="chien-dich",
