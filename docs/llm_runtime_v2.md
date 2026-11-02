@@ -76,12 +76,13 @@ The Predict page and its LLM/RAG call chain no longer import the legacy Store,
 `model.pkl`, a model bundle, `feature_schema.json` from that bundle nor v1 ZIP.
 No LogisticRegression object is instantiated or called.
 
-The unrelated shared Streamlit root `apps/streamlit/scoring_page.py` still imports
-`BundlePredictor`, and the project keeps its combined dependency/package layout.
-Starting that shared root can still import legacy training code. This task does
-not make the entire Streamlit application/distribution independent: separating
-its entrypoint is explicitly out of scope. Scoring, Explain, LR, training, batch
-and SHAP implementations and `pyproject.toml` are unchanged.
+The classifier Streamlit root, Explain page, training, classifier batch scoring
+and their dedicated dependencies have now been removed from main. Start the
+current Dashboard with `python3 -m churn_retention.dashboard.demo`, or the
+standalone Predict/Retention app with
+`streamlit run apps/streamlit_llm/app.py`. LLM batch scoring remains available
+through the Dashboard Queue/Worker. The former implementation is on the archive
+branch linked above.
 
 Scikit-learn remains necessary for feature transformers. Its `sklearn.compose`
 import currently reaches the `sklearn.linear_model` namespace through an unrelated
@@ -111,8 +112,8 @@ The new runtime tests cover:
   and network sockets are disabled; no provider SDK is loaded or API called.
 
 The LLM unit fixtures now build small independent v2 artifacts from synthetic
-train records; preprocessing receives only features. V1 tests keep the explicit
-legacy loader as an oracle.
+train records; preprocessing receives only features. Frozen comparisons read only
+immutable JSON/NPY values from the original v1 oracle, without its legacy loader.
 Original datasets, splits, artifacts and golden expected values are untouched.
 
 ## Current implementation
@@ -143,8 +144,8 @@ explicit approval plus golden verification. Exact sklearn/NumPy/pandas versions
 are part of the format; upgrading them can require a separately reviewed artifact
 and codec update. These restrictions are preserved rather than bypassed here.
 
-Only runtime migration is implemented. No preprocessing v3, artifact rebuild,
-entrypoint split, deployment, commit or push is performed.
+No preprocessing v3 or artifact rebuild is needed. Current removal verification
+is recorded in [the integration report](cuong_dashboard_llm.md#tách-classifier-khỏi-main).
 
 ## Verification on 2026-11-01
 

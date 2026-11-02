@@ -151,9 +151,9 @@ PYTHONPATH=src OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python3 -m scripts.verif
 ```
 
 The first command refuses the existing artifact; select a new path for any future
-build. No automatic baseline refresh or runtime migration is provided. The
-existing runtime still selects v1 and retains its model-bundle dependencies.
-Runtime migration is the next separately authorized step, not part of this change.
+build. There is no automatic baseline refresh. The current runtime selects v2;
+classifier-backed v1 builders/loaders are preserved only on the archive branch
+listed in [README](../README.md). See [runtime configuration](llm_runtime_v2.md).
 
 ## Verification on 2026-11-01
 

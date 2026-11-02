@@ -1,17 +1,19 @@
-# Form LLM/RAG — bước 6.2
+# Form LLM/RAG trên main
 
-Trang mới `apps/streamlit/pages/2_Predict.py` được phát hiện qua thư mục `pages/`
-của entry point hiện có `apps/streamlit/scoring_page.py`.
-
-Chạy ứng dụng bằng lệnh hiện có:
+Chạy app Predict/Retention hiện tại từ repository root:
 
 ```bash
-PYTHONPATH=src python3 -m streamlit run apps/streamlit/scoring_page.py
+PYTHONPATH=src python3 -m streamlit run apps/streamlit_llm/app.py
 ```
 
-Trang chỉ nhập và kiểm tra dữ liệu. Nút **Dự đoán bằng LLM** chưa gọi Predictor,
-Router, Groq hay Gemini; không cần API key trong bước này. Không có lựa chọn
-Logistic Regression và không hiển thị nhãn/probability giả.
+Trang `apps/streamlit/pages/2_Predict.py` được entrypoint này đăng ký tường minh.
+Entrypoint classifier cũ và trang Explain đã bỏ khỏi main; bản trước được giữ trên
+nhánh archive ghi trong [README](../README.md).
+
+Submit hợp lệ gọi LLMChurnPredictor qua router Qwen/Groq và Gemini hiện có.
+Server cần `GROQ_API_KEY` và `GEMINI_API_KEY` để dự đoán thật. Form không có lựa chọn
+classifier hoặc fallback về classifier. Các test chỉ dùng fake providers, không
+cần gọi API trả phí.
 
 ## Input và validation
 
@@ -48,50 +50,32 @@ Thông báo validation được dịch từ các message đã biết. Exception 
 được được thay bằng thông báo chung, không xuất raw values hoặc nội dung lỗi
 transformer ra giao diện.
 
-## Session và rerun
+## Session, artifact và rerun
 
-Form gom input tới lúc submit. Store và form specification được giữ trong
-`llm_input.resources` theo session, không load artifact hoặc dựng lại danh mục
-ở mỗi rerun. Đường dẫn artifact hiện tại được giải từ repository root:
-`artifacts/references/telco-train-v1.zip`.
+Resources dùng `ReferenceStore` v2, mặc định
+`artifacts/references/telco-train-v2.zip`, với external SHA-256 pin. Có thể cấu hình
+`CHURN_LLM_REFERENCE_ARTIFACT` và `CHURN_LLM_REFERENCE_SHA256`; xem
+[cấu hình runtime](llm_runtime_v2.md). Loader restore scaler/encoder từ JSON,
+không unpickle classifier hoặc fallback v1.
 
-Chỉ nhánh submit gọi validation. Thành công lưu một dict mới tại
-`llm_input.validated_customer` và hiển thị thông báo sẵn sàng. Submit sai xóa
-snapshot cũ, thay thông báo thành lỗi. Khi rerun, trang chỉ render thông báo của
-lần gửi gần nhất, không gọi validation hoặc inference lại. Draft chưa submit
-không được coi là snapshot đã kiểm tra.
+Cache identity gồm path/stat fingerprint và pin. Đổi path, file hoặc pin sẽ xóa
+resources/snapshot/result cũ; load lại phải qua xác thực artifact. Chỉ submit gọi
+inference, không tự gọi lại trên rerun. Draft chưa submit không phải snapshot đã
+kiểm tra. Lỗi validation/provider/artifact được sanitize.
 
-Không ghi input ra file, không lưu API key, HTTP client, Router, task hoặc LLM
-Predictor trong session. Không đọc/ghi `active_scoring_context` của CSV/SHAP.
+Session giữ resources, validated input và kết quả; không giữ API key, HTTP client,
+Router hoặc task. Không sửa `active_scoring_context`. Kết quả hiển thị probability
+chưa hiệu chuẩn, reason, provider và reference version. Xem
+[luồng prediction](llm_streamlit_prediction.md) và [app độc lập](llm_standalone_app.md).
 
-## Phụ thuộc legacy đã có
-
-UI mới chỉ phụ thuộc vào ReferenceStore và exception retrieval hiện có. Tuy nhiên,
-reference artifact hiện chứa `bundle/model.pkl`, feature_schema và metadata của
-bundle Logistic Regression. Store loader đang unpickle pipeline, kiểm tra loại
-model và lấy fitted preprocessing/schema của bundle này. Đây là phụ thuộc backend
-đã có; bước 6.2 không sửa hoặc mở rộng việc dùng classifier.
-
-Nếu bỏ nhánh tự huấn luyện trong tương lai, cần refactor riêng định dạng artifact
-và loader để preprocessing/schema độc lập với classifier. Không thực hiện việc
-đó hoặc tạo adapter/use case Logistic Regression trong bước này.
-
-## Kiểm thử và bước tiếp theo
+## Kiểm thử offline
 
 ```bash
-python3 -m pytest tests/test_llm_input.py tests/test_llm_input_page.py -q
-python3 -m pytest tests -q
-python3 -m ruff check src apps tests
-python3 -m ruff format --check src apps tests
-python3 -m mypy src/churn_retention/entrypoints/streamlit/llm_input.py apps/streamlit/pages/2_Predict.py tests/test_llm_input.py tests/test_llm_input_page.py
+python3 -m pytest tests/test_llm_input.py tests/test_llm_input_page.py tests/test_llm_streamlit_e2e.py -q
+python3 -m pytest tests/test_llm_runtime_v2.py -q
 ```
 
-Unit test dùng reference fixture tổng hợp và validator thật. AppTest dùng Store
-được inject, cấm provider/client constructor, LLM inference và classifier
-fit/predict/predict_proba. Trang CSV/SHAP được kiểm tra khởi tạo, không chạy model.
-Không gọi API thật hoặc sửa artifact dự án trong test.
-
-Bước 6.3 mới kết nối snapshot hợp lệ với LLMChurnPredictor, quản lý async/client
-lifecycle, kiểm tra API key trong môi trường server, hiển thị output và lỗi thật.
-Cache hiện tại giữ một version Store trong session; cần xử lý invalidation theo
-version/fingerprint trong bước kết nối đó. Chưa triển khai các chức năng này.
+Unit/AppTest dùng v2 tổng hợp, validator/retrieval/router thật và fake providers.
+Các kiểm tra artifact private được skip rõ ràng khi thiếu tài nguyên ngoài Git;
+`CHURN_GOLDEN_REQUIRE_ASSETS=1` bắt buộc có chúng và không cho skip do thiếu artifact.
+Không tái tạo golden expected hoặc sửa artifact/dữ liệu dự án trong test.

@@ -23,9 +23,10 @@ auto-discovery của `pages/` trên toàn bộ session trong cùng process, kể
 thư mục đó chứa file khác. Trang không đăng ký không thể được mở bằng navigation
 hoặc deep link. Xem [hành vi navigation chính thức của Streamlit](https://docs.streamlit.io/develop/concepts/multipage-apps/pages-directory).
 
-App cũ vẫn chạy bằng entrypoint cũ. Nếu cần cả hai ứng dụng, chạy hai process
-Streamlit riêng và chọn port khác nhau. Không chuyển app mới thành một page của
-entrypoint legacy; điều đó sẽ đưa import legacy trở lại process dùng chung.
+Entrypoint classifier cũ và Explain đã được bỏ khỏi main, được giữ trên nhánh
+archive ghi trong [README](../README.md). Dashboard chính chạy bằng
+`python3 -m churn_retention.dashboard.demo`; có thể dùng port riêng nếu chạy cùng
+app Predict/Retention này.
 
 ## Cấu hình và dữ liệu
 

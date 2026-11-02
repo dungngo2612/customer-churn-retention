@@ -130,7 +130,8 @@ Chưa có production auth/tenant isolation, API billing guarantee hoặc worker 
 Probability chưa hiệu chuẩn và efficacy/acceptance là giả định; ROI chỉ là mô phỏng.
 Artifact v2 hợp lệ vẫn là điều kiện mở luồng Dashboard hiện tại; không có read-only history
 mode khi artifact không khả dụng. Không fallback v1/classifier. Bộ dependencies chung vẫn
-chứa packages ML của toàn project, dù runtime Dashboard LLM không dùng classifier.
+chứa NumPy/scikit-learn cho RAG và metrics dùng chung; các dependency dành riêng
+cho classifier đã được loại.
 
 
 
@@ -150,4 +151,34 @@ Các tests RAG dùng classifier-free fixtures hoặc immutable JSON/NPY expected
 loader/capture v1 cũ, không thay golden. Thêm import boundary test cho entrypoint,
 RAG build/load và mock prediction khi các package classifier không khả dụng.
 
-Kết quả kiểm chứng cuối được cập nhật sau khi chạy đầy đủ regression và smoke.
+### Kết quả kiểm chứng ngày 2026-11-03
+
+- Archive đã push trước khi xóa code:
+  `codex/archive-self-training-2026-11-02` tại
+  `10d72b9559754d6ecc363a8e2210c619551f0e47`; không rewrite lịch sử.
+- Full regression local với `CHURN_GOLDEN_REQUIRE_ASSETS=1`: **1.190 passed,
+  0 failed, 0 skipped**, 2 cảnh báo deprecation thư viện (284,68 giây).
+  Sau khi khai báo prerequisite artifact private, cả 26 test runtime v2 strict
+  và kiểm tra reference train-only bị ảnh hưởng cũng pass.
+- Full regression từ snapshot chỉ chứa file tracked, chuẩn bị train/val từ CSV
+  và split manifest tracked như CI: **1.094 passed, 96 skipped, 0 failed**,
+  2 cảnh báo deprecation (217,84 giây). Các skip yêu cầu immutable oracle/artifact
+  private ngoài Git; test tổng hợp vẫn chạy. Chế độ strict báo fail khi thiếu
+  những tài nguyên đó, không tự dựng lại expected values.
+- Ruff lint/format toàn repo: pass (168 file Python). Mypy `src`: pass
+  (85 file). PostgreSQL tạm: Alembic 001 và 002 lên head thành công.
+- Build sdist và wheel thành công từ snapshot sạch và checkout thật. Wheel có
+  89 entries, không chứa module classifier hoặc dependency CatBoost/SHAP/MLflow/
+  PyYAML. Installed-wheel entrypoint imports pass với import barrier classifier.
+- Smoke Chrome qua đủ bốn tab: batch mock 4/4 COMPLETE, lưu campaign thành công,
+  bấm export và đọc file CSV tải xuống: đúng 6 cột, 2 khách tổng hợp được chọn.
+  Không gọi API thật; SQLite demo và PostgreSQL đều là dữ liệu tạm riêng.
+- Hash 30 file dữ liệu/artifact/database local gốc và 4 CSV calibration local
+  được giữ nguyên; artifact classifier đã bỏ tracking. Golden không đổi.
+  Source providers/model config/router/timeouts, RAG preprocessing/loader/builder,
+  Dashboard, Retention/Budget/Campaigns và các service LLM được giữ nguyên byte.
+  Stash và worktree tích hợp có sẵn không thay đổi.
+
+Đây là kết quả chạy local trên CPython 3.14, gồm snapshot mô phỏng checkout CI;
+không phải tuyên bố GitHub Actions/Linux đã chạy thành công. Live API trả phí
+không được kiểm thử trong đợt tách này.

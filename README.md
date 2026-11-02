@@ -11,6 +11,8 @@ SHAP và CLI cũ được giữ tại nhánh [codex/archive-self-training-2026-1
 từ commit `10d72b9559754d6ecc363a8e2210c619551f0e47`. Nhánh đã được push.
 Main không còn chức năng train/load/predict classifier hoặc fallback về model bundle.
 Artifact classifier local hiện có được giữ nguyên trên máy và không còn được tracking.
+Các báo cáo kiểm thử theo bước cũ là lịch sử; hướng dẫn chạy main hiện tại nằm
+trong README này và [báo cáo tích hợp Dashboard](docs/cuong_dashboard_llm.md).
 
 ## Cài đặt
 
