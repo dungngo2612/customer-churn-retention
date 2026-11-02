@@ -1,16 +1,13 @@
-# This is a sample Python script.
+"""FastAPI application entry point for the churn-retention service."""
 
-# Press ⌃R to execute it or replace it with your code.
-# Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
+from fastapi import FastAPI
+
+from churn_retention.entrypoints.api.routes.datasets import router as datasets_router
+
+app = FastAPI(title="Customer Churn Retention")
+app.include_router(datasets_router)
 
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f"Hi, {name}")  # Press ⌘F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
-if __name__ == "__main__":
-    print_hi("PyCharm")
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+@app.get("/health", tags=["health"])
+def health_check() -> dict[str, str]:
+    return {"status": "ok"}

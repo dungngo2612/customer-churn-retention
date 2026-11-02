@@ -12,9 +12,7 @@ class CatBoostPreprocessor(BaseEstimator, TransformerMixin):
     Numeric features are left as-is (CatBoost handles NaN natively).
     """
 
-    def __init__(
-        self, categorical_features: list[str], feature_cols: list[str]
-    ) -> None:
+    def __init__(self, categorical_features: list[str], feature_cols: list[str]) -> None:
         self.categorical_features = categorical_features
         self.feature_cols = feature_cols
 

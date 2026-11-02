@@ -34,9 +34,7 @@ def synthetic_data():
 
     # Add categorical feature
     np.random.seed(42)
-    df["contract_type"] = np.random.choice(
-        ["month_to_month", "one_year", "two_year"], size=len(df)
-    )
+    df["contract_type"] = np.random.choice(["month_to_month", "one_year", "two_year"], size=len(df))
 
     # Add some missing values
     df.loc[0:10, "num_1"] = np.nan
@@ -158,12 +156,8 @@ def test_logistic_class_weight_parameter(synthetic_data, config):
     """Test that class_weight parameter is applied correctly."""
     X_train, X_val, y_train, _ = synthetic_data
 
-    pipeline_unweighted = train_logistic(
-        X_train, y_train, config, seed=42, class_weight=False
-    )
-    pipeline_weighted = train_logistic(
-        X_train, y_train, config, seed=42, class_weight=True
-    )
+    pipeline_unweighted = train_logistic(X_train, y_train, config, seed=42, class_weight=False)
+    pipeline_weighted = train_logistic(X_train, y_train, config, seed=42, class_weight=True)
 
     y_prob_unweighted = pipeline_unweighted.predict_proba(X_val)[:, 1]
     y_prob_weighted = pipeline_weighted.predict_proba(X_val)[:, 1]
@@ -176,12 +170,8 @@ def test_catboost_class_weight_parameter(synthetic_data, config):
     """Test that class_weight parameter is applied correctly."""
     X_train, X_val, y_train, _ = synthetic_data
 
-    pipeline_unweighted = train_catboost(
-        X_train, y_train, config, seed=42, class_weight=False
-    )
-    pipeline_weighted = train_catboost(
-        X_train, y_train, config, seed=42, class_weight=True
-    )
+    pipeline_unweighted = train_catboost(X_train, y_train, config, seed=42, class_weight=False)
+    pipeline_weighted = train_catboost(X_train, y_train, config, seed=42, class_weight=True)
 
     y_prob_unweighted = pipeline_unweighted.predict_proba(X_val)[:, 1]
     y_prob_weighted = pipeline_weighted.predict_proba(X_val)[:, 1]

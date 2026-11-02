@@ -55,16 +55,12 @@ def test_config_rejects_missing_fields(tmp_path: Path) -> None:
     complete = yaml.safe_load(source.read_text())
     path = tmp_path / "training.yaml"
     for missing in complete:
-        path.write_text(
-            yaml.safe_dump({k: v for k, v in complete.items() if k != missing})
-        )
+        path.write_text(yaml.safe_dump({k: v for k, v in complete.items() if k != missing}))
         with pytest.raises(ValueError, match="Missing configuration fields"):
             tune.load_tune_config(path)
 
 
-def test_cv_uses_only_train_indices(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_cv_uses_only_train_indices(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     X, y, config = _synthetic(tmp_path)
     train_ids = set(X.index)
     val_ids = set(range(2000, 2010))
@@ -92,9 +88,7 @@ def test_cv_uses_only_train_indices(
     assert all(np.isfinite(value) for value in result.values())
 
 
-def test_fold_fit_never_sees_held_out_rows(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_fold_fit_never_sees_held_out_rows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     X, y, config = _synthetic(tmp_path)
     fits: list[set[int]] = []
     predictions: list[set[int]] = []
@@ -132,9 +126,7 @@ def test_fold_fit_never_sees_held_out_rows(
     expected = StratifiedKFold(
         n_splits=config.n_splits, shuffle=True, random_state=config.seed
     ).split(X, y)
-    for fit_ids, score_ids, (fit_rows, score_rows) in zip(
-        fits, predictions, expected, strict=True
-    ):
+    for fit_ids, score_ids, (fit_rows, score_rows) in zip(fits, predictions, expected, strict=True):
         assert fit_ids == set(X.iloc[fit_rows].index)
         assert score_ids == set(X.iloc[score_rows].index)
         assert not fit_ids & score_ids
@@ -169,9 +161,9 @@ def test_real_preprocessing_fit_never_sees_held_out_rows(
     monkeypatch.setattr(tune, "_fit_candidate", capture_pipeline)
     tune.evaluate_cv(X, y, config.candidates[0], config)
     expected = list(
-        StratifiedKFold(
-            n_splits=config.n_splits, shuffle=True, random_state=config.seed
-        ).split(X, y)
+        StratifiedKFold(n_splits=config.n_splits, shuffle=True, random_state=config.seed).split(
+            X, y
+        )
     )
     expected_fits = [
         (strategy, set(X.iloc[fit_rows].index), set(X.iloc[val_rows].index))
@@ -242,9 +234,7 @@ def test_budget_counts_and_validation_reasons(
     monkeypatch.setattr(pd, "read_csv", slow_csv)
     monkeypatch.setattr(tune.mlflow, "log_params", slow_mlflow)
     validation_calls: list[str] = []
-    ap_by_name = dict(
-        zip((c.name for c in config.candidates), [0.1, 0.9, 0.8, 0.7], strict=True)
-    )
+    ap_by_name = dict(zip((c.name for c in config.candidates), [0.1, 0.9, 0.8, 0.7], strict=True))
 
     def timed_worker(function: Any, args: tuple[Any, ...], deadline: float) -> Any:
         remaining = deadline - clock[0]

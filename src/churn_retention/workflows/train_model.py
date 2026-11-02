@@ -72,7 +72,7 @@ def validate_dataframe(
     # Warn about drop_cols that don't exist
     missing_drop = set(drop_cols) - set(df.columns)
     if missing_drop:
-        warnings.warn(f"drop_cols contains non-existent columns: {missing_drop}")
+        warnings.warn(f"drop_cols contains non-existent columns: {missing_drop}", stacklevel=2)
 
     # Check numeric columns have valid types and values
     for col in numeric_cols:
@@ -84,14 +84,13 @@ def validate_dataframe(
         if invalid_mask.any():
             invalid_samples = non_null_vals[invalid_mask].head(5).tolist()
             raise ValueError(
-                f"Numeric column '{col}' contains non-numeric values. "
-                f"Examples: {invalid_samples}"
+                f"Numeric column '{col}' contains non-numeric values. Examples: {invalid_samples}"
             )
 
         # Warn about NaN counts
         nan_count = df[col].isna().sum()
         if nan_count > 0:
-            warnings.warn(f"Numeric column '{col}' has {nan_count} NaN values")
+            warnings.warn(f"Numeric column '{col}' has {nan_count} NaN values", stacklevel=2)
 
     # Check target column
     if df[target_col].isna().any():
@@ -99,9 +98,7 @@ def validate_dataframe(
 
     target_values = df[target_col].unique()
     if allowed_labels is not None:
-        unknown = (
-            df.loc[~df[target_col].isin(allowed_labels), target_col].unique().tolist()
-        )
+        unknown = df.loc[~df[target_col].isin(allowed_labels), target_col].unique().tolist()
         if unknown:
             raise ValueError(f"Unknown target labels in '{target_col}': {unknown}")
     elif len(target_values) > 2:
@@ -112,15 +109,14 @@ def validate_dataframe(
 
     if allowed_labels is None and positive_label not in target_values:
         raise ValueError(
-            f"positive_label '{positive_label}' not found in target column. "
-            f"Values: {target_values}"
+            f"positive_label '{positive_label}' not found in target column. Values: {target_values}"
         )
 
     # Warn about unused columns
     used_cols = set(numeric_cols + categorical_cols + [target_col] + drop_cols)
     unused_cols = set(df.columns) - used_cols
     if unused_cols:
-        warnings.warn(f"Columns not in any config group: {unused_cols}")
+        warnings.warn(f"Columns not in any config group: {unused_cols}", stacklevel=2)
 
 
 def prepare_features_and_target(

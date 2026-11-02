@@ -41,13 +41,9 @@ def test_score_dataset_keys_predictions_and_preserves_order(
         assert dataset_id == "demo-dataset"
         return demo_dataset
 
-    batch = score_dataset(
-        "demo-dataset", loader, predictor, lambda: "demo-run", lambda: scored_at
-    )
+    batch = score_dataset("demo-dataset", loader, predictor, lambda: "demo-run", lambda: scored_at)
     expected_by_id = {
-        customer_id: predictor.predict_batch(
-            pd.DataFrame({"demo_usage": [0.0]}), [customer_id]
-        )[0]
+        customer_id: predictor.predict_batch(pd.DataFrame({"demo_usage": [0.0]}), [customer_id])[0]
         for customer_id in demo_dataset["customer_id"]
     }
 
@@ -74,9 +70,7 @@ def test_score_dataset_keys_predictions_and_preserves_order(
         (pd.DataFrame({"customer_id": ["demo-C01", "demo-C01"]}), "must be unique"),
     ],
 )
-def test_score_dataset_rejects_invalid_customer_keys(
-    dataset: pd.DataFrame, message: str
-) -> None:
+def test_score_dataset_rejects_invalid_customer_keys(dataset: pd.DataFrame, message: str) -> None:
     with pytest.raises(ValueError, match=message):
         score_dataset(
             "demo-dataset",

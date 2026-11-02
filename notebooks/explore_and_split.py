@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
@@ -44,31 +45,26 @@ print(f"Số dòng TotalCharges chứa khoảng trắng rỗng (' '): {space_tot
 # 6. Chia tập Stratified 70 / 15 / 15
 print("\n=== CHIA TẬP STRATIFIED 70/15/15 ===")
 # Tách 70% Train, 30% còn lại (Val + Test)
-train_df, temp_df = train_test_split(
-    df,
-    test_size=0.30,
-    random_state=42,
-    stratify=df[TARGET_COL]
-)
+train_df, temp_df = train_test_split(df, test_size=0.30, random_state=42, stratify=df[TARGET_COL])
 
 # Tách đôi 30% thành 15% Val và 15% Test
 val_df, test_df = train_test_split(
-    temp_df,
-    test_size=0.50,
-    random_state=42,
-    stratify=temp_df[TARGET_COL]
+    temp_df, test_size=0.50, random_state=42, stratify=temp_df[TARGET_COL]
 )
 
-print(f"Train: {len(train_df)} dòng ({len(train_df)/len(df):.1%})")
-print(f"Val:   {len(val_df)} dòng ({len(val_df)/len(df):.1%})")
-print(f"Test:  {len(test_df)} dòng ({len(test_df)/len(df):.1%})")
+print(f"Train: {len(train_df)} dòng ({len(train_df) / len(df):.1%})")
+print(f"Val:   {len(val_df)} dòng ({len(val_df) / len(df):.1%})")
+print(f"Test:  {len(test_df)} dòng ({len(test_df) / len(df):.1%})")
 
 # 7. Lưu cố định danh sách ID
-splits_data = pd.concat([
-    pd.DataFrame({ID_COL: train_df[ID_COL], "split": "train"}),
-    pd.DataFrame({ID_COL: val_df[ID_COL], "split": "val"}),
-    pd.DataFrame({ID_COL: test_df[ID_COL], "split": "test"}),
-], ignore_index=True)
+splits_data = pd.concat(
+    [
+        pd.DataFrame({ID_COL: train_df[ID_COL], "split": "train"}),
+        pd.DataFrame({ID_COL: val_df[ID_COL], "split": "val"}),
+        pd.DataFrame({ID_COL: test_df[ID_COL], "split": "test"}),
+    ],
+    ignore_index=True,
+)
 
 output_file = SPLITS_DIR / "dataset_splits.csv"
 splits_data.to_csv(output_file, index=False)

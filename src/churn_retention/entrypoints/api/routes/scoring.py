@@ -31,9 +31,7 @@ def create_scoring_router(
     @router.post("/runs", response_model=PredictionBatch, status_code=201)
     def create_run(request: CreateScoringRunRequest) -> PredictionBatch:
         try:
-            batch = score_dataset(
-                request.dataset_id, loader, predictor, run_id_factory, clock
-            )
+            batch = score_dataset(request.dataset_id, loader, predictor, run_id_factory, clock)
         except DatasetNotFoundError as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
         except InvalidDatasetError as error:
@@ -46,9 +44,7 @@ def create_scoring_router(
     def get_run(run_id: str) -> PredictionBatch:
         batch = repository.get(run_id)
         if batch is None:
-            raise HTTPException(
-                status_code=404, detail=f"Scoring run '{run_id}' not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Scoring run '{run_id}' not found")
         return batch
 
     return router

@@ -17,9 +17,7 @@ class FakePredictor:
     def load(self, artifact_path: str) -> None:
         self._artifact_path = artifact_path
 
-    def predict_batch(
-        self, features: pd.DataFrame, customer_ids: Sequence[str]
-    ) -> list[float]:
+    def predict_batch(self, features: pd.DataFrame, customer_ids: Sequence[str]) -> list[float]:
         if len(customer_ids) != len(features):
             raise ValueError(
                 f"Length mismatch: {len(customer_ids)} customer_ids vs {len(features)} features"

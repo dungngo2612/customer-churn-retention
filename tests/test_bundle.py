@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -153,9 +154,7 @@ def test_bundle_predictor_preserves_customer_order(
     predictor: Predictor = BundlePredictor()
     predictor.load(str(bundle_dir))
     customer_ids = [f"demo-customer-{i}" for i in range(len(features))]
-    expected_by_id = dict(
-        zip(customer_ids, pipeline.predict_proba(features)[:, 1], strict=True)
-    )
+    expected_by_id = dict(zip(customer_ids, pipeline.predict_proba(features)[:, 1], strict=True))
     order = [3, 0, 5, 1, 7, 2, 6, 4]
     ordered_ids = tuple(customer_ids[i] for i in order)
     ordered_features = features.iloc[order, ::-1].copy()
@@ -166,9 +165,7 @@ def test_bundle_predictor_preserves_customer_order(
     assert isinstance(probabilities, list)
     assert len(probabilities) == len(ordered_ids)
     assert all(isinstance(probability, float) for probability in probabilities)
-    assert np.allclose(
-        probabilities, [expected_by_id[customer_id] for customer_id in ordered_ids]
-    )
+    assert np.allclose(probabilities, [expected_by_id[customer_id] for customer_id in ordered_ids])
     pd.testing.assert_frame_equal(ordered_features, original)
 
 
@@ -179,9 +176,7 @@ def test_bundle_predictor_rejects_length_mismatch(
     predictor: Predictor = BundlePredictor()
     predictor.load(str(bundle_dir))
 
-    with pytest.raises(
-        ValueError, match="Length mismatch: 1 customer_ids vs 8 features"
-    ):
+    with pytest.raises(ValueError, match="Length mismatch: 1 customer_ids vs 8 features"):
         predictor.predict_batch(features, ["demo-customer"])
 
 
@@ -200,9 +195,7 @@ def test_save_bundle_refuses_overwrite_existing(tmp_path: Path) -> None:
 
     from churn_retention.ml.training.baseline import train_logistic
 
-    features = pd.DataFrame(
-        {"demo_x": [1.0, 2.0, 3.0, 4.0], "demo_cat": ["a", "b", "a", "b"]}
-    )
+    features = pd.DataFrame({"demo_x": [1.0, 2.0, 3.0, 4.0], "demo_cat": ["a", "b", "a", "b"]})
     target = pd.Series([0, 1, 0, 1])
     cfg = {
         "numeric_features": ["demo_x"],
@@ -221,7 +214,7 @@ def test_save_bundle_refuses_overwrite_existing(tmp_path: Path) -> None:
     original_model = (bundle_dir / "model.pkl").read_bytes()
 
     # Second save to same path must raise
-    with pytest.raises(FileExistsError, match=str(bundle_dir)):
+    with pytest.raises(FileExistsError, match=re.escape(str(bundle_dir))):
         save_bundle(pipeline, bundle_dir, schema, metadata)
 
     # First bundle is unmodified
@@ -303,35 +296,35 @@ def test_load_bundle_validates_metadata_and_schema(tmp_path: Path) -> None:
     bundle_dir2 = tmp_path / "missing_version"
     bad_meta = {"model_type": "logistic"}
     save_bundle(pipeline, bundle_dir2, schema, bad_meta)
-    with pytest.raises(ValueError, match="model_version.*" + str(bundle_dir2)):
+    with pytest.raises(ValueError, match="model_version.*" + re.escape(str(bundle_dir2))):
         load_bundle(bundle_dir2)
 
     # Missing model_type
     bundle_dir3 = tmp_path / "missing_type"
     bad_meta2 = {"model_version": "v1"}
     save_bundle(pipeline, bundle_dir3, schema, bad_meta2)
-    with pytest.raises(ValueError, match="model_type.*" + str(bundle_dir3)):
+    with pytest.raises(ValueError, match="model_type.*" + re.escape(str(bundle_dir3))):
         load_bundle(bundle_dir3)
 
     # Wrong type for model_version
     bundle_dir4 = tmp_path / "wrong_type_version"
     bad_meta3 = {"model_version": 123, "model_type": "logistic"}
     save_bundle(pipeline, bundle_dir4, schema, bad_meta3)
-    with pytest.raises(ValueError, match="model_version.*str.*" + str(bundle_dir4)):
+    with pytest.raises(ValueError, match="model_version.*str.*" + re.escape(str(bundle_dir4))):
         load_bundle(bundle_dir4)
 
     # Invalid feature_schema: missing 'name'
     bundle_dir5 = tmp_path / "invalid_schema_name"
     bad_schema = [{"kind": "numeric", "dtype": "float64"}]
     save_bundle(pipeline, bundle_dir5, bad_schema, metadata)
-    with pytest.raises(ValueError, match="name.*" + str(bundle_dir5)):
+    with pytest.raises(ValueError, match="name.*" + re.escape(str(bundle_dir5))):
         load_bundle(bundle_dir5)
 
     # Invalid feature_schema: missing 'kind'
     bundle_dir6 = tmp_path / "invalid_schema_kind"
     bad_schema2 = [{"name": "x", "dtype": "float64"}]
     save_bundle(pipeline, bundle_dir6, bad_schema2, metadata)
-    with pytest.raises(ValueError, match="kind.*" + str(bundle_dir6)):
+    with pytest.raises(ValueError, match="kind.*" + re.escape(str(bundle_dir6))):
         load_bundle(bundle_dir6)
 
     # Invalid feature_schema: wrong kind value
@@ -339,7 +332,7 @@ def test_load_bundle_validates_metadata_and_schema(tmp_path: Path) -> None:
     bad_schema3 = [{"name": "x", "kind": "invalid_kind", "dtype": "float64"}]
     save_bundle(pipeline, bundle_dir7, bad_schema3, metadata)
     with pytest.raises(
-        ValueError, match="kind.*numeric.*categorical.*" + str(bundle_dir7)
+        ValueError, match="kind.*numeric.*categorical.*" + re.escape(str(bundle_dir7))
     ):
         load_bundle(bundle_dir7)
 
@@ -368,9 +361,7 @@ def test_load_bundle_warns_on_version_mismatch(tmp_path: Path) -> None:
 
 
 def test_predict_proba_empty_dataframe(tmp_path: Path) -> None:
-    """R11: LoadedBundle.predict_proba must return empty array for empty DataFrame (with correct columns),
-    for both logistic and catboost models.
-    """
+    """R11: predict_proba returns an empty array for either model."""
     from churn_retention.ml.training.baseline import train_logistic
     from churn_retention.ml.training.catboost_model import train_catboost
 

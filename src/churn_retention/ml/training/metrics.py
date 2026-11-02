@@ -16,9 +16,7 @@ from sklearn.metrics import (  # type: ignore[import-untyped]
 )
 
 
-def compute_metrics(
-    y_true: np.ndarray, y_prob: np.ndarray, threshold: float = 0.5
-) -> dict:
+def compute_metrics(y_true: np.ndarray, y_prob: np.ndarray, threshold: float = 0.5) -> dict:
     """
     Compute classification metrics for binary churn prediction.
 

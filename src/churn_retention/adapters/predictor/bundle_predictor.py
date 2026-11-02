@@ -25,9 +25,7 @@ class BundlePredictor:
     def load(self, artifact_path: str) -> None:
         self._bundle = load_bundle(artifact_path)
 
-    def predict_batch(
-        self, features: pd.DataFrame, customer_ids: Sequence[str]
-    ) -> list[float]:
+    def predict_batch(self, features: pd.DataFrame, customer_ids: Sequence[str]) -> list[float]:
         """Return probabilities in the supplied feature row/customer ID order."""
         if self._bundle is None:
             raise RuntimeError("chưa load bundle")

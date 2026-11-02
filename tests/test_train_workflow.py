@@ -29,9 +29,7 @@ def isolated_mlflow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator
     uri = f"sqlite:///{tmp_path}/mlflow.db"
     monkeypatch.setenv("MLFLOW_TRACKING_URI", uri)
     mlflow.set_tracking_uri(uri)
-    mlflow.create_experiment(
-        "test-experiment", artifact_location=(tmp_path / "mlruns").as_uri()
-    )
+    mlflow.create_experiment("test-experiment", artifact_location=(tmp_path / "mlruns").as_uri())
     try:
         yield
     finally:
@@ -57,9 +55,7 @@ def synthetic_train_val_data(tmp_path):
 
     # Add categorical feature
     np.random.seed(42)
-    df["contract_type"] = np.random.choice(
-        ["month_to_month", "one_year", "two_year"], size=len(df)
-    )
+    df["contract_type"] = np.random.choice(["month_to_month", "one_year", "two_year"], size=len(df))
 
     # Add target
     df["churn"] = ["Yes" if label == 1 else "No" for label in y]
@@ -209,9 +205,7 @@ def test_create_feature_schema():
         }
     )
 
-    schema = create_feature_schema(
-        df, numeric_cols=["num_1", "num_2"], categorical_cols=["cat_1"]
-    )
+    schema = create_feature_schema(df, numeric_cols=["num_1", "num_2"], categorical_cols=["cat_1"])
 
     assert len(schema) == 3
     assert schema[0] == {"name": "num_1", "kind": "numeric", "dtype": "float64"}
@@ -245,9 +239,7 @@ def test_get_library_versions():
     assert all(isinstance(v, str) for v in versions.values())
 
 
-def test_train_model_logistic_creates_bundle(
-    synthetic_train_val_data, config_file, tmp_path
-):
+def test_train_model_logistic_creates_bundle(synthetic_train_val_data, config_file, tmp_path):
     """Test that train_model creates valid bundle for logistic model."""
     train_path, val_path = synthetic_train_val_data
     out_dir = tmp_path / "bundles"
@@ -294,9 +286,7 @@ def test_train_model_logistic_creates_bundle(
     assert all(0 <= p <= 1 for p in y_prob)
 
 
-def test_train_model_catboost_creates_bundle(
-    synthetic_train_val_data, config_file, tmp_path
-):
+def test_train_model_catboost_creates_bundle(synthetic_train_val_data, config_file, tmp_path):
     """Test that train_model creates valid bundle for catboost model."""
     train_path, val_path = synthetic_train_val_data
     out_dir = tmp_path / "bundles"
@@ -329,9 +319,7 @@ def test_train_model_catboost_creates_bundle(
     assert "-seed100" in metadata["model_version"]
 
 
-def test_train_model_bundle_has_valid_metadata(
-    synthetic_train_val_data, config_file, tmp_path
-):
+def test_train_model_bundle_has_valid_metadata(synthetic_train_val_data, config_file, tmp_path):
     """Test that bundle metadata contains all required fields."""
     train_path, val_path = synthetic_train_val_data
     out_dir = tmp_path / "bundles"
@@ -374,9 +362,7 @@ def test_train_model_bundle_has_valid_metadata(
     assert "scikit-learn" in metadata["libraries"]
 
 
-def test_train_model_feature_schema_correct_order(
-    synthetic_train_val_data, config_file, tmp_path
-):
+def test_train_model_feature_schema_correct_order(synthetic_train_val_data, config_file, tmp_path):
     """Test that feature schema preserves correct column order."""
     train_path, val_path = synthetic_train_val_data
     out_dir = tmp_path / "bundles"
