@@ -1,3 +1,4 @@
+import os
 from collections.abc import Generator
 from pathlib import Path
 
@@ -7,6 +8,18 @@ from sqlalchemy.orm import Session, sessionmaker
 
 # Import trực tiếp model để lấy đúng metadata của bảng dataset_metadata
 from churn_retention.adapters.database.models import DatasetMetadataModel
+
+
+@pytest.fixture(scope="module")
+def frozen_rag_oracle() -> Path:
+    """CI has public CSVs; the immutable original oracle remains a local asset."""
+    path = Path(__file__).resolve().parents[1] / "artifacts/references/telco-train-v1.zip"
+    if not path.is_file():
+        message = "Frozen private RAG oracle is not available; never regenerate expected values."
+        if os.environ.get("CHURN_GOLDEN_REQUIRE_ASSETS") == "1":
+            pytest.fail(message)
+        pytest.skip(message)
+    return path
 
 
 @pytest.fixture(scope="function")

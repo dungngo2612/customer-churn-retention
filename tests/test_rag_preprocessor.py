@@ -49,7 +49,9 @@ def queries(preprocessor: RAGPreprocessor) -> dict[str, dict[str, object]]:
 
 
 @pytest.fixture(scope="module")
-def candidate(preprocessor: RAGPreprocessor) -> tuple[CandidateReferenceView, Any]:
+def candidate(
+    preprocessor: RAGPreprocessor, frozen_rag_oracle: Path
+) -> tuple[CandidateReferenceView, Any]:
     return candidate_view(preprocessor)
 
 
@@ -478,7 +480,9 @@ def test_batch_input_order_dtype_empty_and_no_transform_time_refitting(
     assert preprocessor.metadata["fit"]["row_count"] == 4930
 
 
-def test_verification_tool_reports_actual_new_implementation_equivalence() -> None:
+def test_verification_tool_reports_actual_new_implementation_equivalence(
+    frozen_rag_oracle: Path,
+) -> None:
     report = verify()
     assert report["equivalent"] is True
     assert report["matrix_max_absolute_error"] == 0.0

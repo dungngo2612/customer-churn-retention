@@ -481,8 +481,9 @@ def test_no_overwrite_and_atomic_publish_race(
 
 def test_real_records_matrix_and_preprocessing_match_v1(
     real: VerificationReferenceV2,
+    frozen_rag_oracle: Path,
 ) -> None:
-    with zipfile.ZipFile(ROOT / "artifacts/references/telco-train-v1.zip") as archive:
+    with zipfile.ZipFile(frozen_rag_oracle) as archive:
         old = json.loads(archive.read("records.json"))
         matrix = np.load(io.BytesIO(archive.read("matrix.npy")), allow_pickle=False)
     actual = [
@@ -668,7 +669,9 @@ def test_independent_build_load_restore_retrieve_and_prompt(tmp_path: Path) -> N
     assert result.stdout.strip() == "independent v2 build/load/query/retrieval/prompt passed"
 
 
-def test_comparison_tool_uses_loaded_v2(real: VerificationReferenceV2, tmp_path: Path) -> None:
+def test_comparison_tool_uses_loaded_v2(
+    real: VerificationReferenceV2, tmp_path: Path, frozen_rag_oracle: Path
+) -> None:
     output = tmp_path / "compare-v2.zip"
     build_reference_v2(
         ROOT / "data/processed/train.csv",

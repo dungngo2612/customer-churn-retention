@@ -7,7 +7,7 @@ import streamlit as st
 predict_page = Path(__file__).resolve().parents[1] / "streamlit/pages/2_Predict.py"
 
 # An explicit page registry disables automatic pages/ discovery for this app.
-# Keep the legacy scoring entrypoint and Explain page outside this registry.
+# Only Predict and the Retention/Budget simulation are registered.
 st.navigation(
     [
         st.Page(

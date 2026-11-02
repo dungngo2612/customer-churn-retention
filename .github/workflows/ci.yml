@@ -44,6 +44,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      - name: Prepare reference train and validation CSVs from tracked source data
+        run: |
+          python scripts/make_splits.py --raw-churn-path data/telco_churn.csv --splits-path artifacts/splits/dataset_splits.csv
+
       # 4. Kiểm tra chuẩn code và format bằng Ruff
       - name: Check code formatting and lint with Ruff
         run: |

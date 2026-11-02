@@ -73,10 +73,9 @@ def app(reference_source, sdk, monkeypatch: pytest.MonkeyPatch):
 
     monkeypatch.setattr(LLMChurnPredictor, "predict", counted_predict)
     monkeypatch.setattr(SimilarCustomerRetriever, "retrieve", observed_retrieve)
-    at = AppTest.from_file(str(ROOT / "apps/streamlit/scoring_page.py"), default_timeout=20).run()
-    assert not at.exception and at.title[0].value == "Chấm điểm churn"
+    at = AppTest.from_file(str(ROOT / "apps/streamlit_llm/app.py"), default_timeout=20).run()
+    assert not at.exception and at.title[0].value == "Dự đoán khách hàng rời bỏ bằng LLM"
     at.session_state["active_scoring_context"] = {"protected": "existing context"}
-    at.switch_page("pages/2_Predict.py").run()
     assert not at.exception and not at.error
     values = {
         name: value
@@ -282,8 +281,7 @@ def test_project_artifact_and_validation_row_offline(sdk, monkeypatch) -> None:
     validation = pd.read_csv(ROOT / "data/processed/val.csv")
     loader = Mock(wraps=llm_input.load_form_resources)
     monkeypatch.setattr(llm_input, "load_form_resources", loader)
-    at = AppTest.from_file(str(ROOT / "apps/streamlit/scoring_page.py"), default_timeout=30).run()
-    at.switch_page("pages/2_Predict.py").run()
+    at = AppTest.from_file(str(ROOT / "apps/streamlit_llm/app.py"), default_timeout=30).run()
     if at.exception or at.error:
         pytest.fail("Project reference page initialization failed.", pytrace=False)
     store = at.session_state[RESOURCES_KEY].store
