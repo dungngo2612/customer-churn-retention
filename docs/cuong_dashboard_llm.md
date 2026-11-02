@@ -179,6 +179,11 @@ RAG build/load và mock prediction khi các package classifier không khả dụ
   Dashboard, Retention/Budget/Campaigns và các service LLM được giữ nguyên byte.
   Stash và worktree tích hợp có sẵn không thay đổi.
 
+CI và hướng dẫn cài đặt dùng `constraints/rag-v2.txt` cho ba thư viện đã ghi trong
+golden (NumPy 2.4.4, Pandas 3.0.6, scikit-learn 1.9.1). Test giữ nguyên kiểm tra
+provenance phiên bản. CI gọi `python -m pytest` từ repository root để các script
+kiểm chứng được import khi thu thập tests.
+
 Đây là kết quả chạy local trên CPython 3.14, gồm snapshot mô phỏng checkout CI;
 không phải tuyên bố GitHub Actions/Linux đã chạy thành công. Live API trả phí
 không được kiểm thử trong đợt tách này.

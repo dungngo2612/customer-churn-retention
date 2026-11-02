@@ -21,12 +21,15 @@ Dùng CPython 3.12–3.14:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -e ".[dev]"
+python3 -m pip install -c constraints/rag-v2.txt -e ".[dev]"
 ```
 
 NumPy/scikit-learn vẫn cần cho preprocessing, retrieval và metrics dùng chung;
 fit scaler/encoder trên reference train là xây RAG, không phải train classifier.
 Không còn dependency CatBoost, SHAP, MLflow hay extra `training`.
+`constraints/rag-v2.txt` giữ NumPy/Pandas/scikit-learn đúng phiên bản của artifact
+và golden đã duyệt. Loader kiểm tra phiên bản thư viện; không tự nâng rồi nạp
+artifact cũ hoặc tái tạo golden để bỏ qua sai khác.
 
 ## Dashboard chính
 

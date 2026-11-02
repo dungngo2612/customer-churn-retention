@@ -1,0 +1,5 @@
+# Approved RAG v2 / tests/fixtures/llm_rag_v1_golden.json library versions.
+# Keep the existing artifact and golden immutable; a new environment needs review.
+numpy==2.4.4
+pandas==3.0.6
+scikit-learn==1.9.1
