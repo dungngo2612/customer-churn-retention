@@ -57,7 +57,7 @@ jobs:
       # 5. Kiểm tra kiểu tĩnh với mypy
       - name: Check module import boundaries
         run: |
-          pytest tests/test_module_boundaries.py tests/test_llm_only_boundary.py -q
+          python -m pytest tests/test_module_boundaries.py tests/test_llm_only_boundary.py -q
 
       - name: Type check with mypy
         run: |
@@ -75,7 +75,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/churn_db
         run: |
-          pytest -v
+          python -m pytest -v
 
       - name: Build and verify LLM-only distribution
         run: |
