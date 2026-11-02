@@ -5,7 +5,7 @@ import streamlit as st
 
 from churn_retention.dashboard import components as ui
 from churn_retention.dashboard import state
-from churn_retention.dashboard.planning import allocation, totals
+from churn_retention.dashboard.planning import allocation, executive_report, recommendations, totals
 from churn_retention.entrypoints.streamlit import dashboard_llm_ui as services
 
 ctx = state.context()
@@ -49,7 +49,7 @@ else:
         ]
     )
     left, right = st.columns([1.1, 1])
-    with left, st.container(border=True):
+    with left, ui.panel("overview-risk"):
         ui.section("Phân bố nguy cơ", "Phân nhóm để xem xét; không phải xác suất đã hiệu chuẩn.")
         counts = (
             view.predictions.churn_prob.map(ui.risk_label)
@@ -73,7 +73,7 @@ else:
                 counts.rename_axis("Nguy cơ").reset_index(name="Số khách hàng"), hide_index=True
             )
         st.page_link("views/analysis.py", label="Xem kết quả và lý do →")
-    with right, st.container(border=True):
+    with right, ui.panel("overview-plan"):
         ui.section("Kế hoạch đang xây dựng", "Theo lần phân tích và giả định đang chọn.")
         plan = totals(allocation(view, st.session_state[state.SETTINGS]))
         st.metric("Lợi ích ròng dự kiến", ui.money(plan["total_net_value"]))
@@ -83,14 +83,31 @@ else:
         st.divider()
         st.page_link("views/campaigns.py", label="Mở chiến dịch đã lưu →")
     with st.expander("Báo cáo điều hành"):
-        report = (
-            f"# Tóm tắt giữ chân khách hàng\n\nNguồn: {view.run.source_name}\n"
-            f"Chế độ: {ui.mode_label(view.run.execution_mode)}\n"
-            f"Khách đã phân tích: {len(view.customers)}\nNguy cơ cao: {high}\n"
-            f"Chi phí: {ui.money(plan['total_cost'])}\n"
-            f"Lợi ích ròng mô phỏng: {ui.money(plan['total_net_value'])}\n\n"
-            "Điểm LLM chưa hiệu chuẩn. Kế hoạch chưa được thực thi.\n"
+        st.caption("Đề xuất kinh tế trước giới hạn ngân sách, cùng phương án ngân sách đang chọn.")
+        recs = recommendations(view, st.session_state[state.SETTINGS])
+        grouped = (
+            recs.groupby("action_code", sort=True)
+            .agg(
+                n=("customerID", "size"),
+                cost=("cost", "sum"),
+                benefit=("benefit", "sum"),
+                net=("net_value", "sum"),
+            )
+            .reset_index()
+            .rename(
+                columns={
+                    "action_code": "Gói",
+                    "n": "Số khách",
+                    "cost": "Chi phí (USD)",
+                    "benefit": "Lợi ích (USD)",
+                    "net": "Lợi ích ròng (USD)",
+                }
+            )
         )
+        st.dataframe(
+            grouped, hide_index=True, width="stretch", column_config=ui.money_columns(grouped)
+        )
+        report = executive_report(view, st.session_state[state.SETTINGS])
         st.download_button(
             "Tải báo cáo tổng quan (.md)",
             report,

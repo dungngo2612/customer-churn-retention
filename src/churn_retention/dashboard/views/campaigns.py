@@ -50,14 +50,18 @@ with archive_tab:
         st.page_link("views/plan.py", label="Đến kế hoạch giữ chân →")
     else:
         controls = st.columns([2, 1, 1])
-        search = controls[0].text_input("Tìm theo tên chiến dịch", key="campaign.search")
-        status = controls[1].selectbox(
+        search = ui.persist(
+            controls[0].text_input, "Tìm theo tên chiến dịch", key="campaign.search"
+        )
+        status = ui.persist(
+            controls[1].selectbox,
             "Trạng thái",
             ["Tất cả", *STATUSES],
             format_func=lambda v: STATUSES.get(v, v),
             key="campaign.status",
         )
-        mode = controls[2].selectbox(
+        mode = ui.persist(
+            controls[2].selectbox,
             "Nguồn kết quả",
             ["Tất cả", "mock", "live"],
             format_func=lambda v: ui.mode_label(v) if v != "Tất cả" else v,
@@ -105,7 +109,7 @@ with archive_tab:
             st.session_state[state.CAMPAIGN] = cid
             st.session_state["campaign.opened"] = cid
             campaign = services.get_campaign(cid)
-            with st.container(border=True):
+            with ui.panel("campaign-detail"):
                 ui.section(campaign.name, f"Tạo lúc {ui.date_label(campaign.created_at)}")
                 ui.badge(STATUSES[campaign.status.value], "success")
                 st.caption(ui.mode_label(campaign.assumptions.get("execution_mode", "")))

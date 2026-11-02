@@ -285,15 +285,15 @@ else:
             "ưu đãi hoặc thực thi can thiệp."
         ),
     )
-    with st.container(border=True):
+    with ui.panel("campaign-create"):
         st.write(f"**Nguồn:** {view.run.source_name}")
         st.write(
-            f"**Ngân sách:** {ui.money(settings.budget)} · "
+            f"**Ngân sách:** {ui.markdown_money(settings.budget)} · "
             f"**Khách được chọn:** {summary['n_intervened']}"
         )
         st.write(
-            f"**Chi phí dự kiến:** {ui.money(summary['total_cost'])} · "
-            f"**Lợi ích ròng:** {ui.money(summary['total_net_value'])}"
+            f"**Chi phí dự kiến:** {ui.markdown_money(summary['total_cost'])} · "
+            f"**Lợi ích ròng:** {ui.markdown_money(summary['total_net_value'])}"
         )
         with st.form("plan.campaign"):
             name = st.text_input(

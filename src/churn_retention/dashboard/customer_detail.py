@@ -67,7 +67,7 @@ def render(frame: pd.DataFrame, key: str, view: DashboardView | None = None) -> 
         return
     st.session_state[state.CUSTOMER] = cid
     row = frame.set_index("customerID").loc[cid]
-    with st.container(border=True):
+    with ui.panel("customer-profile"):
         ui.section("Hồ sơ khách hàng", "Thông tin nguồn và kết quả phân tích được tách riêng.")
         st.text(cid)
         prediction = None
@@ -125,8 +125,8 @@ def render(frame: pd.DataFrame, key: str, view: DashboardView | None = None) -> 
                     st.text(f"Reference: {prediction.reference_version}")
                     st.caption(
                         (
-                            "Kết quả lưu hiện có không lưu nội dung từng hàng xóm; không dựng "
-                            "bằng chứng giả."
+                            "Thông tin đang có: số lượng và phiên bản tham chiếu. Nội dung "
+                            "từng hồ sơ tham chiếu chưa có trong kết quả đã lưu."
                         )
                     )
         if prediction is not None and view is not None:
@@ -144,8 +144,8 @@ def render(frame: pd.DataFrame, key: str, view: DashboardView | None = None) -> 
                 recommendation = rec.iloc[0]
                 st.markdown(f"**Đề xuất hiện tại: {recommendation.action_name}**")
                 st.caption(
-                    f"Chi phí {ui.money(recommendation.cost)} · Lợi ích ròng mô phỏng "
-                    f"{ui.money(recommendation.net_value)} · Ngưỡng hòa vốn "
+                    f"Chi phí {ui.markdown_money(recommendation.cost)} · Lợi ích ròng mô phỏng "
+                    f"{ui.markdown_money(recommendation.net_value)} · Ngưỡng hòa vốn "
                     f"{ui.percent(recommendation.breakeven_prob)}"
                 )
                 choices = evaluate_actions(
@@ -157,20 +157,22 @@ def render(frame: pd.DataFrame, key: str, view: DashboardView | None = None) -> 
                 )
                 choices = choices[choices.customerID == cid]
                 with st.expander("So sánh các phương án hợp lệ"):
+                    shown = choices[
+                        ["action_code", "action_name", "cost", "benefit", "net_value"]
+                    ].rename(
+                        columns={
+                            "action_code": "Gói",
+                            "action_name": "Phương án",
+                            "cost": "Chi phí (USD)",
+                            "benefit": "Lợi ích (USD)",
+                            "net_value": "Lợi ích ròng (USD)",
+                        }
+                    )
                     st.dataframe(
-                        choices[
-                            ["action_code", "action_name", "cost", "benefit", "net_value"]
-                        ].rename(
-                            columns={
-                                "action_code": "Gói",
-                                "action_name": "Phương án",
-                                "cost": "Chi phí (USD)",
-                                "benefit": "Lợi ích (USD)",
-                                "net_value": "Lợi ích ròng (USD)",
-                            }
-                        ),
+                        shown,
                         hide_index=True,
                         width="stretch",
+                        column_config=ui.money_columns(shown),
                     )
                 st.caption(
                     "Đề xuất chưa được thực thi. Có thể lập kế hoạch và lưu chiến dịch mô phỏng."

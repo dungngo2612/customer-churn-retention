@@ -17,7 +17,7 @@ ui.header(
 import_tab, list_tab = st.tabs(["Nhập dữ liệu", "Danh sách khách hàng"])
 
 with import_tab:
-    with st.container(border=True):
+    with ui.panel("data-import"):
         ui.section(
             "Nhập danh sách khách hàng",
             "CSV UTF-8 · tối đa 2 MB, 1.000 dòng · mã khách hàng duy nhất",
@@ -70,7 +70,7 @@ with import_tab:
         elif ctx.form is None:
             st.error(ctx.error)
     st.write("")
-    with st.container(border=True):
+    with ui.panel("data-sample"):
         ui.section(
             "Khám phá bằng dữ liệu mẫu",
             f"{len(services.synthetic_frame())} hồ sơ tổng hợp. "
@@ -97,16 +97,22 @@ with list_tab:
         )
         st.caption(f"Nguồn: {data.source} · {len(data.frame)} khách hàng")
         cols = st.columns([2, 1, 1])
-        search = cols[0].text_input(
-            "Tìm theo mã khách hàng", key="customers.search", placeholder="Ví dụ: DEMO-001"
+        search = ui.persist(
+            cols[0].text_input,
+            "Tìm theo mã khách hàng",
+            key="customers.search",
+            placeholder="Ví dụ: DEMO-001",
         )
-        contract = cols[1].selectbox(
+        contract = ui.persist(
+            cols[1].selectbox,
             "Hợp đồng",
             ["Tất cả", *sorted(data.frame.Contract.unique())],
             format_func=customer_detail.translated,
             key="customers.contract",
+            choices=["Tất cả", *sorted(data.frame.Contract.unique())],
         )
-        order = cols[2].selectbox(
+        order = ui.persist(
+            cols[2].selectbox,
             "Sắp xếp",
             ["Mã khách tăng dần", "Cước tháng giảm dần", "Thời gian sử dụng giảm dần"],
             key="customers.sort",

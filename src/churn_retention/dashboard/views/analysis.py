@@ -54,7 +54,7 @@ with run_tab:
             "warning" if data.sample else "success",
         )
         st.caption(f"Nguồn: {data.source} · {len(data.frame)} khách hàng")
-        with st.container(border=True):
+        with ui.panel("analysis-run"):
             ui.section("Chọn phạm vi phân tích")
             scope = st.radio(
                 "Số khách trong lần chạy",
@@ -80,9 +80,9 @@ with run_tab:
                 prior_ids = st.session_state.get(
                     "cuong_llm.selected_ids", st.session_state.get("analysis.selection", [])
                 )
-                st.session_state["cuong_llm.selected_ids"] = [
-                    cid for cid in prior_ids if cid in ids
-                ]
+                valid_ids = [cid for cid in prior_ids if cid in ids]
+                if "cuong_llm.selected_ids" not in st.session_state or valid_ids != prior_ids:
+                    st.session_state["cuong_llm.selected_ids"] = valid_ids
                 selected = st.multiselect(
                     "Chọn khách hàng (tối đa 5)",
                     ids,
@@ -253,12 +253,18 @@ with result_tab:
         )
         frame["Nguy cơ"] = frame.churn_prob.map(ui.risk_label)
         controls = st.columns([2, 1, 1])
-        search = controls[0].text_input("Tìm mã khách hàng", key="analysis.search")
-        risk = controls[1].selectbox(
-            "Nguy cơ", ["Tất cả", "Cao", "Trung bình", "Thấp"], key="analysis.risk"
+        search = ui.persist(controls[0].text_input, "Tìm mã khách hàng", key="analysis.search")
+        risk = ui.persist(
+            controls[1].selectbox,
+            "Nguy cơ",
+            ["Tất cả", "Cao", "Trung bình", "Thấp"],
+            key="analysis.risk",
         )
-        action = controls[2].selectbox(
-            "Đề xuất", ["Tất cả", "Có can thiệp", "Không can thiệp"], key="analysis.action"
+        action = ui.persist(
+            controls[2].selectbox,
+            "Đề xuất",
+            ["Tất cả", "Có can thiệp", "Không can thiệp"],
+            key="analysis.action",
         )
         filtered = frame[frame.customerID.str.contains(search, case=False, regex=False)].copy()
         if risk != "Tất cả":

@@ -2,6 +2,7 @@
 
 import hashlib
 import math
+from collections.abc import Callable
 from html import escape
 from typing import Any
 
@@ -18,6 +19,26 @@ AMBER = "#985709"
 RED = "#b42335"
 
 
+def panel(key: str):
+    return st.container(border=True, key=f"panel-{key}")
+
+
+def restore_widget(key: str) -> None:
+    saved = f"workspace.widget.{key}"
+    if key not in st.session_state and saved in st.session_state:
+        st.session_state[key] = st.session_state[saved]
+
+
+def persist(widget: Callable, *args: Any, key: str, choices=None, **kwargs: Any) -> Any:
+    """Keep list filters/pages across Streamlit's per-page widget cleanup."""
+    restore_widget(key)
+    if choices is not None and st.session_state.get(key) not in choices:
+        st.session_state.pop(key, None)
+    value = widget(*args, key=key, **kwargs)
+    st.session_state[f"workspace.widget.{key}"] = value
+    return value
+
+
 def money(value: Any) -> str:
     if value is None or pd.isna(value):
         return "—"
@@ -26,6 +47,10 @@ def money(value: Any) -> str:
 
 def percent(value: Any) -> str:
     return "—" if value is None or pd.isna(value) else f"{float(value):.1%}"
+
+
+def markdown_money(value: Any) -> str:
+    return money(value).replace("$", r"\$")
 
 
 def date_label(value: str) -> str:
@@ -102,6 +127,14 @@ def page_slice(frame: pd.DataFrame, size: int, page: int) -> tuple[pd.DataFrame,
     return frame.iloc[(page - 1) * size : page * size].copy(), page, pages
 
 
+def money_columns(frame: pd.DataFrame) -> dict:
+    return {
+        name: st.column_config.NumberColumn(format="$%.2f")
+        for name in frame.columns
+        if str(name).endswith("(USD)") and pd.api.types.is_numeric_dtype(frame[name])
+    }
+
+
 def table(
     frame: pd.DataFrame,
     key: str,
@@ -119,11 +152,14 @@ def table(
         st.session_state[f"{key}.filter"] = signature
     controls = st.columns([1, 1, 2], vertical_alignment="bottom")
     with controls[0]:
-        size = st.selectbox("Số dòng mỗi trang", [10, 25, 50], key=size_key)
+        size = persist(
+            st.selectbox, "Số dòng mỗi trang", [10, 25, 50], key=size_key, choices=[10, 25, 50]
+        )
     pages = max(1, math.ceil(len(frame) / size))
+    restore_widget(page_key)
     st.session_state[page_key] = min(int(st.session_state.get(page_key, 1)), pages)
     with controls[1]:
-        page = st.number_input("Trang", 1, pages, step=1, key=page_key)
+        page = persist(st.number_input, "Trang", 1, pages, step=1, key=page_key)
     visible, page, pages = page_slice(frame, size, page)
     with controls[2]:
         st.caption(f"{len(frame):,} kết quả · Trang {page}/{pages}")
@@ -132,7 +168,7 @@ def table(
         hide_index=True,
         width="stretch",
         height=min(560, 40 + 36 * len(visible)),
-        column_config=column_config,
+        column_config={**money_columns(visible), **(column_config or {})},
     )
     st.caption("Nút tải trong thanh công cụ bảng chỉ xuất trang đang xem.")
     return visible

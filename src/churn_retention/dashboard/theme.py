@@ -11,6 +11,7 @@ html, body, .stApp { font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe U
 [data-testid="stSidebar"] { background:#fff; border-right:1px solid var(--line); }
 [data-testid="stHeader"] { background:#f5f6fa; }
 [data-testid="stVerticalBlockBorderWrapper"] { background:#fff; border-radius:12px; }
+[class*="st-key-panel-"] { background:#fff; border-radius:12px; }
 h1,h2,h3 { color:var(--ink); letter-spacing:-.025em; }
 h2 { font-size:1.35rem; } h3 { font-size:1.12rem; }
 p, label, [data-testid="stMarkdownContainer"] { font-size:15px; }
