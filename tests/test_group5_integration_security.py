@@ -14,6 +14,7 @@ from urllib.parse import quote
 
 import pandas as pd
 import pytest
+from dashboard_navigation import apply_settings, go, plan_setup
 from llm_v2_fixtures import make_source
 from streamlit.testing.v1 import AppTest
 from test_dashboard_llm_integration import PAGE
@@ -150,8 +151,10 @@ def test_csv_rag_router_queue_sqlite_dashboard_campaign_export(setup, monkeypatc
     guard = Mock(side_effect=AssertionError("No inference from business UI"))
     monkeypatch.setattr(DashboardLLMAdapter, "process", guard)
     at = AppTest.from_file(str(PAGE), default_timeout=40).run()
-    assert len(at.tabs) == 4 and not at.exception and not at.error
-    at.slider(key="e2e_budget_slider").set_value(0).run()
+    assert not at.exception and not at.error
+    plan_setup(at)
+    at.number_input(key="e2e_budget_input").set_value(0.0)
+    apply_settings(at)
     campaign = ui.create_campaign(**kwargs_for(adapter, run, 0))
     assert campaign.scoring_run_id == run.run_id and campaign.campaign_id != run.run_id
     before = ui.get_campaign(campaign.campaign_id).to_dict()
@@ -198,6 +201,7 @@ def test_failed_or_partial_never_fakes_success_or_repeats(setup, monkeypatch, pa
     at = AppTest.from_file(str(PAGE), default_timeout=40)
     at.session_state[ui.LAST_ATTEMPT_KEY] = run.run_id
     at.run()
+    go(at, "analysis")
     assert not at.exception and at.error
     assert FAKE not in caplog.text + str(job.error_reason) + "\n".join(e.value for e in at.error)
     assert FAKE.encode() not in adapter.store.path.read_bytes()
@@ -442,9 +446,11 @@ def test_ui_escapes_customer_html_and_keeps_reason_plain_text(setup, monkeypatch
     monkeypatch.setenv("CHURN_DASHBOARD_DEMO_RUN", run.run_id)
     at = AppTest.from_file(str(PAGE), default_timeout=40).run()
     assert not at.exception and not at.error
+    go(at, "analysis")
+    at.selectbox(key="analysis.profile").select(payload).run()
     markup = "\n".join(m.value for m in at.markdown)
     assert payload not in markup and "<script>alert(1)</script>" not in markup
-    assert "&lt;img" in markup
+    assert any(payload == t.value for t in at.text)  # Strict text, never HTML markup.
     assert any("<script>alert(1)</script>" in t.value for t in at.text)
 
 
@@ -460,7 +466,7 @@ def test_corrupt_campaign_json_fails_closed_without_traceback(setup, monkeypatch
         )
     monkeypatch.setenv("CHURN_DASHBOARD_DEMO_RUN", run.run_id)
     at = AppTest.from_file(str(PAGE), default_timeout=40).run()
-    assert not at.exception and any("archive an toàn" in e.value for e in at.error)
+    assert not at.exception and any("Dữ liệu đã lưu được giữ nguyên" in e.value for e in at.error)
     with sqlite3.connect(ui._repo().db_path) as db:
         assert db.execute("SELECT results FROM campaigns").fetchone()[0] == "{broken"
 
@@ -502,6 +508,7 @@ def test_dataframe_downloads_use_safe_copies_without_changing_join_ids(setup, mo
     monkeypatch.setenv("CHURN_DASHBOARD_DEMO_RUN", run.run_id)
     at = AppTest.from_file(str(PAGE), default_timeout=40).run()
     assert not at.exception and not at.error
+    go(at, "analysis")
     exposed = []
     for item in at.dataframe:
         if isinstance(item.value, pd.DataFrame):

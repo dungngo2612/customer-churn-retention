@@ -4,6 +4,7 @@ venv/
 .env
 .env.*
 !.env.example
+!.env.shared
 
 # Python and tooling
 __pycache__/
@@ -21,7 +22,12 @@ dist/
 /data/**
 !/data/.gitkeep
 /artifacts/**
+!/artifacts/
 !/artifacts/.gitkeep
+!/artifacts/references/
+!/artifacts/references/telco-train-v2.zip
+!/artifacts/splits/
+!/artifacts/splits/dataset_splits.csv
 *.csv
 *.tsv
 *.parquet

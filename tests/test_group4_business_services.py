@@ -10,6 +10,7 @@ from unittest.mock import Mock
 
 import pandas as pd
 import pytest
+from dashboard_navigation import apply_settings, plan_setup, save_campaign
 from streamlit.testing.v1 import AppTest
 from test_dashboard_llm_integration import PAGE
 from test_dashboard_llm_integration import setup as setup  # noqa: PLC0414 -- pytest fixture export
@@ -441,13 +442,13 @@ def test_all_tabs_zero_budget_campaign_repeat_and_no_prediction_rerun(setup, mon
     guard = Mock(side_effect=AssertionError("No inference on business operations"))
     monkeypatch.setattr(DashboardLLMAdapter, "process", guard)
     at = AppTest.from_file(str(PAGE), default_timeout=40).run()
-    assert len(at.tabs) == 4 and not at.exception and not at.error
-    assert at.button(key="btn_apply").disabled
-    assert any("Chưa có dịch vụ thực thi" in info.value for info in at.info)
-    at.slider(key="e2e_budget_slider").set_value(0).run()
     assert not at.exception and not at.error
-    at.button(key="btn_save_e2e_camp").click().run()
-    at.button(key="btn_save_e2e_camp").click().run()
+    plan_setup(at)
+    at.number_input(key="e2e_budget_input").set_value(0.0)
+    apply_settings(at)
+    assert not at.exception and not at.error
+    save_campaign(at)
+    save_campaign(at)
     assert len(ui.list_campaigns()) == 1 and not at.exception and not at.error
     campaign = ui.list_campaigns()[0]
     assert campaign.budget == 0 and campaign.results["summary"]["total_cost"] == 0
@@ -475,13 +476,18 @@ def test_dashboard_business_edge_scenarios(setup, monkeypatch, scenario):
     guard = Mock(side_effect=AssertionError("No inference during business views"))
     monkeypatch.setattr(DashboardLLMAdapter, "process", guard)
     at = AppTest.from_file(str(PAGE), default_timeout=40).run()
+    plan_setup(at)
     if scenario == "free-actions":
         for key in ["c1_c", "c1_o", "c2_c", "c2_o", "c3_c", "c3_o"]:
             at.number_input(key=key).set_value(0.0)
-        at.run()
-        assert "N/A (chi phí bằng 0)" in "\n".join(m.value for m in at.markdown)
-    assert len(at.tabs) == 4 and not at.exception and not at.error
-    at.button(key="btn_save_e2e_camp").click().run()
+        apply_settings(at)
+        at.radio(key="_plan_step").set_value("2 · Xem phương án").run()
+        assert not at.error
+        assert any(
+            "Không xác định khi chi phí bằng 0" in item.proto.body for item in at.get("html")
+        )
+    assert not at.exception and not at.error
+    save_campaign(at)
     assert not at.exception and not at.error
     assert len(ui.list_campaigns()) == 1
     assert ui.list_campaigns()[0].results["summary"]["total_cost"] == 0
@@ -499,7 +505,7 @@ def test_dashboard_save_failure_is_safe_and_preserves_previous_campaign(setup, m
         "create_campaign",
         Mock(side_effect=sqlite3.OperationalError("PRIVATE_DB_PATH")),
     )
-    at.button(key="btn_save_e2e_camp").click().run()
+    save_campaign(at)
     assert not at.exception and at.error
     assert "PRIVATE_DB_PATH" not in "\n".join(error.value for error in at.error)
     assert [c.campaign_id for c in ui.list_campaigns()] == [existing.campaign_id]
