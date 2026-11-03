@@ -113,8 +113,14 @@ def main() -> None:
         str(root / "src/churn_retention/dashboard/app.py"), default_timeout=30
     ).run()
     at.session_state["active_scoring_context"] = {"protected": True}
-    assert not at.exception and not at.error and len(at.tabs) == 4
-    at.slider(key="e2e_budget_slider").set_value(1000).run()
+    assert not at.exception and not at.error
+    for page in ["customers", "analysis", "campaigns", "overview", "plan"]:
+        at.switch_page(f"views/{page}.py").run()
+        assert not at.exception and not at.error
+    at.number_input(key="e2e_budget_input").set_value(1000.0)
+    next(b for b in at.button if b.label == "Áp dụng thiết lập").click().run()
+    at.radio(key="_plan_step").set_value("3 · Tạo chiến dịch").run()
+    at.checkbox(key="plan.save_confirm").check()
     at.button(key="btn_save_e2e_camp").click().run()
     assert not at.exception and not at.error
     assert ui.list_campaigns()[0].scoring_run_id == run.run_id
@@ -130,7 +136,7 @@ def main() -> None:
     print(
         json.dumps(
             {
-                "primary_dashboard_tabs": 4,
+                "primary_dashboard_pages": 5,
                 "legacy_imports": 0,
                 "real_api_calls": 0,
                 "accepted_mock_predictions": 4,

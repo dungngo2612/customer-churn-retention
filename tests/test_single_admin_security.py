@@ -212,11 +212,22 @@ def test_launcher_installs_actual_backend_middleware(launch_env, monkeypatch, tm
     assert options["client.showErrorDetails"] == "none"
 
 
-def test_raw_streamlit_app_has_no_data_controls_without_launcher(monkeypatch):
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "app.py",
+        "views/overview.py",
+        "views/customers.py",
+        "views/analysis.py",
+        "views/plan.py",
+        "views/campaigns.py",
+    ],
+)
+def test_raw_streamlit_app_has_no_data_controls_without_launcher(monkeypatch, relative):
     from streamlit.testing.v1 import AppTest
 
     monkeypatch.setattr(security, "_active", None)
-    page = Path(__file__).resolve().parents[1] / "src/churn_retention/dashboard/app.py"
+    page = Path(__file__).resolve().parents[1] / "src/churn_retention/dashboard" / relative
     at = AppTest.from_file(str(page), default_timeout=30).run()
     assert not at.exception and len(at.error) == 1
     assert not at.tabs and not at.file_uploader and not at.button

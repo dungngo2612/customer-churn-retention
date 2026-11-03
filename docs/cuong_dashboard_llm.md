@@ -1,5 +1,9 @@
 # Dashboard Cường — main dùng LLM/RAG v2
 
+Giao diện trên nhánh review `codex/dashboard-redesign` đã tổ chức lại thành năm
+khu vực. Xem [bản đồ chức năng và hướng dẫn mới](dashboard_redesign.md).
+Các kết quả kiểm chứng ở cuối tài liệu này thuộc đợt tách classifier trước cải tạo.
+
 UI/nghiệp vụ nguồn: demo-test-04@911a60a. Bản trước khi tách classifier được bảo toàn
 ở [codex/archive-self-training-2026-11-02](https://github.com/dungngo2612/customer-churn-retention/tree/codex/archive-self-training-2026-11-02), commit `10d72b9`.
 Các snapshot audit/inventory trước đây xem trên nhánh đó; không dùng hướng dẫn
@@ -20,7 +24,7 @@ flowchart TD
   Service --> V2[Verified Store v2 / Retriever / Prompt / Router]
   Mock --> V2
   V2 --> DB[Accepted per-row DTO + mode/provenance in SQLite]
-  DB --> Dashboard[Cường Dashboard four tabs]
+  DB --> Dashboard[Dashboard: năm không gian làm việc]
   Dashboard --> Economy[Retention / Budget / sensitivity]
   Economy --> Campaign[Cường Campaign create/list/history/export]
 ```
@@ -77,10 +81,13 @@ Import isolation chặn classifier bundles, SHAP, CatBoost và MLflow.
 
 ## Business UI giữ lại
 
-Bốn tab Cường: tổng quan kinh tế; observed churn/LLM reason; Customer360; Budget/Campaigns.
-Giữ action catalog/conditions, greedy budget, margin sensitivity, bộ lọc/profile/charts,
-Campaign create/list/history/export. Sửa all-A0/empty report, literal customer search,
-escape ID khi dựng HTML, giới hạn chi phí không âm và chặn overflow kinh tế.
+Thanh điều hướng gồm Tổng quan; Khách hàng & dữ liệu; Phân tích rời bỏ;
+Kế hoạch giữ chân; Chiến dịch. Giữ action catalog/conditions, greedy budget,
+margin sensitivity, bộ lọc/profile/charts, Campaign create/list/history/export.
+Kế hoạch có ba bước; Queue kỹ thuật nằm trong Chiến dịch. Bộ lọc chạy trước phân
+trang 10/25/50; kết quả và thiết lập đã áp dụng được giữ khi chuyển trang.
+All-A0/empty report, literal customer search, escape ID khi dựng HTML, giới hạn
+chi phí không âm và chặn overflow kinh tế tiếp tục được bảo toàn.
 
 Global/Local TreeSHAP bị vô hiệu hóa riêng. Không làm feature importance giả cho LLM.
 Thay bằng reason được hiển thị như text, có nhãn mock/provider/reference. Bỏ nhãn
@@ -98,10 +105,11 @@ thành JSON null, không đổi phép tính engine.
 
 ## Preview và kiểm thử
 
-Preview launcher ngoài repository đặt light theme phù hợp CSS Cường, tắt telemetry,
-xóa API keys, chặn socket connect ra ngoài và chỉ bind localhost. Server cũ giữ nguyên.
-Có sẵn run gồm bốn khách tổng hợp, provider outputs giả; đây không phải kết quả thật.
-Không cần Terminal để trải nghiệm preview đã được khởi chạy.
+Launcher demo trong repository đặt light theme, tắt telemetry, xóa API keys,
+chặn socket connect ra ngoài và chỉ bind localhost. Mặc định bắt đầu chưa có dữ liệu;
+chọn Dùng dữ liệu mẫu để thử bốn khách tổng hợp. Generation là giả và được gắn nhãn
+mô phỏng; mở ứng dụng không tự tạo run. Preview nghiệm thu dùng fixture tạm riêng
+64 khách giả để kiểm tra phân trang, xem chi tiết trong hướng dẫn cải tạo.
 
 Nếu khởi chạy thủ công trong một môi trường phát triển đã chuẩn bị artifact đúng pin:
 

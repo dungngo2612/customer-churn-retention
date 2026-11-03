@@ -4,6 +4,12 @@ Main sử dụng **LLM/RAG v2 và Dashboard của Cường** để hỗ trợ gi
 Provider Qwen/Groq và Gemini, model, router và timeout được giữ nguyên.
 Xác suất LLM chưa hiệu chuẩn; campaign, can thiệp và ROI hiện là mô phỏng.
 
+## Giao diện đang chờ duyệt
+
+Nhánh local `codex/dashboard-redesign` cải tạo ứng dụng Streamlit chính thành
+**Trung tâm điều hành giữ chân khách hàng**. Chưa push hoặc merge bản này vào main.
+Xem [bản đồ chức năng, cách dùng và kiểm chứng](docs/dashboard_redesign.md).
+
 ## Bản tự train đã được bảo toàn
 
 Toàn bộ mã Logistic Regression/CatBoost, tuning, calibration, classifier bundle,
@@ -40,8 +46,11 @@ PYTHONPATH=src python3 -m churn_retention.dashboard.demo
 ```
 
 Launcher chỉ bind `127.0.0.1:8501`, dùng mock mặc định và database demo riêng.
-Không tự inference trên load/rerun. Chọn 1–5 ID, xác nhận rồi Submit qua Queue/Worker.
-Dashboard có bốn tab: kinh tế, hành vi/LLM reason, Customer 360, ngân sách/campaigns.
+Không tự inference trên load/rerun. Chọn 1–5 ID, xác nhận rồi Chạy phân tích qua Queue/Worker.
+Trên nhánh review này, thanh điều hướng gồm năm khu vực: Tổng quan,
+Khách hàng & dữ liệu, Phân tích rời bỏ, Kế hoạch giữ chân và Chiến dịch.
+Nhập dữ liệu và xác nhận chạy được tách riêng; kế hoạch có ba bước và danh sách
+phân trang 10/25/50 dòng. Kết quả, thiết lập đã áp dụng và bộ lọc được giữ khi chuyển trang.
 Lưu campaign và xuất CSV là mô phỏng, chưa thực thi ưu đãi thật.
 Live API cần opt-in server và xác nhận rõ ràng; không có lựa chọn classifier.
 Xem [hướng dẫn tích hợp](docs/cuong_dashboard_llm.md) và

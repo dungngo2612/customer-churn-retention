@@ -16,6 +16,7 @@ from unittest.mock import Mock
 
 import pandas as pd
 import pytest
+from dashboard_navigation import apply_settings, go, plan_setup, sample_analysis, save_campaign
 from llm_v2_fixtures import make_source
 from streamlit.testing.v1 import AppTest
 
@@ -289,12 +290,13 @@ def test_dashboard_preserves_tabs_persistence_campaigns_and_no_inference_on_reru
     guard = Mock(side_effect=AssertionError("No inference on render/rerun"))
     monkeypatch.setattr(DashboardLLMAdapter, "process", guard)
     at = AppTest.from_file(str(PAGE), default_timeout=30).run()
-    assert not at.exception and not at.error and len(at.tabs) == 4
+    assert not at.exception and not at.error
+    plan_setup(at)
     for key in ["c1_c", "c2_c", "c3_c"]:
         at.number_input(key=key).set_value(1000000.0)
-    at.run()
+    apply_settings(at)
     assert not at.exception and not at.error  # All-A0 is a valid business scenario.
-    at.button(key="btn_save_e2e_camp").click().run()
+    save_campaign(at)
     assert not at.exception and not at.error
     camp = ui.list_campaigns()[0]
     assert camp.scoring_run_id == run.run_id
@@ -318,12 +320,15 @@ def test_dashboard_submit_single_and_repeated_click_is_idempotent(setup, monkeyp
 
     monkeypatch.setattr(service, "mock_prediction", calls)
     at = AppTest.from_file(str(PAGE), default_timeout=30).run()
-    assert not at.exception and not at.tabs and not calls.called
+    assert not at.exception and not calls.called
+    sample_analysis(at)
     at.checkbox(key="cuong_llm.confirm").check().run()
     at.button(key="cuong_llm.submit").click().run()
-    assert not at.exception and not at.error and len(at.tabs) == 4 and calls.call_count == 1
+    assert not at.exception and not at.error and calls.call_count == 1
     at.button(key="cuong_llm.submit").click().run()
-    at.slider(key="e2e_budget_slider").set_value(1000).run()
+    plan_setup(at)
+    at.number_input(key="e2e_budget_input").set_value(1000.0)
+    apply_settings(at)
     assert not at.exception and calls.call_count == 1
 
 
@@ -336,6 +341,9 @@ def test_uploaded_batch_uses_uploaded_bytes_and_only_selected_rows(setup, monkey
     upload.name = "uploaded.csv"
     monkeypatch.setattr(ui.st, "file_uploader", Mock(return_value=upload))
     at = AppTest.from_file(str(PAGE), default_timeout=30).run()
+    go(at, "customers")
+    at.button(key="data.accept").click().run()
+    go(at, "analysis")
     at.radio(key="cuong_llm.scope").set_value("Batch nhỏ (tối đa 5)").run()
     at.multiselect(key="cuong_llm.selected_ids").set_value(["UPLOAD-002", "UPLOAD-001"]).run()
     at.checkbox(key="cuong_llm.confirm").check().run()
@@ -354,7 +362,10 @@ def test_bad_upload_blocks_dashboard_instead_of_using_default_dataset(setup, mon
     upload.name = "invalid.csv"
     monkeypatch.setattr(ui.st, "file_uploader", Mock(return_value=upload))
     at = AppTest.from_file(str(PAGE), default_timeout=30).run()
-    assert not at.exception and at.error and not at.tabs
+    go(at, "customers")
+    assert not at.exception and at.error
+    go(at, "analysis")
+    assert not at.button
     calls.assert_not_called()
 
 
@@ -380,6 +391,10 @@ def test_primary_dashboard_in_clean_minimal_deployment(source, tmp_path) -> None
         "modules/campaigns/__init__.py",
         "modules/campaigns/models.py",
         "modules/campaigns/use_cases.py",
+    }
+    relatives |= {
+        str(p.relative_to(ROOT / "src/churn_retention"))
+        for p in (ROOT / "src/churn_retention/dashboard").rglob("*.py")
     }
     files = {Path("src/churn_retention") / rel for rel in relatives}
     for file in tuple(files):
@@ -413,7 +428,7 @@ def test_primary_dashboard_in_clean_minimal_deployment(source, tmp_path) -> None
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert (
-        report["primary_dashboard_tabs"] == 4
+        report["primary_dashboard_pages"] == 5
         and report["legacy_imports"] == report["real_api_calls"] == 0
     )
 

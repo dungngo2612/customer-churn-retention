@@ -22,7 +22,7 @@ Internet, LAN, multi-user hoặc bật public reverse proxy.
 
 | Đường khởi động/truy cập | Kết quả audit và kiểm soát |
 |---|---|
-| `src/churn_retention/dashboard/app.py` | Entrypoint Dashboard chính, bốn tab. Trước đây dùng `streamlit run` không chỉ rõ host; mặc định framework có thể bind wildcard. Nay guard chạy trước import dịch vụ và trước đọc ledger/archive. Runtime không được launcher kích hoạt sẽ chỉ báo lỗi an toàn, không mở prediction controls hoặc lịch sử. |
+| `src/churn_retention/dashboard/app.py` | Entrypoint Dashboard chính, năm khu vực trên nhánh cải tạo. Trước đây dùng `streamlit run` không chỉ rõ host; mặc định framework có thể bind wildcard. Guard chạy trước đọc ledger/archive; mỗi trang con cũng kiểm tra launcher. Runtime không được launcher kích hoạt chỉ báo lỗi an toàn, không mở luồng phân tích hoặc lịch sử. |
 | `python -m churn_retention.dashboard.demo` | Launcher được hỗ trợ. Kiểm tra cấu hình trước tạo state/mở socket; buộc địa chỉ IPv4 `127.0.0.1`, port rõ ràng, không tự dò port khác. |
 | `.streamlit/config.toml` | Thêm default loopback, CORS/XSRF, upload2MB, static user-file serving off, telemetry off, exception UI chi tiết off. Đây là default theo cwd, không phải lớp bảo vệ duy nhất. Launcher vẫn enforce khi chạy từ cwd khác. |
 | CLI/env/config override | Không có tùy chọn host của launcher. `0.0.0.0`, `::`, LAN address, hostname khác, base URL proxy và SSL config không phù hợp bị từ chối. Đọc rõ `STREAMLIT_SERVER_ADDRESS`/`STREAMLIT_BROWSER_SERVER_ADDRESS` vì programmatic bootstrap không xử lý các biến này giống CLI. Các flag bảo vệ được overlay cố định trước start. |

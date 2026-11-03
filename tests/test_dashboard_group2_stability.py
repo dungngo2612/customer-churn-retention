@@ -10,6 +10,7 @@ import httpx
 import numpy as np
 import pandas as pd
 import pytest
+from dashboard_navigation import sample_analysis
 from google.genai import errors
 from groq import APIConnectionError, APITimeoutError, RateLimitError
 from streamlit.testing.v1 import AppTest
@@ -411,6 +412,7 @@ def test_live_confirmation_resets_and_failure_ui_keeps_mock_snapshot_honest(
     monkeypatch.setenv("CHURN_DASHBOARD_PREVIEW", "0")
     monkeypatch.setattr(ui, "resources", lambda: base.resources)
     at = AppTest.from_file(str(PAGE), default_timeout=30).run()
+    sample_analysis(at)
     at.checkbox(key="cuong_llm.confirm").check().run()
     at.radio(key="cuong_llm.provider_mode").set_value("Live API (Groq/Gemini)").run()
     assert not at.exception and not at.checkbox(key="cuong_llm.confirm").value
@@ -426,7 +428,7 @@ def test_live_confirmation_resets_and_failure_ui_keeps_mock_snapshot_honest(
     assert at.session_state[ui.ACTIVE_RUN_KEY] == mock_run.run_id
     latest = base.store.get(at.session_state[ui.LAST_ATTEMPT_KEY])
     assert latest.status == "FAILED" and base.store.frames(latest.run_id)[1].empty
-    assert any("MOCK provider" in entry.value for entry in at.markdown)
+    assert any("Kết quả mô phỏng" in entry.proto.body for entry in at.get("html"))
     at.run()
     assert not at.exception and at.error and len(sdk.clients) == 2
     at.button(key="cuong_llm.new_request").click().run()
