@@ -1,7 +1,7 @@
 # Trung tâm điều hành giữ chân khách hàng
 
 Bản cải tạo trên `codex/dashboard-redesign`, từ main đã xác minh tại
-`c497806a29bbdf5b55d88a1b0d2849bc30a6cabb`. Chưa push/merge vào main.
+`c497806a29bbdf5b55d88a1b0d2849bc30a6cabb`. Chưa merge vào main.
 Stack Streamlit và toàn bộ service nghiệp vụ, LLM/RAG được giữ nguyên.
 Điều hướng dùng `st.navigation`/`st.Page`; file trang nằm trong `dashboard/views`
 để không kích hoạt cơ chế tự khám phá `pages/` cũ khi mở trực tiếp URL trang con.
@@ -16,7 +16,7 @@ Mỗi trang kiểm tra launcher trước khi đọc dữ liệu.
 | Tìm/lọc/sắp xếp khách hàng | Tab 3 | Khách hàng & dữ liệu → Danh sách | Snapshot đã validation | Phân trang 10/25/50; ID ổn định |
 | Hồ sơ 19 thuộc tính | Tab 3 | Danh sách, kết quả phân tích, phương án | Customer ID / saved frames | Không ghép điểm của nguồn dữ liệu khác |
 | Dự đoán đơn / lô 1–5 | Sidebar | Phân tích rời bỏ → Chạy phân tích | DashboardLLMAdapter.prepare, execute | Xác nhận snapshot; idempotency; không auto rerun |
-| Mock/live và lỗi provider | Sidebar/banner | Phân tích; Cấu hình & trạng thái | Adapter, router/service hiện có | Mặc định mock; live gate/timeout/retry không đổi |
+| Mock/live và lỗi provider | Sidebar/banner | Phân tích; nhãn nguồn kết quả | Adapter, router/service hiện có | Mặc định mock; live gate/timeout/retry không đổi |
 | Điểm, reason, reference metadata | Tab 2/3 | Phân tích → Kết quả & lý do; hồ sơ | Ledger.frames | Chưa hiệu chuẩn; không dựng nội dung hàng xóm chưa lưu |
 | Observed churn theo contract/Internet/support/payment | Tab 2 | Kết quả → Quan sát theo nhóm | Snapshot quan sát, groupby | Không dùng nhãn LLM làm observed Churn; ít dữ liệu dùng bảng |
 | Xếp hạng, lọc nguy cơ/gói, CSV đã lọc | Tab 3 | Phân tích → Kết quả & lý do | recommend, safe_export_frame | Bộ lọc trước phân trang; CSV xuất toàn bộ phần đã lọc |
@@ -146,4 +146,8 @@ Retention/Budget/Campaign/Queue, migrations và golden không sửa.
 
 Main local và remote được đọc lại cùng ở
 `c497806a29bbdf5b55d88a1b0d2849bc30a6cabb`. Hai stash và worktree tích hợp giữ nguyên.
-Các commit giao diện chỉ nằm trên `codex/dashboard-redesign`; không push hoặc merge.
+Các commit giao diện nằm trên nhánh review `codex/dashboard-redesign`; chưa merge vào main.
+Theo yêu cầu duyệt giao diện, đã bỏ khối kỹ thuật “Cấu hình & trạng thái” khỏi sidebar.
+Nhãn mô phỏng/API thật và kiểm tra sẵn sàng vẫn thuộc luồng Phân tích hiện có.
+Sau thay đổi này, 102 test Dashboard/điều hướng/bảo mật launcher pass; Ruff
+lint/format và Mypy vẫn pass. Đã xác minh preview không còn khối cấu hình ở sidebar.

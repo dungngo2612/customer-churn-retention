@@ -6,8 +6,8 @@ Xác suất LLM chưa hiệu chuẩn; campaign, can thiệp và ROI hiện là m
 
 ## Giao diện đang chờ duyệt
 
-Nhánh local `codex/dashboard-redesign` cải tạo ứng dụng Streamlit chính thành
-**Trung tâm điều hành giữ chân khách hàng**. Chưa push hoặc merge bản này vào main.
+Nhánh review `codex/dashboard-redesign` cải tạo ứng dụng Streamlit chính thành
+**Trung tâm điều hành giữ chân khách hàng**. Chưa merge bản này vào main.
 Xem [bản đồ chức năng, cách dùng và kiểm chứng](docs/dashboard_redesign.md).
 
 ## Bản tự train đã được bảo toàn

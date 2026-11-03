@@ -1,7 +1,6 @@
 """Main retention workspace: official Streamlit navigation, existing services."""
 
 import base64
-import os
 
 import streamlit as st
 
@@ -84,28 +83,6 @@ try:
             )
         else:
             ui.badge("Mô phỏng · không gọi API", "warning")
-        with st.expander("Cấu hình & trạng thái"):
-            st.write("Tham chiếu: Sẵn sàng" if ctx.form else "Tham chiếu: Chưa sẵn sàng")
-            st.caption("LLM/RAG · Qwen qua Groq, dự phòng Gemini. Giữ nguyên model và định tuyến.")
-            if ctx.form:
-                st.text(f"Reference: {ctx.form.store.reference_version}")
-            live = (
-                os.environ.get("CHURN_DASHBOARD_ALLOW_LIVE") == "1"
-                and os.environ.get("CHURN_DASHBOARD_PREVIEW") != "1"
-            )
-            st.write("API thật được bật trên máy" if live else "API thật chưa bật")
-            if live:
-                st.write(
-                    "Khóa provider: Sẵn sàng"
-                    if all(os.environ.get(k) for k in ("GROQ_API_KEY", "GEMINI_API_KEY"))
-                    else "Khóa provider: Chưa đủ"
-                )
-            st.caption(
-                (
-                    "Môi trường cục bộ cho một quản trị viên; kết quả và chiến dịch "
-                    "dùng chung giữa các cửa sổ trình duyệt."
-                )
-            )
         st.caption("Kinh tế và can thiệp là mô phỏng. Chưa gửi ưu đãi cho khách hàng.")
     if ctx.error:
         st.error(ctx.error)
