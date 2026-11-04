@@ -38,6 +38,11 @@ dist/
 *.cbm
 *.onnx
 
+# Databases and runtime state
+*.db
+*.sqlite
+*.sqlite3
+
 # MLflow tracking
 mlruns/
 mlflow.db
