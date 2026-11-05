@@ -12,11 +12,8 @@ import streamlit as st
 
 from churn_retention.modules.campaigns.use_cases import safe_export_frame
 
-INK = "#17243b"
-INDIGO = "#3949ab"
-GREEN = "#16734b"
-AMBER = "#985709"
-RED = "#b42335"
+# Color references - updated to use CSS variables from improved theme
+# These are now defined in CSS: --ink, --accent, --success, --warning, --danger
 
 
 def panel(key: str):
@@ -175,17 +172,21 @@ def table(
 
 
 def chart(figure: go.Figure, *, key: str | None = None) -> None:
+    dark = st.session_state.get("ui_dark_mode", False)
+    font_color = "#f1f5f9" if dark else "#1a202c"
+    grid_color = "#334155" if dark else "#e2e8f0"
+    accent_color = "#818cf8" if dark else "#4f46e5"
     figure.update_layout(
-        font={"family": "Arial, sans-serif", "size": 14, "color": INK},
+        font={"family": "Inter, Arial, sans-serif", "size": 14, "color": font_color},
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         margin={"l": 12, "r": 24, "t": 20, "b": 32},
-        height=300,
-        legend={"font": {"color": INK}},
-        colorway=[INDIGO, GREEN, AMBER, RED],
+        height=320,  # Slightly taller for better proportions
+        legend={"font": {"color": font_color}},
+        colorway=[accent_color, "#059669", "#d97706", "#dc2626"],
     )
-    figure.update_xaxes(color=INK, gridcolor="#e4e8f0", automargin=True)
-    figure.update_yaxes(color=INK, gridcolor="#e4e8f0", automargin=True)
+    figure.update_xaxes(color=font_color, gridcolor=grid_color, automargin=True)
+    figure.update_yaxes(color=font_color, gridcolor=grid_color, automargin=True)
     st.plotly_chart(figure, width="stretch", config={"displayModeBar": False}, key=key)
 
 

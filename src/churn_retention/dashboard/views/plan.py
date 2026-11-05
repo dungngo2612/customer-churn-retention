@@ -7,7 +7,8 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from churn_retention.dashboard import components as ui
-from churn_retention.dashboard import customer_detail, state
+from churn_retention.dashboard import customer_detail, state, visual_improvements
+from churn_retention.dashboard.i18n import t
 from churn_retention.dashboard.planning import (
     Settings,
     allocation,
@@ -21,17 +22,17 @@ from churn_retention.modules.retention.use_cases import sensitivity_by_margin
 STEPS = ["1 · Thiết lập", "2 · Xem phương án", "3 · Tạo chiến dịch"]
 ctx = state.context()
 ui.header(
-    "Từ phân tích đến hành động",
-    "Kế hoạch giữ chân",
-    "Xây dựng phương án ngân sách và lưu chiến dịch mô phỏng. Chưa thực thi ưu đãi.",
+    t("pl_eyebrow"),
+    t("pl_title"),
+    t("pl_desc"),
 )
 
 if ctx.view is None:
     ui.empty(
-        "Cần kết quả phân tích trước khi lập kế hoạch",
-        "Mở một lần phân tích đã lưu hoặc chạy phân tích khách hàng đã chọn.",
+        t("pl_empty_title"),
+        t("pl_empty_desc"),
     )
-    st.page_link("views/analysis.py", label="Đến phân tích rời bỏ →")
+    st.page_link("views/analysis.py", label=t("pl_link_analysis"))
     st.stop()
 
 view = ctx.view
@@ -181,8 +182,15 @@ elif step == STEPS[1]:
             ),
         ]
     )
+    
+    # Add budget allocation chart
+    recs = recommendations(view, settings)
+    if not recs.empty and spent > 0:
+        st.markdown("### 📊 Phân bổ ngân sách")
+        budget_chart = visual_improvements.create_budget_allocation_chart(recs, settings.budget)
+        st.plotly_chart(budget_chart, use_container_width=True)
+    
     if not summary["n_intervened"]:
-        recs = recommendations(view, settings)
         if not recs.empty and (recs.action_code != "A0").any():
             st.warning(
                 (

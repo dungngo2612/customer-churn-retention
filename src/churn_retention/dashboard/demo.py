@@ -116,10 +116,10 @@ def start(policy: DemoPolicy) -> None:
         "client.toolbarMode": "minimal",
         "browser.gatherUsageStats": False,
         "theme.base": "light",
-        "theme.primaryColor": "#3949ab",
-        "theme.backgroundColor": "#f5f6fa",
+        "theme.primaryColor": "#4f46e5",  # Softer indigo
+        "theme.backgroundColor": "#f8fafc",  # Softer background
         "theme.secondaryBackgroundColor": "#ffffff",
-        "theme.textColor": "#17243b",
+        "theme.textColor": "#1a202c",  # Softer dark gray
         "theme.font": "sans serif",
     }
     bootstrap.load_config_options(options)

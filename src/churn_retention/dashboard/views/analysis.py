@@ -12,6 +12,7 @@ from churn_retention.adapters.database.dashboard_runs import canonical
 from churn_retention.contracts.llm_failure import failure_message
 from churn_retention.dashboard import components as ui
 from churn_retention.dashboard import customer_detail, state
+from churn_retention.dashboard.i18n import t
 from churn_retention.dashboard.planning import recommendations
 from churn_retention.entrypoints.streamlit import dashboard_llm_ui as services
 from churn_retention.entrypoints.streamlit.dashboard_llm_service import DashboardLLMAdapter
@@ -26,27 +27,38 @@ STATUS = {
 }
 
 ctx = state.context()
-ui.header(
-    "Hiểu nguy cơ, xem lý do",
-    "Phân tích rời bỏ",
-    "Phân tích khách hàng đã chọn, xem kết quả và tiếp tục lập kế hoạch.",
-)
+# Clear page hierarchy
+st.markdown(f"## 🔍 {t('an_title')}")
+st.markdown(f"### {t('an_eyebrow')}")
+st.caption(t("an_desc"))
+
+# Navigation breadcrumb
+st.markdown(f"🏠 **Dashboard** → {t('an_title')}")
+
+# Simple tab navigation thay vì 3 tabs cùng lúc
 if st.session_state.get("_analysis_next_tab"):
     st.session_state["analysis.tabs"] = st.session_state.pop("_analysis_next_tab")
-run_tab, result_tab, history_tab = st.tabs(
-    ["Chạy phân tích", "Kết quả & lý do", "Lịch sử"], key="analysis.tabs"
+
+# Use segmented control thay vì tabs
+tab_options = [f"🚀 {t('an_tab_run')}", f"📊 {t('an_tab_results')}", f"📚 {t('an_tab_history')}"]
+selected_tab = st.radio(
+    "Chọn bước:",
+    tab_options,
+    horizontal=True,
+    label_visibility="collapsed",
+    key="analysis.tabs"
 )
 
-with run_tab:
+if selected_tab == f"🚀 {t('an_tab_run')}":
     if ctx.data is None:
         ui.empty(
-            "Chưa chọn dữ liệu để phân tích",
-            "Nhập tệp hoặc chọn dữ liệu mẫu tại Khách hàng & dữ liệu.",
+            t("an_empty_title"),
+            t("an_empty_desc"),
         )
-        st.page_link("views/customers.py", label="Chọn dữ liệu →")
+        st.page_link("views/customers.py", label=t("an_link_data"))
     elif ctx.form is None or st.session_state.get(state.INPUT_ERROR):
         st.error(st.session_state.get(state.INPUT_ERROR) or ctx.error)
-        st.page_link("views/customers.py", label="Kiểm tra lại dữ liệu →")
+        st.page_link("views/customers.py", label=t("an_link_recheck"))
     else:
         data = ctx.data
         ui.badge(
@@ -192,7 +204,7 @@ with run_tab:
                 help="Tạo yêu cầu mới để chủ động phân tích lại. Thao tác này chưa gọi API.",
             )
 
-with result_tab:
+elif selected_tab == f"📊 {t('an_tab_results')}":
     attempt = st.session_state.get(services.LAST_ATTEMPT_KEY)
     if attempt:
         attempted = ctx.ledger.get(attempt)
@@ -281,7 +293,10 @@ with result_tab:
         filtered = filtered.sort_values(
             ["churn_prob", "customerID"], ascending=[False, True], kind="stable"
         )
-        shown = filtered[["customerID", "churn_prob", "Nguy cơ", "action_name"]].rename(
+        filtered["Lý do chính"] = filtered["reason"].apply(
+            lambda r: r.split("MOCK provider:", 1)[1].strip() if "MOCK provider:" in str(r) else str(r)
+        )
+        shown = filtered[["customerID", "churn_prob", "Nguy cơ", "action_name", "Lý do chính"]].rename(
             columns={
                 "customerID": "Mã khách hàng",
                 "churn_prob": "Điểm rời bỏ",
@@ -340,7 +355,7 @@ with result_tab:
                         width="stretch",
                     )
 
-with history_tab:
+else:  # 📚 Lịch sử
     runs = state.recent_runs(ctx)
     ui.section("Các lần phân tích đã lưu", "Tối đa 50 công việc gần nhất. Mở lại không gọi LLM.")
     if not runs:
