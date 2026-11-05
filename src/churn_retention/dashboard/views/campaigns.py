@@ -6,6 +6,7 @@ import streamlit as st
 from churn_retention.adapters.task_queue.queue import SqliteTaskQueue
 from churn_retention.dashboard import components as ui
 from churn_retention.dashboard import state
+from churn_retention.dashboard.i18n import t
 from churn_retention.entrypoints.streamlit import dashboard_llm_ui as services
 from churn_retention.modules.campaigns import CampaignStatus
 from churn_retention.modules.campaigns.use_cases import safe_export_frame
@@ -34,11 +35,11 @@ def exported(campaign_id: str) -> None:
 
 ctx = state.context()
 ui.header(
-    "Kế hoạch đã lưu",
-    "Chiến dịch",
-    "Mở lại phương án và xuất danh sách can thiệp. Chiến dịch đã lưu chưa được thực thi.",
+    t("ca_eyebrow"),
+    t("ca_title"),
+    t("ca_desc"),
 )
-archive_tab, queue_tab = st.tabs(["Chiến dịch đã lưu", "Công việc xử lý"])
+archive_tab, queue_tab = st.tabs([t("ca_tab_archive"), t("ca_tab_queue")])
 
 with archive_tab:
     campaigns = services.list_campaigns()

@@ -33,7 +33,7 @@ die()     { error "$*"; exit 1; }
 ENABLE_LIVE=true
 SETUP_ONLY=false
 PORT=8501
-STATE_DIR=""
+STATE_DIR="$REPO_ROOT/data/dashboard_state"
 
 usage() {
     echo ""

@@ -69,6 +69,14 @@ class DashboardRunStore:
                     PRIMARY KEY(run_id, customer_id),
                     FOREIGN KEY(run_id) REFERENCES dashboard_runs(run_id)
                 );
+                CREATE TABLE IF NOT EXISTS active_workspace (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    source_name TEXT,
+                    sample INTEGER,
+                    cohort_json TEXT,
+                    active_run_id TEXT,
+                    updated_at TEXT NOT NULL
+                );
             """)
 
     @contextmanager
@@ -390,3 +398,60 @@ class DashboardRunStore:
                 "execution_mode",
             ],
         )
+
+    def save_active_input(self, frame: pd.DataFrame, source_name: str, sample: bool) -> None:
+        cohort = canonical(frame.to_dict(orient="records"))
+        reject_credentials([cohort, source_name])
+        now = datetime.now(UTC).isoformat()
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO active_workspace (id, source_name, sample, cohort_json, updated_at)
+                VALUES (1, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    source_name=excluded.source_name,
+                    sample=excluded.sample,
+                    cohort_json=excluded.cohort_json,
+                    updated_at=excluded.updated_at
+                """,
+                (source_name, 1 if sample else 0, cohort, now),
+            )
+
+    def load_active_input(self) -> tuple[pd.DataFrame, str, bool] | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT source_name, sample, cohort_json FROM active_workspace WHERE id = 1"
+            ).fetchone()
+        if row is None or not row["cohort_json"]:
+            return None
+        reject_credentials(dict(row))
+        frame = pd.DataFrame(json.loads(row["cohort_json"]))
+        return frame, str(row["source_name"]), bool(row["sample"])
+
+    def save_active_run(self, run_id: str) -> None:
+        now = datetime.now(UTC).isoformat()
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO active_workspace (id, active_run_id, updated_at)
+                VALUES (1, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    active_run_id=excluded.active_run_id,
+                    updated_at=excluded.updated_at
+                """,
+                (run_id, now),
+            )
+
+    def load_active_run_id(self) -> str | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT active_run_id FROM active_workspace WHERE id = 1"
+            ).fetchone()
+        if row is None or not row["active_run_id"]:
+            return None
+        return str(row["active_run_id"])
+
+    def clear_active_workspace(self) -> None:
+        with self.connect() as conn:
+            conn.execute("DELETE FROM active_workspace WHERE id = 1")
+

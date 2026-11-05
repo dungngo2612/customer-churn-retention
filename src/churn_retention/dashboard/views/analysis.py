@@ -29,36 +29,31 @@ STATUS = {
 ctx = state.context()
 # Clear page hierarchy
 st.markdown(f"## 🔍 {t('an_title')}")
-st.markdown(f"### {t('an_eyebrow')}")
-st.caption(t("an_desc"))
+st.markdown(f"### {t('an_subtitle')}")
+st.caption(t("an_caption"))
 
 # Navigation breadcrumb
-st.markdown(f"🏠 **Dashboard** → {t('an_title')}")
+st.markdown(t("an_breadcrumb"))
 
 # Simple tab navigation thay vì 3 tabs cùng lúc
 if st.session_state.get("_analysis_next_tab"):
     st.session_state["analysis.tabs"] = st.session_state.pop("_analysis_next_tab")
 
-# Use segmented control thay vì tabs
-tab_options = [f"🚀 {t('an_tab_run')}", f"📊 {t('an_tab_results')}", f"📚 {t('an_tab_history')}"]
-selected_tab = st.radio(
-    "Chọn bước:",
-    tab_options,
-    horizontal=True,
-    label_visibility="collapsed",
-    key="analysis.tabs"
+run_tab, result_tab, history_tab = st.tabs(
+    [t("an_tab_run"), t("an_tab_results"), t("an_tab_history")],
+    key="analysis.tabs",
 )
 
-if selected_tab == f"🚀 {t('an_tab_run')}":
+with run_tab:
     if ctx.data is None:
         ui.empty(
-            t("an_empty_title"),
-            t("an_empty_desc"),
+            t("an_empty_no_data"),
+            t("an_empty_no_data_desc"),
         )
-        st.page_link("views/customers.py", label=t("an_link_data"))
+        st.page_link("views/customers.py", label=t("an_link_choose_data"))
     elif ctx.form is None or st.session_state.get(state.INPUT_ERROR):
         st.error(st.session_state.get(state.INPUT_ERROR) or ctx.error)
-        st.page_link("views/customers.py", label=t("an_link_recheck"))
+        st.page_link("views/customers.py", label=t("an_link_fix_data"))
     else:
         data = ctx.data
         ui.badge(
@@ -204,7 +199,7 @@ if selected_tab == f"🚀 {t('an_tab_run')}":
                 help="Tạo yêu cầu mới để chủ động phân tích lại. Thao tác này chưa gọi API.",
             )
 
-elif selected_tab == f"📊 {t('an_tab_results')}":
+with result_tab:
     attempt = st.session_state.get(services.LAST_ATTEMPT_KEY)
     if attempt:
         attempted = ctx.ledger.get(attempt)
@@ -355,7 +350,7 @@ elif selected_tab == f"📊 {t('an_tab_results')}":
                         width="stretch",
                     )
 
-else:  # 📚 Lịch sử
+with history_tab:
     runs = state.recent_runs(ctx)
     ui.section("Các lần phân tích đã lưu", "Tối đa 50 công việc gần nhất. Mở lại không gọi LLM.")
     if not runs:

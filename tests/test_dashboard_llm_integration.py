@@ -477,3 +477,27 @@ def test_dashboard_uses_existing_prediction_service_with_mock_router(setup, monk
     assert len(customers) == len(predictions) == 1
     assert predictions.iloc[0]["reference_count"] == 5
     assert predictions.iloc[0]["reason"].startswith("MOCK provider")
+
+
+def test_dashboard_page_reload_auto_restores_latest_run_and_allows_reset(
+    setup, monkeypatch
+) -> None:
+    adapter, _ = setup
+    monkeypatch.setattr(ui, "resources", lambda: adapter.resources)
+    run = adapter.prepare(ui.synthetic_frame().iloc[:2], "auto-saved.csv", "auto-reload-req")
+    ui.execute(adapter, run)
+
+    # Simulate fresh page load / F5 reload without CHURN_DASHBOARD_DEMO_RUN
+    at = AppTest.from_file(str(PAGE), default_timeout=30).run()
+    assert not at.exception and not at.error
+    assert at.session_state.get(ui.ACTIVE_RUN_KEY) == run.run_id
+    assert at.session_state.get("retention.input") is not None
+    assert len(at.session_state.get("retention.input").frame) == 2
+
+    # Click reset workspace in sidebar
+    at.button(key="reset_workspace_btn").click().run()
+    assert not at.exception
+    assert at.session_state.get("retention.session_cleared") is True
+    assert at.session_state.get(ui.ACTIVE_RUN_KEY) is None
+    assert at.session_state.get("retention.input") is None
+

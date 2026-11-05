@@ -114,7 +114,10 @@ def render(frame: pd.DataFrame, key: str, view: DashboardView | None = None) -> 
                 st.info("Khách hàng này chưa có kết quả thuộc bộ dữ liệu đang xem.")
                 st.page_link("views/analysis.py", label="Đến phân tích rời bỏ →")
             else:
-                st.text(prediction.reason)
+                reason_clean = prediction.reason
+                if reason_clean.startswith("MOCK provider:"):
+                    reason_clean = reason_clean.split("MOCK provider:", 1)[1].strip()
+                st.info(f"💡 **Phân tích nghiệp vụ:**\n\n{reason_clean}")
                 st.caption(
                     f"Dựa trên {int(prediction.reference_count)} khách hàng tham chiếu. "
                     "Điểm LLM chưa được hiệu chuẩn."

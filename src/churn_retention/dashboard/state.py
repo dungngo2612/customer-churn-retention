@@ -65,8 +65,48 @@ def context() -> Context:
         pin = services.reference_artifact_sha256()
     except Exception:  # noqa: BLE001 -- Do not display local paths or raw configuration.
         error = "Dữ liệu tham chiếu chưa sẵn sàng hoặc không hợp lệ. Chưa thể chạy phân tích."
+    # Auto-restore input data from persistent workspace if session has none
+    if st.session_state.get(INPUT) is None and not st.session_state.get("retention.session_cleared"):
+        try:
+            saved_input = ledger.load_active_input()
+            if saved_input is not None:
+                frame, source, is_sample = saved_input
+                if not frame.empty:
+                    st.session_state[INPUT] = InputData(frame=frame, source=source, sample=is_sample)
+        except Exception:
+            pass
+
     view = None
     run_id = st.session_state.get(services.ACTIVE_RUN_KEY)
+    if not run_id and not st.session_state.get("retention.session_cleared") and pin:
+        try:
+            saved_run_id = ledger.load_active_run_id()
+            if saved_run_id:
+                try:
+                    cand = ledger.get(saved_run_id)
+                    if cand.execution_mode in {"mock", "live"} and cand.reference_sha256 == pin:
+                        run_id = saved_run_id
+                        st.session_state[services.ACTIVE_RUN_KEY] = run_id
+                except Exception:
+                    pass
+            if not run_id:
+                with ledger.connect() as conn:
+                    row = conn.execute(
+                        """
+                        SELECT run_id FROM dashboard_runs
+                        WHERE status IN ('COMPLETE', 'PARTIAL')
+                          AND reference_sha256 = ?
+                          AND execution_mode IN ('mock', 'live')
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                        """,
+                        (pin,),
+                    ).fetchone()
+                    if row is not None:
+                        run_id = row["run_id"]
+                        st.session_state[services.ACTIVE_RUN_KEY] = run_id
+        except Exception:
+            pass
     if run_id:
         try:
             run = ledger.get(run_id)
@@ -75,6 +115,18 @@ def context() -> Context:
             customers, predictions = ledger.frames(run_id)
             if not customers.empty:
                 view = services.DashboardView(run, customers, predictions)
+                if st.session_state.get(INPUT) is None:
+                    is_sample = (
+                        run.source_name.startswith("Dữ liệu mẫu")
+                        or "synthetic" in run.source_name.lower()
+                    )
+                    data = InputData(
+                        frame=customers,
+                        source=run.source_name,
+                        sample=is_sample,
+                    )
+                    st.session_state[INPUT] = data
+                    ledger.save_active_input(customers, run.source_name, is_sample)
         except Exception:  # noqa: BLE001 -- Keep saved state on corrupt/stale context.
             error = (
                 "Không thể mở kết quả đã lưu với dữ liệu tham chiếu hiện tại. Dữ liệu vẫn được giữ."
@@ -85,8 +137,30 @@ def context() -> Context:
 def set_input(data: InputData) -> None:
     st.session_state[INPUT] = data
     st.session_state.pop(INPUT_ERROR, None)
+    st.session_state["retention.session_cleared"] = False
     # Never clear an accepted run or infer when the input changes.
     st.session_state["cuong_llm.confirm"] = False
+    try:
+        ledger = DashboardRunStore(services.runtime_path())
+        ledger.save_active_input(data.frame, data.source, data.sample)
+    except Exception:
+        pass
+
+
+def clear_session() -> None:
+    st.session_state.pop(INPUT, None)
+    st.session_state.pop(INPUT_ERROR, None)
+    st.session_state.pop(services.ACTIVE_RUN_KEY, None)
+    st.session_state.pop("retention.customer", None)
+    st.session_state.pop("retention.campaign", None)
+    st.session_state.pop("cuong_llm.confirm", None)
+    st.session_state.pop("analysis.tabs", None)
+    st.session_state["retention.session_cleared"] = True
+    try:
+        ledger = DashboardRunStore(services.runtime_path())
+        ledger.clear_active_workspace()
+    except Exception:
+        pass
 
 
 def matches_input(run: SavedRun, data: InputData) -> bool:
@@ -110,6 +184,12 @@ def recent_runs(ctx: Context) -> list[SavedRun]:
 
 def open_run(run_id: str) -> None:
     st.session_state[services.ACTIVE_RUN_KEY] = run_id
+    st.session_state["retention.session_cleared"] = False
+    try:
+        ledger = DashboardRunStore(services.runtime_path())
+        ledger.save_active_run(run_id)
+    except Exception:
+        pass
 
 
 def plan_step(step: str) -> None:

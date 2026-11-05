@@ -122,6 +122,48 @@ def read_csv(content: bytes, resources: LLMInputResources) -> pd.DataFrame:
     return validate_frame(frame, resources)
 
 
+def _mock_business_reason(customer: Mapping[str, object]) -> tuple[int, float, str]:
+    """Generate a realistic, feature-based churn probability and business reasoning."""
+    contract = str(customer.get("Contract", "") or "Month-to-month")
+    tenure = int(customer.get("tenure", 0) or 0)
+    charges = float(customer.get("MonthlyCharges", 0.0) or 0.0)
+    internet = str(customer.get("InternetService", "") or "DSL")
+    tech = str(customer.get("TechSupport", "") or "No")
+    sec = str(customer.get("OnlineSecurity", "") or "No")
+
+    is_high_risk = charges >= 50.0
+    prob = 0.76 if is_high_risk else 0.28
+    pred = int(is_high_risk)
+    pct = int(prob * 100)
+
+    if is_high_risk:
+        factors = [f"cước phí cao (${charges:.1f}/tháng)"]
+        if contract == "Month-to-month":
+            factors.append("hợp đồng tháng-tháng không cam kết")
+        if tenure <= 12:
+            factors.append(f"thời gian gắn bó ngắn ({tenure} tháng)")
+        if internet == "Fiber optic" and (tech == "No" or sec == "No"):
+            factors.append("chưa đăng ký hỗ trợ kỹ thuật/bảo mật")
+        details = ", ".join(factors[:3])
+        reason = (
+            f"MOCK provider: Nguy cơ rời bỏ cao ({pct}%) do {details}. "
+            "Cần áp dụng gói ưu đãi cam kết dài hạn và hỗ trợ kỹ thuật kịp thời."
+        )
+    else:
+        pros = [f"cước phí hợp lý (${charges:.1f}/tháng)"]
+        if contract != "Month-to-month":
+            pros.append(f"hợp đồng dài hạn {contract}")
+        if tenure > 12:
+            pros.append(f"gắn bó ổn định ({tenure} tháng)")
+        details = ", ".join(pros[:3])
+        reason = (
+            f"MOCK provider: Nguy cơ rời bỏ thấp ({pct}%) nhờ {details}. "
+            "Khách hàng có mức độ trung thành tốt, duy trì chính sách chăm sóc định kỳ."
+        )
+
+    return pred, prob, reason[:295]
+
+
 class MockProvider:
     """Local demo response; Router/RAG/prompt/response validation remain real."""
 
@@ -133,14 +175,12 @@ class MockProvider:
         )
         customer = payload["customer_to_predict"]
         assert set(customer) == set(FEATURE_NAMES)
-        probability = 0.76 if float(customer["MonthlyCharges"]) >= 50 else 0.28
+        pred, prob, reason = _mock_business_reason(customer)
         return json.dumps(
             {
-                "churn_prediction": int(probability >= 0.5),
-                "churn_probability": probability,
-                "reason": (
-                    "MOCK provider: đầu ra mô phỏng, không gửi API và không phải dự đoán thực tế."
-                ),
+                "churn_prediction": pred,
+                "churn_probability": prob,
+                "reason": reason,
             }
         )
 
