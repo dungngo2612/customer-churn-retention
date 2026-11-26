@@ -6,6 +6,7 @@ Chạy dashboard bằng lệnh:
 """
 
 from pathlib import Path
+import html
 import sys
 import pandas as pd
 import plotly.express as px
@@ -26,6 +27,11 @@ from churn_retention.modules.retention.use_cases import (
     evaluate_actions,
     recommend,
     sensitivity_by_margin,
+)
+from churn_retention.modules.retention.service_advisor import (
+    build_service_advisory,
+    service_channel_for_customer,
+    summarize_extended_services,
 )
 from churn_retention.modules.retention.budget import select_actions_under_budget
 from churn_retention.modules.datasets.validate import validate_dataset
@@ -100,7 +106,8 @@ st.markdown(
         height: 1.75rem !important;
     }
 
-    .block-container {
+    .block-container,
+    [data-testid="stMainBlockContainer"] {
         padding-top: 0.35rem !important;
         padding-bottom: 2.2rem !important;
         max-width: 96% !important;
@@ -307,8 +314,9 @@ st.markdown(
         font-family: 'Fira Code', monospace;
         font-feature-settings: "tnum" on;
         display: inline-block;
-        white-space: nowrap;
-        flex-shrink: 0;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: break-word;
     }
     .badge-indigo {
         background: #eef0ff;
@@ -321,8 +329,9 @@ st.markdown(
         font-family: 'Fira Code', monospace;
         font-feature-settings: "tnum" on;
         display: inline-block;
-        white-space: nowrap;
-        flex-shrink: 0;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: break-word;
     }
     .badge-rose {
         background: #fff1f2;
@@ -333,8 +342,9 @@ st.markdown(
         font-weight: 600;
         font-size: 0.72rem;
         display: inline-block;
-        white-space: nowrap;
-        flex-shrink: 0;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: break-word;
     }
     .badge-amber {
         background: #fffbeb;
@@ -345,8 +355,9 @@ st.markdown(
         font-weight: 600;
         font-size: 0.72rem;
         display: inline-block;
-        white-space: nowrap;
-        flex-shrink: 0;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: break-word;
     }
     .badge-slate {
         background: #f1f5f9;
@@ -357,8 +368,9 @@ st.markdown(
         font-weight: 600;
         font-size: 0.72rem;
         display: inline-block;
-        white-space: nowrap;
-        flex-shrink: 0;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: break-word;
     }
 
     /* --- NATIVE BORDERED CONTAINERS AS STRIPE LEVEL-1 ELEVATION CARDS --- */
@@ -381,6 +393,8 @@ st.markdown(
         display: flex;
         align-items: center;
         justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
         letter-spacing: -0.015em;
     }
     .panel-tag {
@@ -909,6 +923,7 @@ with st.sidebar:
             type=["csv"],
             key="sidebar_csv_uploader",
         )
+        uploaded_active_path = None
         if uploaded_file is not None:
             try:
                 _up_df = pd.read_csv(uploaded_file)
@@ -920,6 +935,10 @@ with st.sidebar:
                 if _val_rep.is_valid:
                     customers_df = _up_df
                     active_dataset_name = uploaded_file.name
+                    _up_target = ROOT_DIR / "data" / "_uploaded_active.csv"
+                    _up_target.parent.mkdir(parents=True, exist_ok=True)
+                    customers_df.to_csv(_up_target, index=False)
+                    uploaded_active_path = _up_target
                     _bpath = get_bundle_path()
                     if not st.session_state["demo_mode"] and _bpath and _bpath.exists():
                         from churn_retention.adapters.predictor.bundle_predictor import BundlePredictor
@@ -954,12 +973,19 @@ with st.sidebar:
 
         st.markdown("---")
         st.caption("**Task Queue & Idempotency:**")
+        force_new_scoring = st.checkbox(
+            "Tạo lượt chạy mới (bỏ qua khóa chống trùng cũ)",
+            value=False,
+            key="chk_force_new_scoring",
+            help="Mặc định khóa idempotency chặn chạy lặp lại cùng một file. Tích ô này nếu muốn ép tạo Job mới.",
+        )
         if st.button("Chạy & Ghi Nhận Scoring Job", key="btn_run_scoring", width="stretch", disabled=not bundle_ready):
+            import time
             from churn_retention.adapters.task_queue.queue import SqliteTaskQueue
             from churn_retention.contracts.jobs.models import JobType, TaskJob
             from churn_retention.entrypoints.worker.worker import JobWorker
 
-            _ds_path = next(
+            _ds_path = uploaded_active_path or next(
                 (p for p in [
                     ROOT_DIR / "data" / "raw" / "telco_churn.csv",
                     ROOT_DIR / "data" / "telco_churn.csv",
@@ -967,14 +993,18 @@ with st.sidebar:
                 ] if p.exists()),
                 None,
             )
-            _run_id = f"run-batch-{active_model_version[:10]}"
-            _idem_key = f"scoring:{active_dataset_name}:{active_model_version}"
+            _suffix = f"-{int(time.time())}" if force_new_scoring else ""
+            _run_id = f"run-batch-{active_dataset_name}-{len(customers_df)}-{active_model_version[:10]}{_suffix}"
+            _idem_key = f"scoring:{active_dataset_name}:{len(customers_df)}:{active_model_version}{_suffix}"
             _queue = SqliteTaskQueue()
             _existing_job = _queue.get_by_idempotency_key(_idem_key)
             if _existing_job is not None:
+                _res = _existing_job.result or {}
+                _n_stored = int(_res.get("total_stored_in_db", len(customers_df)))
                 st.info(
-                    f"Job chấm điểm này đã tồn tại (trạng thái **{_existing_job.status.value}**). "
-                    "Khóa chống trùng (idempotency key) chặn việc chạy và ghi trùng kết quả."
+                    f"File `{active_dataset_name}` ({len(customers_df):,} KH) đã có Job `{_existing_job.job_id[:6]}` "
+                    f"(trạng thái **{_existing_job.status.value}**, đã lưu **{_n_stored:,}** dự đoán). "
+                    "Khóa chống trùng (`idempotency_key`) chặn ghi đè. Tích ô phía trên nếu muốn tạo lượt chạy mới."
                 )
             else:
                 with st.spinner("Đang xử lý qua hàng đợi bằng CatBoost..."):
@@ -1003,10 +1033,16 @@ with st.sidebar:
         if _q_list:
             st.dataframe(
                 pd.DataFrame([
-                    {"Job": j.job_id[:6], "Trạng thái": j.status.value, "Retry": f"{j.retry_count}/{j.max_retries}"}
+                    {
+                        "Job": j.job_id[:6],
+                        "Số KH": (j.result or {}).get("total_customers", "—"),
+                        "Trạng thái": j.status.value,
+                        "Retry": f"{j.retry_count}/{j.max_retries}",
+                    }
                     for j in _q_list
                 ]),
                 width="stretch",
+                hide_index=True,
             )
 
 # Dựng lại danh mục hành động
@@ -1062,10 +1098,10 @@ st.markdown(
     f"""
     <div class="exec-header" style="margin-bottom: 8px;">
         <div class="exec-header-left">
-            <div class="exec-eyebrow">TELECOM RETENTION DECISION SUPPORT SYSTEM</div>
+            <div class="exec-eyebrow">TELECOM RETENTION DECISION SUPPORT SYSTEM · KHOA HỌC DỊCH VỤ</div>
             <div class="exec-title">Hệ Thống Hỗ Trợ Quyết Định &amp; Giữ Chân Khách Hàng</div>
             <div class="exec-subtitle">
-                Cá nhân hóa chính sách can thiệp dựa trên mô hình dự báo AI CatBoost, giải thích TreeSHAP và tối đa hóa Lợi nhuận Ròng Kỳ vọng (ΔEV).
+                Dự báo rủi ro rời mạng bằng CatBoost, phân tích yếu tố tác động (TreeSHAP) và tối ưu hóa lợi nhuận ròng giữ chân (ΔEV).
             </div>
         </div>
     </div>
@@ -1074,9 +1110,10 @@ st.markdown(
             <span style="font-weight:700; color:#0d253d; text-transform:uppercase; font-size:0.7rem; letter-spacing:0.05em;">Kịch bản kinh tế đang áp dụng:</span>
             <span class="badge-indigo">Biên lợi nhuận m = {base_margin:.0%}</span>
             <span class="badge-indigo">Kỳ hạn đánh giá H = {horizon} tháng</span>
+            <span class="badge-slate">{len(customers_df):,} hồ sơ đang nạp</span>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
-            <span class="badge-emerald">{SVG_CHECK} Mô hình CatBoost (ROC-AUC 84.8%)</span>
+            <span class="badge-emerald">{SVG_CHECK} CatBoost Bundle (ROC-AUC 84.8% Validation)</span>
         </div>
     </div>
     """,
@@ -1086,7 +1123,7 @@ st.markdown(
 # --- 4 TABS ĐIỀU HƯỚNG (KHÔNG EMOJI LÒE LOẸT) ---
 tab1, tab2, tab3, tab4 = st.tabs([
     "01. Tổng Quan Kinh Tế",
-    "02. Hành Vi Churn & Giải Thích AI (SHAP)",
+    "02. Hành Vi Churn & Giải Thích Mô Hình",
     "03. Hồ Sơ Khách Hàng 360°",
     "04. Tối Ưu Ngân Sách & Chiến Dịch",
 ])
@@ -1558,7 +1595,7 @@ with tab2:
                 st.caption(f"Nhận xét: Thanh toán Electronic check rời mạng {_echeck:.1f}%, trong khi thanh toán tự động chỉ {min(_auto):.1f}–{max(_auto):.1f}%. Đây là căn cứ thiết kế gói A2.")
 
     with st.container(border=True):
-        st.markdown('<div class="panel-title"><span>Giải Thích Mô Hình AI: Top 10 Đặc Trưng Quyết Định Rủi Ro Churn (Global TreeSHAP)</span><span class="panel-tag">MODEL EXPLAINABILITY</span></div>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-title"><span>Giải Thích Mô Hình AI: Top 10 Đặc Trưng Ảnh Hưởng Nhất (CatBoost Feature Importances)</span><span class="panel-tag">MODEL FEATURE IMPORTANCE</span></div>', unsafe_allow_html=True)
 
         shap_g_col1, shap_g_col2 = st.columns([1.3, 1])
         with shap_g_col1:
@@ -1581,8 +1618,9 @@ with tab2:
                     xaxis=dict(title="Tầm quan trọng tương đối (%)", gridcolor="rgba(148,163,184,0.22)"),
                 )
                 st.plotly_chart(fig_shap_bar, width="stretch")
+                st.caption("Biểu đồ phản ánh mức độ quan trọng toàn cục của các đặc trưng từ mô hình CatBoost; phân tích đóng góp riêng cho từng khách hàng xem tại Tab 03.")
             else:
-                st.info("Biểu đồ Global SHAP yêu cầu Model Bundle CatBoost thật.")
+                st.info("Biểu đồ Feature Importance yêu cầu Model Bundle CatBoost thật.")
 
         with shap_g_col2:
             st.markdown(
@@ -1675,10 +1713,22 @@ with tab3:
                 height=220,
             )
 
-        csv_data = filtered_df[[
+        _export_source = filtered_df[[
             "rank", "customerID", "action_code", "action_name", "churn_prob",
             "proxy_value", "cost", "benefit", "net_value", "breakeven_prob", "churn_prob_after"
-        ]].to_csv(index=False).encode('utf-8')
+        ]].copy()
+        _cust_lookup = customers_df.set_index("customerID")
+        _export_source["kenh_cham_soc"] = [
+            service_channel_for_customer(str(row.action_code), float(row.churn_prob))
+            for row in _export_source.itertuples()
+        ]
+        _export_source["dich_vu_mo_rong_goi_y"] = [
+            summarize_extended_services(_cust_lookup.loc[row.customerID].to_dict())
+            if row.customerID in _cust_lookup.index
+            else ""
+            for row in _export_source.itertuples()
+        ]
+        csv_data = _export_source.to_csv(index=False).encode('utf-8')
 
         st.download_button(
             label="Tải Danh Sách Đang Lọc (.CSV)",
@@ -1692,7 +1742,7 @@ with tab3:
         cust_options = [f"{cid}  |  Gói: {row.action_code}  |  ΔEV: ${row.net_value:+.2f}  |  Churn: {row.churn_prob:.1%}" for cid, row in zip(cust_list, filtered_df.itertuples())]
 
         selected_idx = st.selectbox(
-            "Chọn khách hàng để phân tích chuyên sâu (Customer 360 & Local TreeSHAP):",
+            "Chọn khách hàng cần phân tích chi tiết:",
             options=range(len(cust_list)),
             format_func=lambda i: cust_options[i],
             index=0,
@@ -1791,14 +1841,14 @@ with tab3:
                         f"""
                         <div class="recommend-box">
                             <div class="recommend-title">Gói Đề Xuất: {best_code} — {best_name}</div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
-                                <div style="background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                                    <div style="font-size: 0.72rem; color: #64748b; font-weight: 700;">LỢI NHUẬN RÒNG (ΔEV)</div>
-                                    <div style="font-size: 1.25rem; font-weight: 700; color: #059669; font-family: 'Fira Code', monospace;">+${best_ev:.2f}</div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 8px; margin-bottom: 12px;">
+                                <div style="background: #ffffff; padding: 10px 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                    <div style="font-size: 0.68rem; color: #64748b; font-weight: 700; white-space: nowrap;">LỢI NHUẬN RÒNG (ΔEV)</div>
+                                    <div style="font-size: 1.08rem; font-weight: 700; color: #059669; font-family: 'Fira Code', monospace; white-space: nowrap;">+${best_ev:.2f}</div>
                                 </div>
-                                <div style="background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                                    <div style="font-size: 0.72rem; color: #64748b; font-weight: 700;">GIÁ TRỊ BẢO VỆ (V)</div>
-                                    <div style="font-size: 1.25rem; font-weight: 700; color: #1e40af; font-family: 'Fira Code', monospace;">${proxy_val:.2f}</div>
+                                <div style="background: #ffffff; padding: 10px 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                    <div style="font-size: 0.68rem; color: #64748b; font-weight: 700; white-space: nowrap;">GIÁ TRỊ BẢO VỆ (V)</div>
+                                    <div style="font-size: 1.08rem; font-weight: 700; color: #1e40af; font-family: 'Fira Code', monospace; white-space: nowrap;">${proxy_val:.2f}</div>
                                 </div>
                             </div>
                             <div style="padding: 12px 14px; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; line-height: 1.65; font-size: 0.85rem; color: #334155;">
@@ -1828,7 +1878,7 @@ with tab3:
 
         with r1_col3:
             with st.container(border=True):
-                st.markdown('<div class="panel-title"><span>Giải Thích AI Cá Nhân (Local TreeSHAP)</span><span class="panel-tag">SHAP DRIVERS</span></div>', unsafe_allow_html=True)
+                st.markdown('<div class="panel-title"><span>Yếu Tố Tác Động Rủi Ro Đến Cá Nhân</span><span class="panel-tag">RISK DRIVERS</span></div>', unsafe_allow_html=True)
 
                 local_shap_df = None
                 if cached_bp is not None:
@@ -1841,25 +1891,151 @@ with tab3:
                 if local_shap_df is not None and not local_shap_df.empty:
                     top_local = local_shap_df.head(6).iloc[::-1]
                     bar_colors = ["#e11d48" if v > 0 else "#059669" for v in top_local["shap_value"]]
+                    min_x = min(0.0, float(top_local["shap_value"].min()))
+                    max_x = max(0.0, float(top_local["shap_value"].max()))
+                    span = max(max_x - min_x, 0.25)
+                    _short_feat = {
+                        "MonthlyCharges": "Cước tháng",
+                        "tenure": "Số tháng",
+                        "Contract": "Hợp đồng",
+                        "InternetService": "Internet",
+                        "TechSupport": "TechSupport",
+                        "OnlineSecurity": "OnlineSec",
+                        "PaymentMethod": "Thanh toán",
+                        "PaperlessBilling": "Hóa đơn ĐT",
+                        "MultipleLines": "Đa đường dây",
+                        "OnlineBackup": "Backup",
+                        "DeviceProtection": "Thiết bị",
+                        "SeniorCitizen": "Cao tuổi",
+                    }
+                    _short_val = {
+                        "Month-to-month": "Tháng",
+                        "One year": "1 năm",
+                        "Two year": "2 năm",
+                        "Fiber optic": "Cáp quang",
+                        "Electronic check": "E-check",
+                        "Mailed check": "Bưu điện",
+                        "Bank transfer (automatic)": "CK tự động",
+                        "Credit card (automatic)": "Thẻ tự động",
+                        "No internet service": "Không net",
+                        "No phone service": "Không ĐT",
+                    }
+                    y_labels = [
+                        f"{_short_feat.get(str(r.feature), str(r.feature))} ({_short_val.get(str(r.value), str(r.value))}) [{r.shap_value:+.2f}]"
+                        for r in top_local.itertuples()
+                    ]
                     fig_drivers = go.Figure(go.Bar(
                         x=top_local["shap_value"],
-                        y=[f"{r.feature} ({r.value})" for r in top_local.itertuples()],
+                        y=y_labels,
                         orientation="h",
                         marker_color=bar_colors,
-                        text=[f"{v:+.2f}" for v in top_local["shap_value"]],
-                        textposition="outside", textangle=0, cliponaxis=False,
+                        hovertemplate="<b>%{y}</b><br>TreeSHAP: %{x:+.3f}<extra></extra>",
                     ))
                     fig_drivers.update_layout(
-                        height=255,
-                        margin=dict(l=10, r=20, t=10, b=10),
+                        height=265,
+                        margin=dict(l=4, r=14, t=10, b=36),
                         paper_bgcolor="rgba(0,0,0,0)",
                         plot_bgcolor="rgba(0,0,0,0)",
-                        xaxis=dict(title="Đóng góp TreeSHAP (+ tăng rủi ro / - giảm rủi ro)", gridcolor="rgba(148,163,184,0.22)"),
+                        yaxis=dict(automargin=True, tickfont=dict(size=11)),
+                        xaxis=dict(
+                            title="TreeSHAP (+ / -)",
+                            title_font=dict(size=11),
+                            range=[min_x - span * 0.12, max_x + span * 0.12],
+                            zeroline=True,
+                            zerolinecolor="#cbd5e1",
+                            gridcolor="rgba(148,163,184,0.22)",
+                        ),
                     )
                     st.plotly_chart(fig_drivers, width="stretch")
-                    st.caption("Thanh đỏ đẩy rủi ro rời mạng tăng lên; thanh xanh giúp giữ chân khách hàng.")
+                    st.caption("Màu đỏ (+): làm tăng nguy cơ rời mạng · Màu xanh (−): giúp giảm nguy cơ.")
                 else:
                     st.info("Đang ở chế độ mô phỏng không có SHAP.")
+
+        advisory = build_service_advisory(
+            customer_row=cust_info.to_dict(),
+            recommendation_row=cust_rec.to_dict(),
+            local_shap_df=local_shap_df,
+        )
+        with st.container(border=True):
+            st.markdown(
+                '<div class="panel-title">'
+                '<span>Gợi Ý Hành Động Cho Nhân Viên CSKH</span>'
+                '<span class="panel-tag">CSKH ACTION CARD</span>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            import re as _re
+            adv_c1, adv_c2, adv_c3 = st.columns([1.15, 1.05, 1.15])
+
+            clean_drivers = [
+                _re.sub(r"\s*\(SHAP [^)]+\)", "", d).strip()
+                for d in advisory.risk_drivers_vi[:3]
+            ]
+            drivers_html = "".join(f"<li>{html.escape(d)}</li>" for d in clean_drivers)
+
+            _pkg_label = (
+                f"{cust_rec['action_code']} — {cust_rec['action_name']} (ΔEV +${cust_rec['net_value']:.2f})"
+                if cust_rec["action_code"] != "A0"
+                else "A0 — Không cần can thiệp ưu đãi (rủi ro thấp)"
+            )
+
+            if advisory.extended_services:
+                ext_html = "".join(
+                    f"<div style='margin-bottom:6px;'>"
+                    f"<div style='font-weight:600;color:#0d253d;font-size:0.82rem;'>• {html.escape(ext.title)}</div>"
+                    f"<div style='font-size:0.78rem;color:#475569;padding-left:10px;'>{html.escape(ext.description)}</div>"
+                    f"</div>"
+                    for ext in advisory.extended_services[:2]
+                )
+            else:
+                ext_html = "<div style='font-size:0.81rem;color:#64748d;'>Tập trung xử lý gói giữ chân chính theo đề xuất bên cạnh.</div>"
+
+            with adv_c1:
+                st.markdown(
+                    f"""
+                    <div style="background:#ffffff;border:1px solid #e3e8ee;border-radius:10px;padding:13px 15px;height:100%;">
+                        <div style="font-size:0.73rem;font-weight:700;text-transform:uppercase;color:#ea2261;margin-bottom:6px;">
+                            1. Nguyên Nhân Rủi Ro Chính
+                        </div>
+                        <ul style="margin:0 0 0 16px;padding:0;font-size:0.82rem;color:#273951;line-height:1.55;">
+                            {drivers_html}
+                        </ul>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+            with adv_c2:
+                st.markdown(
+                    f"""
+                    <div style="background:#ffffff;border:1px solid #e3e8ee;border-radius:10px;padding:13px 15px;height:100%;">
+                        <div style="font-size:0.73rem;font-weight:700;text-transform:uppercase;color:#059669;margin-bottom:6px;">
+                            2. Đề Xuất &amp; Kênh Liên Hệ
+                        </div>
+                        <div style="font-size:0.83rem;font-weight:600;color:#0f172a;margin-bottom:8px;line-height:1.45;">
+                            {html.escape(_pkg_label)}
+                        </div>
+                        <div>
+                            <span style="font-size:0.76rem;color:#64748d;">Kênh ưu tiên: </span>
+                            <span class="badge-emerald">{html.escape(advisory.service_channel)}</span>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+            with adv_c3:
+                st.markdown(
+                    f"""
+                    <div style="background:#f8fafc;border:1px solid #e3e8ee;border-radius:10px;padding:13px 15px;height:100%;">
+                        <div style="font-size:0.73rem;font-weight:700;text-transform:uppercase;color:#4434d4;margin-bottom:6px;">
+                            3. Gợi Ý Chăm Sóc Mở Rộng
+                        </div>
+                        {ext_html}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
         r2_col1, r2_col2 = st.columns([1.35, 1])
 
@@ -1908,7 +2084,22 @@ with tab3:
                         unsafe_allow_html=True,
                     )
                     if st.button("Phê Duyệt & Ghi Nhận Gói Can Thiệp", key="btn_apply", type="primary", width="stretch"):
-                        st.success(f"Đã ghi nhận áp dụng gói {best_code} ({cust_rec['action_name']}) cho khách hàng {selected_cust_id}.")
+                        approved = st.session_state.setdefault("approved_tickets", {})
+                        approved[selected_cust_id] = {
+                            "action_code": best_code,
+                            "action_name": cust_rec["action_name"],
+                            "channel": advisory.service_channel,
+                            "net_value": float(best_ev),
+                        }
+                        st.success(
+                            f"Đã ghi nhận áp dụng gói {best_code} ({cust_rec['action_name']}) "
+                            f"qua kênh '{advisory.service_channel}' cho khách hàng {selected_cust_id}."
+                        )
+                    if st.session_state.get("approved_tickets"):
+                        st.caption(
+                            f"Đã duyệt trong phiên: **{len(st.session_state['approved_tickets'])}** hồ sơ cá nhân "
+                            "(sử dụng Tab 04 để chạy ngân sách toàn cục & xuất CSV)."
+                        )
                 else:
                     st.info("Phương án tối ưu là **A0 (Không can thiệp)** vì mọi phương án có chi phí đều mang lại lợi nhuận ròng âm (ΔEV ≤ 0).")
 
@@ -1917,11 +2108,6 @@ with tab3:
 # TAB 4: TỐI ƯU NGÂN SÁCH & QUẢN LÝ CHIẾN DỊCH
 # ==============================================================================
 with tab4:
-    st.info(
-        "Lưu ý thuật toán: Khi ngân sách bị giới hạn, hệ thống sử dụng heuristic tham lam ưu tiên gói có **tỷ suất ΔEV trên mỗi USD chi phí** cao nhất "
-        "(nên có thể chọn gói tiết kiệm hơn như A2 thay vì A3 ở tab Hồ sơ 360° để phục vụ được nhiều khách hàng hơn). Đây là nghiệm xấp xỉ thực tế."
-    )
-
     current_total_cost = float(interventions["cost"].sum()) if not interventions.empty else 30000.0
     sim_col_left, sim_col_right = st.columns([1, 1.45])
 
@@ -2159,6 +2345,10 @@ with tab4:
             st.markdown('<div class="panel-title"><span>Độ Nhạy Dòng Tiền Khi Biên Lợi Nhuận (m) Biến Động</span><span class="panel-tag">MARGIN SENSITIVITY</span></div>', unsafe_allow_html=True)
 
             fig_sens = go.Figure()
+            _net_text_pos = [
+                "top center" if float(nv) >= float(c) else "bottom center"
+                for nv, c in zip(sens_df["total_net_value"], sens_df["total_cost"])
+            ]
             fig_sens.add_trace(go.Scatter(
                 x=[f"{m:.0%}" for m in sens_df["margin"]],
                 y=sens_df["total_net_value"],
@@ -2166,7 +2356,9 @@ with tab4:
                 line=dict(color="#059669", width=3),
                 mode="lines+markers+text",
                 text=[f"${v:,.0f}" for v in sens_df["total_net_value"]],
-                textposition="top center",
+                textposition=_net_text_pos,
+                textfont=dict(size=11, color="#047857"),
+                cliponaxis=False,
             ))
             fig_sens.add_trace(go.Scatter(
                 x=[f"{m:.0%}" for m in sens_df["margin"]],
@@ -2180,18 +2372,33 @@ with tab4:
                 y=sens_df["total_benefit"],
                 name="Lợi Ích Gộp",
                 line=dict(color="#1e40af", width=2),
-                mode="lines+markers",
+                mode="lines+markers+text",
+                text=[f"${v:,.0f}" for v in sens_df["total_benefit"]],
+                textposition="top center",
+                textfont=dict(size=11, color="#1e40af"),
+                cliponaxis=False,
             ))
+            _max_ben = float(sens_df["total_benefit"].max()) if not sens_df.empty else 1000.0
+            _min_net = min(0.0, float(sens_df["total_net_value"].min()) if not sens_df.empty else 0.0)
             fig_sens.update_layout(
-                height=280,
-                margin=dict(l=10, r=10, t=10, b=10),
+                height=320,
+                margin=dict(l=16, r=38, t=22, b=72),
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)",
-                yaxis=dict(title="Giá trị ($)", gridcolor="rgba(148,163,184,0.22)"),
-                xaxis=dict(title="Biên Lợi Nhuận (m)", tickangle=0),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                yaxis=dict(
+                    title="Giá trị ($)",
+                    range=[_min_net - max(_max_ben * 0.14, 40.0), _max_ben * 1.18 + 40.0],
+                    gridcolor="rgba(148,163,184,0.22)",
+                ),
+                xaxis=dict(
+                    title="Biên Lợi Nhuận (m)",
+                    type="category",
+                    tickangle=0,
+                    range=[-0.35, max(len(sens_df) - 0.55, 0.5)],
+                ),
+                legend=dict(orientation="h", yanchor="top", y=-0.26, xanchor="center", x=0.5),
             )
-            st.plotly_chart(fig_sens, width="stretch")
+            st.plotly_chart(fig_sens, width="stretch", config={"displayModeBar": False})
 
     with sens_col2:
         with st.container(border=True):
@@ -2208,18 +2415,20 @@ with tab4:
                     x=[f"{m:.0%}" for m in sens_df["margin"]],
                     y=sens_df[ac],
                     marker_color=colors_dict.get(ac, "#4f46e5"),
-                    text=sens_df[ac],
-                    textposition="outside", textangle=0, cliponaxis=False,
+                    text=[str(int(v)) if v > 0 else "" for v in sens_df[ac]],
+                    textposition="inside",
+                    insidetextanchor="middle",
+                    textangle=0,
                 ))
 
             fig_stacked.update_layout(
                 barmode="stack",
-                height=280,
-                margin=dict(l=10, r=10, t=10, b=10),
+                height=320,
+                margin=dict(l=12, r=16, t=18, b=72),
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)",
                 yaxis=dict(title="Số lượng khách can thiệp", gridcolor="rgba(148,163,184,0.22)"),
-                xaxis=dict(title="Biên Lợi Nhuận (m)", tickangle=0),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                xaxis=dict(title="Biên Lợi Nhuận (m)", type="category", tickangle=0),
+                legend=dict(orientation="h", yanchor="top", y=-0.26, xanchor="center", x=0.5),
             )
-            st.plotly_chart(fig_stacked, width="stretch")
+            st.plotly_chart(fig_stacked, width="stretch", config={"displayModeBar": False})
