@@ -66,39 +66,39 @@ SVG_CLOCK = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" view
 SVG_CHECK = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
 SVG_LAYERS = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>'
 
-# --- DESIGN SYSTEM CSS (STRIPE DESIGN.MD + UI/UX PRO MAX DATA-DENSE) ---
+# --- DESIGN SYSTEM CSS (EVA COMPONENTS OVERVIEW + DATA-DENSE ENTERPRISE) ---
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
 
     :root {
-        --stripe-primary: #533afd;
-        --stripe-primary-deep: #4434d4;
-        --stripe-primary-press: #2e2b8c;
-        --stripe-primary-soft: #665efd;
-        --stripe-primary-subdued: #eef0ff;
-        --stripe-dark-900: #1c1e54;
-        --stripe-ink: #0d253d;
-        --stripe-ink-secondary: #273951;
-        --stripe-ink-mute: #64748d;
-        --stripe-canvas: #ffffff;
-        --stripe-canvas-soft: #f6f9fc;
-        --stripe-hairline: #e3e8ee;
-        --stripe-ruby: #ea2261;
-        --stripe-emerald: #059669;
-        --stripe-amber: #d97706;
+        --eva-primary: #3366FF;
+        --eva-primary-hover: #274BDB;
+        --eva-primary-press: #1A34B8;
+        --eva-primary-soft: #F2F6FF;
+        --eva-primary-border: #D6E4FF;
+        --eva-ink: #222B45;
+        --eva-ink-secondary: #2E3A59;
+        --eva-ink-mute: #8F9BB3;
+        --eva-canvas: #FFFFFF;
+        --eva-canvas-soft: #F7F9FC;
+        --eva-hairline: #E4E9F2;
+        --eva-border-strong: #C5CEE0;
+        --eva-success: #00B383;
+        --eva-warning: #FFAA00;
+        --eva-danger: #FF3D71;
+        --eva-info: #0095FF;
     }
 
     html, body, [class*="css"] {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        color: var(--stripe-ink);
-        font-feature-settings: "ss01" on, "cv01" on;
-        background-color: var(--stripe-canvas-soft);
+        color: var(--eva-ink);
+        background-color: var(--eva-canvas-soft);
     }
 
     .stApp {
-        background-color: #f6f9fc !important;
+        background-color: #F7F9FC !important;
     }
 
     header[data-testid="stHeader"] {
@@ -113,11 +113,17 @@ st.markdown(
         max-width: 96% !important;
     }
 
-    /* --- STRIPE SIGNATURE ATMOSPHERIC MESH + DARK CONSOLE HERO HEADER (COMPACT & ELEVATED) --- */
+    /* --- SIDEBAR CLEAN SURFACE --- */
+    section[data-testid="stSidebar"] {
+        background-color: #FFFFFF !important;
+        border-right: 1px solid #E4E9F2 !important;
+    }
+
+    /* --- EXECUTIVE HERO HEADER (EVA DARK SLATE + ROYAL BLUE) --- */
     .exec-header {
-        background: linear-gradient(135deg, #0d253d 0%, #1c1e54 68%, #2e2b8c 100%);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 14px;
+        background: linear-gradient(135deg, #1A2138 0%, #222B45 65%, #25335A 100%);
+        border: 1px solid #2E3A59;
+        border-radius: 10px;
         padding: 15px 22px;
         margin-bottom: 14px;
         display: flex;
@@ -125,7 +131,7 @@ st.markdown(
         align-items: center;
         flex-wrap: nowrap;
         gap: 16px;
-        box-shadow: rgba(0, 55, 112, 0.14) 0px 6px 18px, rgba(0, 55, 112, 0.06) 0px 2px 4px;
+        box-shadow: 0 4px 14px rgba(34, 43, 69, 0.10);
         position: relative;
         overflow: hidden;
     }
@@ -135,17 +141,17 @@ st.markdown(
         top: 0;
         left: 0;
         right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, #533afd 0%, #665efd 32%, #ea2261 68%, #f96bee 100%);
+        height: 3px;
+        background: linear-gradient(90deg, #3366FF 0%, #0095FF 55%, #00D68F 100%);
     }
     .exec-header::after {
         content: "";
         position: absolute;
         top: -80px;
         right: -60px;
-        width: 280px;
-        height: 280px;
-        background: radial-gradient(circle, rgba(83, 58, 253, 0.28) 0%, rgba(234, 34, 97, 0.12) 45%, transparent 70%);
+        width: 260px;
+        height: 260px;
+        background: radial-gradient(circle, rgba(51, 102, 255, 0.22) 0%, rgba(0, 149, 255, 0.08) 45%, transparent 70%);
         pointer-events: none;
     }
     .exec-header-left {
@@ -159,7 +165,7 @@ st.markdown(
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.1em;
-        color: #b9b9f9;
+        color: #85A9FF;
         margin-bottom: 3px;
         display: inline-flex;
         align-items: center;
@@ -168,10 +174,10 @@ st.markdown(
     .exec-title {
         font-size: 1.32rem;
         font-weight: 700;
-        color: #ffffff;
-        letter-spacing: -0.025em;
+        color: #FFFFFF;
+        letter-spacing: -0.02em;
         margin-bottom: 3px;
-        line-height: 1.2;
+        line-height: 1.22;
     }
     .exec-subtitle {
         font-size: 0.82rem;
@@ -192,26 +198,25 @@ st.markdown(
     .meta-chip {
         background: rgba(255, 255, 255, 0.09);
         border: 1px solid rgba(255, 255, 255, 0.18);
-        border-radius: 9999px;
-        padding: 6px 13px;
+        border-radius: 6px;
+        padding: 6px 12px;
         font-size: 0.76rem;
         font-weight: 500;
-        color: #f6f9fc;
+        color: #F7F9FC;
         font-family: 'Fira Code', monospace;
         font-feature-settings: "tnum" on;
-        backdrop-filter: blur(8px);
     }
     .meta-chip-active {
-        background: rgba(5, 150, 105, 0.22);
-        border: 1px solid rgba(167, 243, 208, 0.45);
-        color: #6ee7b7;
+        background: rgba(0, 214, 143, 0.18);
+        border: 1px solid rgba(0, 214, 143, 0.45);
+        color: #6EE7B7;
         display: inline-flex;
         align-items: center;
         gap: 5px;
         font-weight: 600;
     }
 
-    /* --- STRIPE BENTO KPI GRID WITH MICRO-PROGRESS BARS --- */
+    /* --- EVA BENTO KPI GRID --- */
     .kpi-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -219,18 +224,18 @@ st.markdown(
         margin-bottom: 20px;
     }
     .modern-card {
-        background: var(--stripe-canvas);
-        border: 1px solid var(--stripe-hairline);
-        border-radius: 12px;
+        background: var(--eva-canvas);
+        border: 1px solid var(--eva-hairline);
+        border-radius: 8px;
         padding: 18px 20px;
-        box-shadow: rgba(0, 55, 112, 0.06) 0px 1px 3px;
+        box-shadow: 0 2px 6px rgba(44, 51, 73, 0.04);
         transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
         position: relative;
         overflow: hidden;
     }
     .modern-card:hover {
-        border-color: #a8c3de;
-        box-shadow: rgba(0, 55, 112, 0.08) 0px 8px 24px, rgba(0, 55, 112, 0.04) 0px 2px 6px;
+        border-color: #ADC8FF;
+        box-shadow: 0 6px 18px rgba(51, 102, 255, 0.08);
         transform: translateY(-1px);
     }
     .modern-card::before {
@@ -241,18 +246,18 @@ st.markdown(
         right: 0;
         height: 3px;
     }
-    .card-accent-blue::before { background: #533afd; }
-    .card-accent-indigo::before { background: #4434d4; }
-    .card-accent-amber::before { background: #d97706; }
-    .card-accent-emerald::before { background: #059669; }
-    .card-accent-ruby::before { background: #ea2261; }
+    .card-accent-blue::before { background: #3366FF; }
+    .card-accent-indigo::before { background: #0095FF; }
+    .card-accent-amber::before { background: #FFAA00; }
+    .card-accent-emerald::before { background: #00B383; }
+    .card-accent-ruby::before { background: #FF3D71; }
 
     .card-label {
         font-size: 0.7rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        color: var(--stripe-ink-mute);
+        color: var(--eva-ink-mute);
         margin-bottom: 8px;
         display: flex;
         justify-content: space-between;
@@ -263,16 +268,16 @@ st.markdown(
     .card-icon-wrap {
         width: 30px;
         height: 30px;
-        border-radius: 8px;
+        border-radius: 6px;
         display: flex;
         align-items: center;
         justify-content: center;
     }
     .card-value {
         font-family: 'Fira Code', monospace;
-        font-size: 1.68rem;
+        font-size: 1.66rem;
         font-weight: 700;
-        color: var(--stripe-ink);
+        color: var(--eva-ink);
         line-height: 1.15;
         letter-spacing: -0.04em;
         margin-bottom: 8px;
@@ -283,32 +288,32 @@ st.markdown(
     .kpi-progress-track {
         width: 100%;
         height: 5px;
-        background: #edf2f7;
-        border-radius: 9999px;
+        background: #EDF1F7;
+        border-radius: 4px;
         overflow: hidden;
         margin-bottom: 8px;
     }
     .kpi-progress-fill {
         height: 100%;
-        border-radius: 9999px;
+        border-radius: 4px;
         transition: width 0.3s ease;
     }
     .card-footer {
         font-size: 0.78rem;
-        color: var(--stripe-ink-mute);
+        color: var(--eva-ink-mute);
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 6px;
     }
 
-    /* --- STRIPE PILL BADGES ({rounded.pill}: 9999px) --- */
+    /* --- EVA STATUS BADGES --- */
     .badge-emerald {
-        background: #ecfdf5;
-        color: #047857;
-        border: 1px solid #a7f3d0;
+        background: #E6FAF4;
+        color: #008764;
+        border: 1px solid #99EBD4;
         padding: 2px 9px;
-        border-radius: 9999px;
+        border-radius: 6px;
         font-weight: 600;
         font-size: 0.72rem;
         font-family: 'Fira Code', monospace;
@@ -319,11 +324,11 @@ st.markdown(
         overflow-wrap: break-word;
     }
     .badge-indigo {
-        background: #eef0ff;
-        color: #4434d4;
-        border: 1px solid #c7d2fe;
+        background: #F2F6FF;
+        color: #274BDB;
+        border: 1px solid #D6E4FF;
         padding: 2px 9px;
-        border-radius: 9999px;
+        border-radius: 6px;
         font-weight: 600;
         font-size: 0.72rem;
         font-family: 'Fira Code', monospace;
@@ -334,11 +339,11 @@ st.markdown(
         overflow-wrap: break-word;
     }
     .badge-rose {
-        background: #fff1f2;
-        color: #be123c;
-        border: 1px solid #fecdd3;
+        background: #FFF0F4;
+        color: #DB2C66;
+        border: 1px solid #FFC2D2;
         padding: 2px 9px;
-        border-radius: 9999px;
+        border-radius: 6px;
         font-weight: 600;
         font-size: 0.72rem;
         display: inline-block;
@@ -347,11 +352,11 @@ st.markdown(
         overflow-wrap: break-word;
     }
     .badge-amber {
-        background: #fffbeb;
-        color: #b45309;
-        border: 1px solid #fde68a;
+        background: #FFF8E6;
+        color: #B87500;
+        border: 1px solid #FFE299;
         padding: 2px 9px;
-        border-radius: 9999px;
+        border-radius: 6px;
         font-weight: 600;
         font-size: 0.72rem;
         display: inline-block;
@@ -360,11 +365,11 @@ st.markdown(
         overflow-wrap: break-word;
     }
     .badge-slate {
-        background: #f1f5f9;
-        color: #475569;
-        border: 1px solid #cbd5e1;
+        background: #F7F9FC;
+        color: #4A5568;
+        border: 1px solid #E4E9F2;
         padding: 2px 9px;
-        border-radius: 9999px;
+        border-radius: 6px;
         font-weight: 600;
         font-size: 0.72rem;
         display: inline-block;
@@ -373,49 +378,49 @@ st.markdown(
         overflow-wrap: break-word;
     }
 
-    /* --- NATIVE BORDERED CONTAINERS AS STRIPE LEVEL-1 ELEVATION CARDS --- */
+    /* --- EVA LEVEL-1 CARDS --- */
     [data-testid="stVerticalBlockBorderWrapper"] {
-        background-color: #ffffff !important;
-        border: 1px solid #e3e8ee !important;
-        border-radius: 12px !important;
+        background-color: #FFFFFF !important;
+        border: 1px solid #E4E9F2 !important;
+        border-radius: 8px !important;
         padding: 18px 22px !important;
-        box-shadow: rgba(0, 55, 112, 0.06) 0px 1px 3px !important;
+        box-shadow: 0 2px 6px rgba(44, 51, 73, 0.04) !important;
         margin-bottom: 14px !important;
     }
 
     .panel-title {
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: #0d253d;
+        font-size: 0.94rem;
+        font-weight: 700;
+        color: #222B45;
         margin-bottom: 12px;
         padding-bottom: 9px;
-        border-bottom: 1px solid #e3e8ee;
+        border-bottom: 1px solid #EDF1F7;
         display: flex;
         align-items: center;
         justify-content: space-between;
         flex-wrap: wrap;
         gap: 8px;
-        letter-spacing: -0.015em;
+        letter-spacing: -0.01em;
     }
     .panel-tag {
-        font-size: 0.66rem;
-        font-weight: 600;
-        color: #4434d4;
-        background: #eef0ff;
-        border: 1px solid #d8dcfb;
-        padding: 2px 9px;
-        border-radius: 9999px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: #3366FF;
+        background: #F2F6FF;
+        border: 1px solid #D6E4FF;
+        padding: 2px 8px;
+        border-radius: 4px;
         font-family: 'Fira Code', monospace;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.05em;
     }
 
-    /* --- CUSTOM STRIPE SAAS HTML TABLES (REPLACING GRAY ST.DATAFRAME) --- */
+    /* --- EVA CLEAN DATA TABLES --- */
     .stripe-table-wrap {
         width: 100%;
         overflow-x: auto;
-        border: 1px solid #e3e8ee;
-        border-radius: 10px;
-        background: #ffffff;
+        border: 1px solid #E4E9F2;
+        border-radius: 8px;
+        background: #FFFFFF;
         margin-top: 6px;
         margin-bottom: 10px;
     }
@@ -423,11 +428,11 @@ st.markdown(
         width: 100%;
         border-collapse: collapse;
         font-size: 0.82rem;
-        color: #0d253d;
+        color: #222B45;
     }
     .stripe-table thead tr {
-        background: #f6f9fc;
-        border-bottom: 1px solid #e3e8ee;
+        background: #F7F9FC;
+        border-bottom: 1px solid #E4E9F2;
     }
     .stripe-table th {
         padding: 10px 12px;
@@ -435,7 +440,7 @@ st.markdown(
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.06em;
-        color: #64748d;
+        color: #8F9BB3;
         text-align: left;
         white-space: nowrap;
     }
@@ -446,17 +451,17 @@ st.markdown(
         font-feature-settings: "tnum" on;
     }
     .stripe-table tbody tr {
-        border-bottom: 1px solid #eef2f6;
+        border-bottom: 1px solid #EDF1F7;
         transition: background-color 0.12s ease;
     }
     .stripe-table tbody tr:last-child {
         border-bottom: none;
     }
     .stripe-table tbody tr:hover {
-        background-color: #f8fafd;
+        background-color: #F7F9FC;
     }
     .stripe-table tbody tr.optimal-row {
-        background-color: #f0fdf4;
+        background-color: #E6FAF4;
     }
     .stripe-table td {
         padding: 9px 12px;
@@ -467,11 +472,11 @@ st.markdown(
         font-family: 'Fira Code', monospace;
         font-weight: 600;
         font-size: 0.78rem;
-        color: #0d253d;
-        background: #f6f9fc;
-        border: 1px solid #e3e8ee;
+        color: #274BDB;
+        background: #F2F6FF;
+        border: 1px solid #D6E4FF;
         padding: 2px 7px;
-        border-radius: 5px;
+        border-radius: 4px;
     }
     .risk-cell-wrap {
         display: flex;
@@ -482,21 +487,21 @@ st.markdown(
     .risk-bar-bg {
         flex: 1;
         height: 6px;
-        background: #edf2f7;
-        border-radius: 9999px;
+        background: #EDF1F7;
+        border-radius: 4px;
         overflow: hidden;
         min-width: 52px;
     }
     .risk-bar-fill {
         height: 100%;
-        border-radius: 9999px;
+        border-radius: 4px;
     }
 
     /* --- CUSTOMER 360 IDENTITY CARD & DECISION TICKET --- */
     .profile-box {
-        background: #f6f9fc;
-        border: 1px solid #e3e8ee;
-        border-radius: 10px;
+        background: #F7F9FC;
+        border: 1px solid #E4E9F2;
+        border-radius: 8px;
         padding: 12px 16px;
         margin-top: 8px;
     }
@@ -505,86 +510,126 @@ st.markdown(
         justify-content: space-between;
         align-items: center;
         padding: 6px 0;
-        border-bottom: 1px solid #e3e8ee;
+        border-bottom: 1px solid #E4E9F2;
         font-size: 0.83rem;
     }
     .profile-item:last-child {
         border-bottom: none;
     }
     .profile-key {
-        color: #64748d;
+        color: #8F9BB3;
         font-weight: 500;
     }
     .profile-val {
-        color: #0d253d;
+        color: #222B45;
         font-weight: 600;
         font-family: 'Fira Code', monospace;
         font-feature-settings: "tnum" on;
     }
 
     .recommend-box {
-        background: linear-gradient(180deg, #ffffff 0%, #f6f9fc 100%);
-        border: 1px solid #e3e8ee;
-        border-left: 4px solid #533afd;
-        border-radius: 10px;
+        background: linear-gradient(180deg, #FFFFFF 0%, #F7F9FC 100%);
+        border: 1px solid #E4E9F2;
+        border-left: 4px solid #3366FF;
+        border-radius: 8px;
         padding: 16px;
         margin-bottom: 10px;
     }
     .recommend-title {
         font-size: 0.95rem;
         font-weight: 700;
-        color: #0d253d;
+        color: #222B45;
         margin-bottom: 10px;
     }
 
-    /* --- STRIPE PILL BUTTONS & TABS --- */
+    /* --- EVA UNDERLINE NAVIGATION TABS & FORM CONTROLS --- */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 6px;
-        background-color: #ffffff;
-        padding: 5px 6px;
-        border-radius: 12px;
-        border: 1px solid #e3e8ee;
+        gap: 4px;
+        background-color: #FFFFFF;
+        padding: 0 12px;
+        border-radius: 8px;
+        border: 1px solid #E4E9F2;
         margin-bottom: 16px;
-        box-shadow: rgba(0, 55, 112, 0.04) 0px 1px 2px;
+        box-shadow: 0 1px 3px rgba(44, 51, 73, 0.04);
     }
     .stTabs [data-baseweb="tab-highlight"],
     .stTabs [data-baseweb="tab-border"] {
         display: none !important;
     }
     .stTabs [data-baseweb="tab"] {
-        height: 36px;
-        border-radius: 8px !important;
+        height: 44px;
+        border-radius: 0 !important;
         padding: 0 18px !important;
-        font-size: 0.83rem;
+        font-size: 0.84rem;
         font-weight: 600;
-        color: #64748d;
+        color: #8F9BB3;
         border: none !important;
-        background: transparent;
+        border-bottom: 3px solid transparent !important;
+        background: transparent !important;
+        transition: color 0.15s ease, border-color 0.15s ease;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #222B45 !important;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #533afd !important;
-        color: #ffffff !important;
-        border-radius: 8px !important;
-        box-shadow: rgba(83, 58, 253, 0.22) 0px 2px 6px;
+        background-color: transparent !important;
+        color: #3366FF !important;
+        border-bottom: 3px solid #3366FF !important;
+        font-weight: 700 !important;
+    }
+
+    /* --- EVA BUTTONS (CRISP 6PX RADIUS + FOCUS RING) --- */
+    .stButton > button {
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+        font-size: 0.84rem !important;
+        transition: all 0.15s ease !important;
     }
     .stButton > button[kind="primary"] {
-        background-color: #533afd !important;
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 9999px !important;
+        background-color: #3366FF !important;
+        color: #FFFFFF !important;
+        border: 1px solid #3366FF !important;
         padding: 8px 18px !important;
-        font-weight: 600 !important;
-        box-shadow: rgba(83, 58, 253, 0.2) 0px 2px 5px !important;
+        box-shadow: 0 2px 6px rgba(51, 102, 255, 0.22) !important;
     }
     .stButton > button[kind="primary"]:hover {
-        background-color: #4434d4 !important;
+        background-color: #274BDB !important;
+        border-color: #274BDB !important;
+    }
+    .stButton > button[kind="secondary"] {
+        background-color: #FFFFFF !important;
+        color: #222B45 !important;
+        border: 1px solid #C5CEE0 !important;
+    }
+    .stButton > button[kind="secondary"]:hover {
+        border-color: #3366FF !important;
+        color: #3366FF !important;
+        background-color: #F2F6FF !important;
     }
     .stDownloadButton > button {
-        border-radius: 9999px !important;
-        border: 1px solid #533afd !important;
-        color: #533afd !important;
+        border-radius: 6px !important;
+        border: 1px solid #3366FF !important;
+        color: #3366FF !important;
         font-weight: 600 !important;
-        background: #ffffff !important;
+        background: #FFFFFF !important;
+    }
+    .stDownloadButton > button:hover {
+        background: #F2F6FF !important;
+    }
+
+    /* --- EVA FORM INPUTS & SELECTBOXES --- */
+    [data-baseweb="select"] > div,
+    [data-baseweb="input"] > div {
+        background-color: #F7F9FC !important;
+        border: 1px solid #E4E9F2 !important;
+        border-radius: 6px !important;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+    }
+    [data-baseweb="select"] > div:focus-within,
+    [data-baseweb="input"] > div:focus-within {
+        background-color: #FFFFFF !important;
+        border-color: #3366FF !important;
+        box-shadow: 0 0 0 3px rgba(51, 102, 255, 0.14) !important;
     }
     </style>
     """,
@@ -914,8 +959,9 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### Dữ Liệu & Mô Hình AI")
     bundle_ready = "CatBoost" in predictor_info
-    st.caption(f"• Tập dữ liệu: **`{active_dataset_name}`** ({len(customers_df):,} bản ghi)")
-    st.caption(f"• Mô hình: **{'CatBoost Bundle (ROC-AUC 84.8%)' if bundle_ready else predictor_info}**")
+    _ds_caption_ph = st.empty()
+    _ds_caption_ph.caption(f"• Tập dữ liệu: **`{active_dataset_name}`** ({len(customers_df):,} bản ghi)")
+    st.caption(f"• Mô hình: **{'CatBoost (Đã huấn luyện)' if bundle_ready else predictor_info}**")
 
     with st.expander("Đổi file CSV / Hạ tầng hệ thống", expanded=False):
         uploaded_file = st.file_uploader(
@@ -957,6 +1003,7 @@ with st.sidebar:
                         "customer_id": customers_df["customerID"].tolist(),
                         "churn_prob": _probs_up,
                     })
+                    _ds_caption_ph.caption(f"• Tập dữ liệu: **`{active_dataset_name}`** ({len(customers_df):,} bản ghi)")
                     st.success(f"Đã nạp `{uploaded_file.name}` ({len(customers_df):,} khách hàng).")
                 else:
                     st.error(f"File có {len(_val_rep.errors)} lỗi cấu trúc Schema:")
@@ -1113,7 +1160,7 @@ st.markdown(
             <span class="badge-slate">{len(customers_df):,} hồ sơ đang nạp</span>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
-            <span class="badge-emerald">{SVG_CHECK} CatBoost Bundle (ROC-AUC 84.8% Validation)</span>
+            <span class="badge-emerald">{SVG_CHECK} CatBoost Model Ready</span>
         </div>
     </div>
     """,
@@ -1773,24 +1820,25 @@ with tab3:
                 churn_val = float(cust_rec["churn_prob"]) * 100
                 churn_after_val = float(cust_rec["churn_prob_after"]) * 100
 
+                _delta_val = churn_after_val - churn_val
+                _delta_color = "#008764" if _delta_val <= 0 else "#DB2C66"
                 fig_gauge = go.Figure(go.Indicator(
-                    mode="gauge+number+delta",
+                    mode="gauge",
                     value=churn_val,
-                    number={'suffix': "%", 'valueformat': ".1f"},
-                    delta={'reference': churn_after_val, 'increasing': {'color': "#e11d48"}, 'decreasing': {'color': "#059669"}, 'position': "bottom"},
+                    domain={'x': [0, 1], 'y': [0.12, 1]},
                     gauge={
-                        'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#cbd5e1"},
-                        'bar': {'color': "#e11d48" if churn_val > 65 else ("#d97706" if churn_val > 35 else "#059669")},
+                        'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#C5CEE0"},
+                        'bar': {'color': "#FF3D71" if churn_val > 65 else ("#FFAA00" if churn_val > 35 else "#00B383")},
                         'bgcolor': "white",
                         'borderwidth': 1,
-                        'bordercolor': "#e2e8f0",
+                        'bordercolor': "#E4E9F2",
                         'steps': [
-                            {'range': [0, 35], 'color': '#ecfdf5'},
-                            {'range': [35, 65], 'color': '#fffbeb'},
-                            {'range': [65, 100], 'color': '#fff1f2'},
+                            {'range': [0, 35], 'color': '#E6FAF4'},
+                            {'range': [35, 65], 'color': '#FFF8E6'},
+                            {'range': [65, 100], 'color': '#FFF0F4'},
                         ],
                         'threshold': {
-                            'line': {'color': "#1e40af", 'width': 3},
+                            'line': {'color': "#3366FF", 'width': 3},
                             'thickness': 0.75,
                             'value': churn_after_val
                         }
@@ -1798,13 +1846,30 @@ with tab3:
                 ))
                 fig_gauge.update_layout(
                     height=195,
-                    margin=dict(l=15, r=15, t=15, b=10),
+                    margin=dict(l=22, r=22, t=18, b=28),
                     paper_bgcolor="rgba(0,0,0,0)",
                     annotations=[
-                        dict(text="Vạch xanh: Rủi ro sau can thiệp", x=0.5, y=-0.15, showarrow=False, font=dict(size=11, color="#1e40af"))
+                        dict(
+                            text=f"<b>{churn_val:.1f}%</b>",
+                            x=0.5, y=0.34, xanchor="center", yanchor="middle",
+                            showarrow=False,
+                            font=dict(size=26, color="#222B45", family="Fira Code"),
+                        ),
+                        dict(
+                            text=f"Sau can thiệp: <b>{churn_after_val:.1f}%</b> ({_delta_val:+.1f}%)",
+                            x=0.5, y=0.13, xanchor="center", yanchor="middle",
+                            showarrow=False,
+                            font=dict(size=11, color=_delta_color),
+                        ),
+                        dict(
+                            text="Vạch xanh: Rủi ro sau can thiệp",
+                            x=0.5, y=-0.14, xanchor="center", yanchor="middle",
+                            showarrow=False,
+                            font=dict(size=11, color="#3366FF"),
+                        ),
                     ]
                 )
-                st.plotly_chart(fig_gauge, width="stretch")
+                st.plotly_chart(fig_gauge, width="stretch", config={"displayModeBar": False})
 
                 contract_badge = '<span class="badge-rose">Month-to-month</span>' if cust_info['Contract'] == 'Month-to-month' else f'<span class="badge-emerald">{cust_info["Contract"]}</span>'
                 tech_badge = '<span class="badge-rose">Chưa có</span>' if cust_info['TechSupport'] == 'No' else '<span class="badge-emerald">Đã kích hoạt</span>'
