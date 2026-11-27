@@ -914,8 +914,9 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### Dữ Liệu & Mô Hình AI")
     bundle_ready = "CatBoost" in predictor_info
-    st.caption(f"• Tập dữ liệu: **`{active_dataset_name}`** ({len(customers_df):,} bản ghi)")
-    st.caption(f"• Mô hình: **{'CatBoost Bundle (ROC-AUC 84.8%)' if bundle_ready else predictor_info}**")
+    _ds_caption_ph = st.empty()
+    _ds_caption_ph.caption(f"• Tập dữ liệu: **`{active_dataset_name}`** ({len(customers_df):,} bản ghi)")
+    st.caption(f"• Mô hình: **{'CatBoost (Đã huấn luyện)' if bundle_ready else predictor_info}**")
 
     with st.expander("Đổi file CSV / Hạ tầng hệ thống", expanded=False):
         uploaded_file = st.file_uploader(
@@ -957,6 +958,7 @@ with st.sidebar:
                         "customer_id": customers_df["customerID"].tolist(),
                         "churn_prob": _probs_up,
                     })
+                    _ds_caption_ph.caption(f"• Tập dữ liệu: **`{active_dataset_name}`** ({len(customers_df):,} bản ghi)")
                     st.success(f"Đã nạp `{uploaded_file.name}` ({len(customers_df):,} khách hàng).")
                 else:
                     st.error(f"File có {len(_val_rep.errors)} lỗi cấu trúc Schema:")
@@ -1113,7 +1115,7 @@ st.markdown(
             <span class="badge-slate">{len(customers_df):,} hồ sơ đang nạp</span>
         </div>
         <div style="display:flex; align-items:center; gap:8px;">
-            <span class="badge-emerald">{SVG_CHECK} CatBoost Bundle (ROC-AUC 84.8% Validation)</span>
+            <span class="badge-emerald">{SVG_CHECK} CatBoost Model Ready</span>
         </div>
     </div>
     """,
@@ -1773,11 +1775,12 @@ with tab3:
                 churn_val = float(cust_rec["churn_prob"]) * 100
                 churn_after_val = float(cust_rec["churn_prob_after"]) * 100
 
+                _delta_val = churn_after_val - churn_val
+                _delta_color = "#059669" if _delta_val <= 0 else "#e11d48"
                 fig_gauge = go.Figure(go.Indicator(
-                    mode="gauge+number+delta",
+                    mode="gauge",
                     value=churn_val,
-                    number={'suffix': "%", 'valueformat': ".1f"},
-                    delta={'reference': churn_after_val, 'increasing': {'color': "#e11d48"}, 'decreasing': {'color': "#059669"}, 'position': "bottom"},
+                    domain={'x': [0, 1], 'y': [0.12, 1]},
                     gauge={
                         'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#cbd5e1"},
                         'bar': {'color': "#e11d48" if churn_val > 65 else ("#d97706" if churn_val > 35 else "#059669")},
@@ -1798,13 +1801,30 @@ with tab3:
                 ))
                 fig_gauge.update_layout(
                     height=195,
-                    margin=dict(l=15, r=15, t=15, b=10),
+                    margin=dict(l=22, r=22, t=18, b=28),
                     paper_bgcolor="rgba(0,0,0,0)",
                     annotations=[
-                        dict(text="Vạch xanh: Rủi ro sau can thiệp", x=0.5, y=-0.15, showarrow=False, font=dict(size=11, color="#1e40af"))
+                        dict(
+                            text=f"<b>{churn_val:.1f}%</b>",
+                            x=0.5, y=0.34, xanchor="center", yanchor="middle",
+                            showarrow=False,
+                            font=dict(size=26, color="#0d253d", family="Fira Code"),
+                        ),
+                        dict(
+                            text=f"Sau can thiệp: <b>{churn_after_val:.1f}%</b> ({_delta_val:+.1f}%)",
+                            x=0.5, y=0.13, xanchor="center", yanchor="middle",
+                            showarrow=False,
+                            font=dict(size=11, color=_delta_color),
+                        ),
+                        dict(
+                            text="Vạch xanh: Rủi ro sau can thiệp",
+                            x=0.5, y=-0.14, xanchor="center", yanchor="middle",
+                            showarrow=False,
+                            font=dict(size=11, color="#1e40af"),
+                        ),
                     ]
                 )
-                st.plotly_chart(fig_gauge, width="stretch")
+                st.plotly_chart(fig_gauge, width="stretch", config={"displayModeBar": False})
 
                 contract_badge = '<span class="badge-rose">Month-to-month</span>' if cust_info['Contract'] == 'Month-to-month' else f'<span class="badge-emerald">{cust_info["Contract"]}</span>'
                 tech_badge = '<span class="badge-rose">Chưa có</span>' if cust_info['TechSupport'] == 'No' else '<span class="badge-emerald">Đã kích hoạt</span>'
