@@ -916,7 +916,7 @@ with st.sidebar:
     bundle_ready = "CatBoost" in predictor_info
     _ds_caption_ph = st.empty()
     _ds_caption_ph.caption(f"• Tập dữ liệu: **`{active_dataset_name}`** ({len(customers_df):,} bản ghi)")
-    st.caption(f"• Mô hình: **{'CatBoost (Đã huấn luyện)' if bundle_ready else predictor_info}**")
+    st.caption(f"• Mô hình: **{'CatBoost' if bundle_ready else predictor_info}**")
 
     with st.expander("Đổi file CSV / Hạ tầng hệ thống", expanded=False):
         uploaded_file = st.file_uploader(
@@ -1276,7 +1276,7 @@ with tab1:
                 "Chi phí gói ưu đãi/voucher",
                 "Lợi nhuận ròng (Net ΔEV)"
             ]
-            flow_values = [total_benefit, total_contact_cost, total_offer_cost, total_net_value]
+            flow_values = [total_benefit, -total_contact_cost, -total_offer_cost, total_net_value]
             flow_colors = ["#1e40af", "#e11d48", "#d97706", "#059669"]
             flow_texts = [
                 f"+${total_benefit:,.0f}",
@@ -1285,7 +1285,8 @@ with tab1:
                 f"+${total_net_value:,.0f}"
             ]
 
-            max_flow_x = max(flow_values) if flow_values else 1000.0
+            min_flow_x = min(0.0, min(flow_values)) if flow_values else -100.0
+            max_flow_x = max(1000.0, max(flow_values)) if flow_values else 1000.0
             fig_cashflow = go.Figure(go.Bar(
                 y=flow_labels,
                 x=flow_values,
@@ -1305,8 +1306,11 @@ with tab1:
                 plot_bgcolor="rgba(0,0,0,0)",
                 xaxis=dict(
                     title="Giá trị tài chính ($)",
+                    zeroline=True,
+                    zerolinewidth=2,
+                    zerolinecolor="#64748b",
                     gridcolor="rgba(148,163,184,0.22)",
-                    range=[0, max_flow_x * 1.24],
+                    range=[min_flow_x * 1.42 - max_flow_x * 0.08, max_flow_x * 1.24],
                 ),
                 yaxis=dict(autorange="reversed", tickfont=dict(size=12)),
             )
